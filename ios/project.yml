@@ -25,11 +25,15 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: Resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
         PRODUCT_NAME: Workdeck
         TARGETED_DEVICE_FAMILY: "1"
+        # 少了这条，altool 会以 90713「Missing CFBundleIconName」拒收整个包，
+        # 而本地构建、归档、签名全都不会报错。
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       configs:
         # 模拟器开发：不签名，省掉每次跑都要解锁 keychain。
         Debug:
