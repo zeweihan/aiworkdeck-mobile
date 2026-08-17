@@ -31,14 +31,34 @@ final class AppModel {
 
     // MARK: - 账号
 
+    /// 选中的归档目标。nil = 还没选，界面走项目选择页。
+    /// 存 UserDefaults 就够——项目 id 不是凭据，泄露它没有意义。
+    var selectedProjectId: Int? {
+        didSet { UserDefaults.standard.set(selectedProjectId ?? 0, forKey: "selectedProjectId") }
+    }
+
     func didLogin(_ result: LoginResult) async {
         account = result.user
-        // 新账号还没有项目，展示名先顶着；等接了项目列表再换成真实项目
-        if result.isNewUser {
-            project = FieldProject(id: "unbound", name: "未选择项目",
-                                   archivePath: "现场影像 / \(AppModel.today)")
-        }
         await refresh()
+    }
+
+    func selectProject(_ p: ProjectSummary) async {
+        selectedProjectId = p.id
+        project = FieldProject(id: String(p.id), name: p.name,
+                               archivePath: "现场影像 / \(AppModel.today)")
+        await UploadQueue.shared.configure(projectId: p.id) { [weak self] in
+            await self?.refresh()
+        }
+        await UploadQueue.shared.kick()
+    }
+
+    /// 拍完立刻踢一脚队列。不等用户手动点上传——现场没人会记得点。
+    func kickUpload() {
+        Task { await UploadQueue.shared.kick() }
+    }
+
+    func retryFailedUploads() {
+        Task { await UploadQueue.shared.retryFailed() }
     }
 
     func signOut() {
@@ -66,9 +86,18 @@ final class AppModel {
         if SessionStore.current != nil, account == nil {
             account = AccountUser(id: 0, username: "", displayName: "", avatarUrl: "", role: "USER")
         }
+        let saved = UserDefaults.standard.integer(forKey: "selectedProjectId")
+        if saved > 0 { selectedProjectId = saved }
+        if let pid = selectedProjectId {
+            await UploadQueue.shared.configure(projectId: pid) { [weak self] in
+                await self?.refresh()
+            }
+        }
         didRestore = true
         try? await EvidenceStore.shared.sweepOrphans()
         await refresh()
+        // 上次没传完的，启动就接着传
+        if selectedProjectId != nil { await UploadQueue.shared.kick() }
     }
 
     func store(data: Data, kind: MediaKind, at: Date, location: (lat: Double, lon: Double, accuracy: Double)?) async {
@@ -78,6 +107,7 @@ final class AppModel {
                 location: location, device: Device.facts
             )
             await refresh()
+            kickUpload()
         } catch {
             lastError = "保存失败：\(error.localizedDescription)"
         }

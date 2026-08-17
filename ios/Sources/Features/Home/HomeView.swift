@@ -51,11 +51,11 @@ struct HomeView: View {
             divider
             count(tally.moving, "传输中", T.S.moving)
             divider
-            count(tally.arrived, "已归档", T.S.arrived)
+            count(tally.arrived, "已上传", T.S.arrived)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "待传 \(tally.waiting) 张，传输中 \(tally.moving) 张，已归档 \(tally.arrived) 张"
+            "待传 \(tally.waiting) 张，传输中 \(tally.moving) 张，已上传 \(tally.arrived) 张"
         )
     }
 

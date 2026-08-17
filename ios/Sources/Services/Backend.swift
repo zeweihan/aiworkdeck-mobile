@@ -92,6 +92,25 @@ struct LoginResult: Decodable {
     let user: AccountUser
 }
 
+/// 项目卡片。后端 ProjectCardDTO 字段远比这里多，只声明用得到的——
+/// 多余的键 JSONDecoder 会安全忽略。
+struct ProjectSummary: Decodable, Identifiable, Hashable, Sendable {
+    let id: Int
+    let name: String
+    let myRole: String?
+}
+
+/// 建文件记录的返回。
+struct RemoteFile: Decodable {
+    let id: Int
+    let name: String
+}
+
+struct CodeOnly: Decodable {
+    let code: Int
+    let message: String?
+}
+
 struct AccountUser: Decodable {
     let id: Int
     let username: String
@@ -131,7 +150,105 @@ actor API {
         SessionStore.current = nil
     }
 
+    // MARK: 项目与上传
+
+    /// 账号下的项目。**注意这个端点返回裸数组，不带 {code,message,data} 信封**，
+    /// 与 auth 那几个端点的形状不一样——照信封解会直接失败。
+    func myProjects() async throws -> [ProjectSummary] {
+        try await getRaw("/api/projects/my", as: [ProjectSummary].self)
+    }
+
+    /// 上传是两段式：先建文件记录拿 id，再把字节 PUT 进去。
+    /// 分成两段的好处是断点续传时不用重建记录，坏处是中途失败会留下空记录——
+    /// 所以建记录放在真正要传的那一刻，不提前批量建。
+    func upload(item: CaptureItem, projectId: Int, fileName: String,
+                progress: @Sendable @escaping (Double) -> Void) async throws {
+        let size = (try? FileManager.default.attributesOfItem(atPath: item.localURL.path)[.size] as? Int64) ?? 0
+        let record = try await postRaw("/api/projects/\(projectId)/files/file",
+                                       body: ["name": fileName,
+                                              "fileType": item.kind == .photo ? "image" : "video",
+                                              "fileSize": String(size ?? 0)],
+                                       as: RemoteFile.self)
+        try await putBytes(fileId: record.id, from: item.localURL, progress: progress)
+    }
+
+    private func putBytes(fileId: Int, from url: URL,
+                          progress: @Sendable @escaping (Double) -> Void) async throws {
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/files/\(fileId)/upload"))
+        req.httpMethod = "POST"
+        let boundary = "awd-\(UUID().uuidString)"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+
+        // 用 fromFile 而不是把整份读进内存：现场录像几百 MB，读进内存会被系统杀掉。
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("up-\(UUID().uuidString)")
+        try makeMultipartFile(at: tmp, boundary: boundary, source: url)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        progress(0.05)
+        let (data, resp) = try await session.upload(for: req, fromFile: tmp)
+        progress(1)
+
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let sc = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(message: "上传失败（\(sc)）")
+        }
+        // 后端这条返回 {code,...}；code 非 0 也算失败
+        if let env = try? JSONDecoder().decode(CodeOnly.self, from: data), env.code != 0 {
+            throw APIError(message: env.message ?? "上传被拒绝")
+        }
+    }
+
+    /// 把 multipart 信封写成磁盘文件，避免整份载荷进内存。
+    private nonisolated func makeMultipartFile(at dst: URL, boundary: String, source: URL) throws {
+        FileManager.default.createFile(atPath: dst.path, contents: nil)
+        let h = try FileHandle(forWritingTo: dst)
+        defer { try? h.close() }
+        let head = "--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(source.lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+        try h.write(contentsOf: Data(head.utf8))
+        let r = try FileHandle(forReadingFrom: source)
+        defer { try? r.close() }
+        while let chunk = try r.read(upToCount: 1 << 20), !chunk.isEmpty {
+            try h.write(contentsOf: chunk)
+        }
+        try h.write(contentsOf: Data("\r\n--\(boundary)--\r\n".utf8))
+    }
+
     // MARK: 传输
+
+    /// 裸响应（无信封）的 GET。
+    private func getRaw<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let (data, resp) = try await send(req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+        }
+        do { return try JSONDecoder().decode(T.self, from: data) }
+        catch { throw APIError(message: "无法解析服务器响应") }
+    }
+
+    /// 裸响应（无信封）的 POST。
+    private func postRaw<T: Decodable>(_ path: String, body: [String: String],
+                                       as type: T.Type) async throws -> T {
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, resp) = try await send(req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+        }
+        do { return try JSONDecoder().decode(T.self, from: data) }
+        catch { throw APIError(message: "无法解析服务器响应") }
+    }
+
+    private func send(_ req: URLRequest) async throws -> (Data, URLResponse) {
+        do { return try await session.data(for: req) }
+        catch { throw APIError(message: "连不上服务器，检查网络后重试") }
+    }
 
     private func post<T: Decodable>(_ path: String,
                                     body: [String: String],

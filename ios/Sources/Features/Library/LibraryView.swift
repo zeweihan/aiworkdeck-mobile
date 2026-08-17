@@ -123,7 +123,7 @@ struct LibraryView: View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             pill(tally.waiting, "待传", T.S.waitingOnDark)
             pill(tally.moving, "传输中", T.S.movingOnDark)
-            pill(tally.arrived, "已归档", T.S.arrivedOnDark)
+            pill(tally.arrived, "已上传", T.S.arrivedOnDark)
         }
         .accessibilityElement(children: .combine)
     }

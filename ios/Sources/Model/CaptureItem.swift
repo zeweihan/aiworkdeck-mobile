@@ -15,16 +15,20 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
         switch self {
         case .waiting: "待传输"
         case .moving: "传输中"
-        case .arrived: "已归档"
+        case .arrived: "已上传"
         case .failed: "失败"
         }
     }
 
+    /// 文案刻意说「已上传」而不是「已归档」「已抵达」：
+    /// 现在只保证进了项目的云端存储，**桌面端拉取那一半还没做**。
+    /// 说「已抵达」会让人以为东西已经在自己电脑上了，那是假的。
+    /// 等桌面端确认落盘的回执做完，再把这里改成「已抵达」。
     var whereItIs: String {
         switch self {
         case .waiting: "在手机上"
         case .moving: "在路上"
-        case .arrived: "已归档"
+        case .arrived: "在项目里"
         case .failed: "需重试"
         }
     }
