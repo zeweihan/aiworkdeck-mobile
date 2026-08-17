@@ -1,0 +1,81 @@
+# 全程走 App Store Connect API Key，不做交互登录、不碰 2FA。
+# Key 是 Admin 角色（创建 Distribution 证书必须 Admin，Developer 角色会卡住）。
+default_platform(:ios)
+
+def asc_key
+  app_store_connect_api_key(
+    key_id:     ENV.fetch("ASC_KEY_ID"),
+    issuer_id:  ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV.fetch("ASC_KEY_PATH"),
+    in_house:   false
+  )
+end
+
+platform :ios do
+  desc "创建 App Store Connect 应用记录（REST API 不支持 CREATE，只能走这条私有通道）"
+  lane :create_app do
+    # produce 走的是老的 Tunes 通道，参数表里没有 api_key；
+    # app_store_connect_api_key 会把 token 设成全局值，试试它能否被隐式取用。
+    asc_key
+    produce(
+      app_identifier: "com.aiworkdeck.mobile",
+      app_name:       ENV["APP_NAME"] || "Workdeck",
+      language:       "English",
+      sku:            "workdeck-mobile-2026",
+      team_id:        ENV.fetch("APPLE_TEAM_ID"),
+      skip_devcenter: true      # Bundle ID 已用 REST API 建好
+    )
+  end
+end
+
+platform :ios do
+  desc "打包并上传 TestFlight"
+  lane :beta do
+    key = asc_key
+
+    # 用专属 keychain，不用 login.keychain——避免 codesign 撞 ACL 弹窗 /
+    # errSecInternalComponent。这台机上 fastlane_build 已经有 Distribution 私钥。
+    kc_path = File.expand_path("~/Library/Keychains/fastlane_build-db")
+    unless File.exist?(kc_path)
+      create_keychain(name: "fastlane_build", password: "fastlane_build",
+                      unlock: true, timeout: 3600, lock_when_sleeps: false)
+    end
+    unlock_keychain(path: "fastlane_build", password: "fastlane_build", set_default: false)
+
+    # 构建号取 TestFlight 上的最新值 +1：ASC 对重复 build 号会报
+    # ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE，Claws 踩过。
+    build = latest_testflight_build_number(
+      api_key: key, app_identifier: "com.aiworkdeck.mobile", initial_build_number: 0
+    ) + 1
+    UI.message("本次 build 号 #{build}")
+    # 不用 increment_build_number 改 xcodeproj——工程是 XcodeGen 从 project.yml 生成的，
+    # 改了下次 generate 就冲掉，build 号永远停在 1，ASC 会按重复号拒收（Claws 踩过）。
+    # 走 xcargs 在构建期注入。
+    sh("cd .. && xcodegen generate --spec ios/project.yml --project ios") rescue nil
+
+    cert(api_key: key, development: false, keychain_path: kc_path,
+         keychain_password: "fastlane_build", output_path: "fastlane/certs")
+    sigh(api_key: key, app_identifier: "com.aiworkdeck.mobile",
+         platform: "ios", output_path: "fastlane/profiles")
+
+    build_app(
+      project: "ios/Workdeck.xcodeproj",
+      scheme: "Workdeck",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "ios/build",
+      xcargs: "CURRENT_PROJECT_VERSION=#{build}",
+      export_options: {
+        signingStyle: "manual",
+        teamID: ENV.fetch("APPLE_TEAM_ID"),
+        provisioningProfiles: { "com.aiworkdeck.mobile" => lane_context[SharedValues::SIGH_NAME] }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "现场拍摄与本地归档：拍照/录像、SHA-256、时间与地点。上传链路未接。"
+    )
+  end
+end

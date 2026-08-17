@@ -23,3 +23,10 @@ shot-*.png
 # Xcode
 ios/Workdeck.xcodeproj/
 ios/Info.plist
+
+fastlane/.env
+fastlane/report.xml
+fastlane/README.md
+ios/build/
+fastlane/certs/
+fastlane/profiles/
