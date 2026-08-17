@@ -26,6 +26,20 @@ private struct RootView: View {
     }
 
     var body: some View {
+        Group {
+            if !model.didRestore {
+                // 恢复会话前先给一张与主界面同色的空屏，避免登录页闪一下再跳走
+                Color(T.L.bg).ignoresSafeArea()
+            } else if !model.isSignedIn {
+                LoginView().environment(model)
+            } else {
+                signedIn
+            }
+        }
+        .animation(T.A.base, value: model.isSignedIn)
+    }
+
+    private var signedIn: some View {
         HomeView(
             project: model.project,
             tally: model.tally,
