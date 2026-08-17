@@ -12,9 +12,12 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: X9B97KVA84        # Zhen Shan Mei Grace Legacy Limited（国际版）
-    CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
+# 签名设置必须写在 target 上，不能写在这里：
+# 项目级的 CODE_SIGN_IDENTITY 会被目标级默认值（iPhone Developer）压掉，
+# 表现是 CODE_SIGN_STYLE 和描述文件都生效了、唯独身份还是 Developer，
+# 然后报「profile doesn't include signing certificate」。见 targets.Workdeck.settings。
 
 targets:
   Workdeck:
@@ -27,12 +30,28 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
         PRODUCT_NAME: Workdeck
         TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        # 模拟器开发：不签名，省掉每次跑都要解锁 keychain。
+        Debug:
+          CODE_SIGN_STYLE: Automatic
+          CODE_SIGNING_REQUIRED: NO
+          CODE_SIGNING_ALLOWED: NO
+        # 发版：手动签名。本账号 0 台注册用于开发的设备，自动签名在归档阶段
+        # 会去要 Development profile 然后撞死（No profiles for ... were found）。
+        # 描述文件由 fastlane sigh 签发，名字固定是 "<bundleid> AppStore"。
+        Release:
+          CODE_SIGN_STYLE: Manual
+          # 带 [sdk=iphoneos*] 的这条才是真正生效的那个；不带限定的压不住
+          # Xcode 默认的 "iPhone Developer"。
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+          "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution"
+          PROVISIONING_PROFILE_SPECIFIER: "com.aiworkdeck.mobile AppStore"
     info:
       path: Info.plist
       properties:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleDisplayName: Workdeck
+        CFBundleDisplayName: AI WorkDeck
         ITSAppUsesNonExemptEncryption: false
 
         # 这几条必须写在 plist 里，不能用 INFOPLIST_KEY_* 构建设置：

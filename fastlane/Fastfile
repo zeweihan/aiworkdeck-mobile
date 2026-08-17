@@ -19,7 +19,7 @@ platform :ios do
     asc_key
     produce(
       app_identifier: "com.aiworkdeck.mobile",
-      app_name:       ENV["APP_NAME"] || "Workdeck",
+      app_name:       ENV["APP_NAME"] || "AI WorkDeck",
       language:       "English",
       sku:            "workdeck-mobile-2026",
       team_id:        ENV.fetch("APPLE_TEAM_ID"),
