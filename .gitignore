@@ -19,3 +19,7 @@ fastlane/.env
 
 # 走查产物
 shot-*.png
+
+# Xcode
+ios/Workdeck.xcodeproj/
+ios/Info.plist
