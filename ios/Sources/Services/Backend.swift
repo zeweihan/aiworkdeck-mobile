@@ -163,11 +163,15 @@ actor API {
     /// 所以建记录放在真正要传的那一刻，不提前批量建。
     func upload(item: CaptureItem, projectId: Int, fileName: String,
                 progress: @Sendable @escaping (Double) -> Void) async throws {
-        let size = (try? FileManager.default.attributesOfItem(atPath: item.localURL.path)[.size] as? Int64) ?? 0
+        let attrs = try? FileManager.default.attributesOfItem(atPath: item.localURL.path)
+        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        // fileSize 必须以 JSON **数字**发出：后端 CreateFileRequest.fileSize 是 Long。
+        // 发成字符串现在能work只是因为 Jackson 默认做强转——那是靠宽容不是靠正确，
+        // 哪天后端收紧 coercion 就会静默炸在建记录这一步。
         let record = try await postRaw("/api/projects/\(projectId)/files/file",
                                        body: ["name": fileName,
                                               "fileType": item.kind == .photo ? "image" : "video",
-                                              "fileSize": String(size ?? 0)],
+                                              "fileSize": size],
                                        as: RemoteFile.self)
         try await putBytes(fileId: record.id, from: item.localURL, progress: progress)
     }
@@ -230,7 +234,7 @@ actor API {
     }
 
     /// 裸响应（无信封）的 POST。
-    private func postRaw<T: Decodable>(_ path: String, body: [String: String],
+    private func postRaw<T: Decodable>(_ path: String, body: [String: Any],
                                        as type: T.Type) async throws -> T {
         var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
