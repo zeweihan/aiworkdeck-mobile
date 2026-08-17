@@ -1,0 +1,60 @@
+<!-- 方向 A：编辑排版 —— 像一份排版考究的法律文书。
+     无卡片、无阴影、无圆角。分区靠发丝线与留白。层级靠字级跨度，不靠颜色。 -->
+<view class="root" style="padding-top: {{m.navTotalHeight}}px;">
+
+  <view class="head">
+    <view class="head__label label">当前项目</view>
+    <view class="head__name">华创科技 A 轮尽调</view>
+  </view>
+
+  <view class="rule"></view>
+
+  <!-- 状态：垂直排列，大 mono 数字左对齐成一列。
+       不用彩色大数字并排——那是财务报表。色只做一个 4rpx 的小点。 -->
+  <view class="stats">
+    <view class="stat" wx:for="{{stats}}" wx:key="key">
+      <view class="stat__dot stat__dot--{{item.key}}"></view>
+      <view class="stat__num mono">{{item.n}}</view>
+      <view class="stat__body">
+        <view class="stat__name">{{item.name}}</view>
+        <view class="stat__where">{{item.where}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="rule"></view>
+
+  <!-- 主行动：全宽一行，不是圆角矩形按钮。克制到只剩排版本身。 -->
+  <view class="act" bindtap="onCapture" hover-class="act--down" hover-stay-time="80">
+    <view class="act__main">
+      <view class="act__title">开始拍摄</view>
+      <view class="act__sub">归档至 现场影像 / 2026-08-17</view>
+    </view>
+    <view class="act__arrow"></view>
+  </view>
+
+  <view class="rule"></view>
+
+  <view class="note">
+    <text class="note__t">每张影像记录拍摄时间、地点、设备与 SHA-256 校验值。</text>
+  </view>
+
+  <view class="sec">
+    <view class="sec__head">
+      <text class="label">最近影像</text>
+      <text class="sec__more">全部</text>
+    </view>
+    <scroll-view class="strip" scroll-x enable-flex show-scrollbar="{{false}}">
+      <view class="thumb" wx:for="{{recent}}" wx:key="id">
+        <view class="thumb__img thumb__img--{{item.kind}}"></view>
+        <view class="thumb__dot thumb__dot--{{item.state}}"></view>
+        <view class="thumb__t mono">{{item.time}}</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="foot">
+    <view class="foot__pulse"></view>
+    <text class="foot__t">桌面端在线 · 12 秒前同步 · MacBook Pro</text>
+  </view>
+</view>

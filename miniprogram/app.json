@@ -1,5 +1,8 @@
 {
   "pages": [
+    "pages/va/va",
+    "pages/vb/vb",
+    "pages/vc/vc",
     "pages/index/index",
     "pages/queue/queue"
   ],

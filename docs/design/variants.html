@@ -1,0 +1,402 @@
+<title>取证界面三版方向</title>
+<style>
+  /* 评审页自身的语汇：仪器规格表。等宽做标题、发丝线分栏、数据右对齐。
+     与被评审的产品同调，但刻意更冷、更静，不跟三个手机屏抢注意力。 */
+  :root {
+    --ground: #E8E9EC;
+    --sheet: #FFFFFF;
+    --ink: #111318;
+    --muted: #6A6F78;
+    --faint: #979CA5;
+    --rule: #D3D5DA;
+    --accent: #1E3A8A;
+    --flag-w: #C2410C;
+    --flag-m: #1E3A8A;
+    --flag-a: #15803D;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "PingFang SC", "HarmonyOS Sans SC", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E0F12;
+      --sheet: #17191D;
+      --ink: #EEEFF1;
+      --muted: #8A8F98;
+      --faint: #666B74;
+      --rule: rgba(255,255,255,0.11);
+      --accent: #7DA2FF;
+      --flag-w: #F97316;
+      --flag-m: #7DA2FF;
+      --flag-a: #4ADE80;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E0F12;
+    --sheet: #17191D;
+    --ink: #EEEFF1;
+    --muted: #8A8F98;
+    --faint: #666B74;
+    --rule: rgba(255,255,255,0.11);
+    --accent: #7DA2FF;
+    --flag-w: #F97316;
+    --flag-m: #7DA2FF;
+    --flag-a: #4ADE80;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 40px 28px 96px; }
+
+  /* ---- 报头 ---- */
+  .mast { border-bottom: 1px solid var(--rule); padding-bottom: 18px; }
+  .mast__row {
+    display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--faint);
+  }
+  .mast__t {
+    font-size: clamp(24px, 3.4vw, 34px); font-weight: 600; letter-spacing: -0.02em;
+    margin: 14px 0 0; text-wrap: balance;
+  }
+  .mast__d { color: var(--muted); font-size: 15px; line-height: 1.65; max-width: 62ch; margin: 10px 0 0; }
+
+  /* ---- 三栏 ---- */
+  .rowscroll { overflow-x: auto; margin-top: 34px; padding-bottom: 8px; }
+  .cols { display: grid; grid-template-columns: repeat(3, 375px); gap: 34px; min-width: min-content; }
+
+  .col__head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .col__code {
+    font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--sheet); background: var(--ink); padding: 3px 7px; border-radius: 2px;
+  }
+  .col__name { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .col__ref { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--faint); letter-spacing: 0.08em; }
+
+  .col__spec { list-style: none; margin: 14px 0 22px; padding: 0; display: grid; gap: 9px; }
+  .col__spec li {
+    display: grid; grid-template-columns: 62px 1fr; gap: 12px;
+    font-size: 13px; line-height: 1.55; color: var(--muted);
+  }
+  .col__spec b {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 500; padding-top: 3px;
+  }
+  .col__spec span { color: var(--ink); }
+
+  /* ---- 机身 ---- */
+  .phone {
+    width: 375px; height: 812px; border-radius: 40px; padding: 9px;
+    background: #1A1C20; box-shadow: 0 18px 50px rgba(0,0,0,0.24); flex-shrink: 0;
+  }
+  .screen { width: 100%; height: 100%; border-radius: 32px; overflow: hidden; position: relative; }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 30px; background: #1A1C20; border-radius: 0 0 18px 18px; z-index: 60;
+  }
+  /* 胶囊按钮：真机上一定在，布局必须让开它 */
+  .capsule {
+    position: absolute; top: 52px; right: 14px; width: 87px; height: 32px; z-index: 55;
+    border: 1px solid rgba(0,0,0,0.10); border-radius: 16px; background: rgba(255,255,255,0.72);
+    display: flex; align-items: center; justify-content: space-around; padding: 0 12px;
+  }
+  .capsule i { width: 4px; height: 4px; border-radius: 50%; background: #2B2F36; display: block; }
+  .capsule--dk { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.14); }
+  .capsule--dk i { background: #E8EAED; }
+
+  /* 小程序内的令牌，与 miniprogram/styles/tokens.wxss 逐值对应（rpx ÷ 2 = px） */
+  .mp {
+    --bg:#FFFFFF; --sunken:#FAFAFA; --fg:#0A0E1A; --fgm:#6B7280; --fgf:#9CA3AF;
+    --r:#ECEEF1; --rs:#D4D8DE; --ac:#1E3A8A; --acw:#F4F6FB;
+    --w:#C2410C; --m:#1E3A8A; --a:#15803D;
+    --dk:#0A0B0D; --dkfg:#F5F6F7; --dkfgm:#8A8F98;
+    --gut:20px; --mono: var(--mono);
+    width:100%; height:100%; overflow:hidden; position:relative;
+    font-family: var(--sans); color: var(--fg); background: var(--bg);
+  }
+  .mp--dark { background: var(--dk); color: var(--dkfg); }
+  .navpad { height: 88px; }
+  .lbl { font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fgf); font-weight:500; }
+  .hair { height:1px; background:var(--r); }
+  .mn { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- A 编辑排版 ---------- */
+  .a-head { padding: 24px var(--gut) 20px; }
+  .a-name { font-size:30px; font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin-top:8px; }
+  .a-stats { padding: 12px var(--gut); }
+  .a-stat { display:flex; align-items:baseline; gap:12px; padding:12px 0; }
+  .a-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; transform:translateY(-3px); }
+  .a-num { font-size:44px; font-weight:300; line-height:1; letter-spacing:-0.04em; min-width:66px; text-align:right; }
+  .a-nm { font-size:15px; line-height:1.3; }
+  .a-wh { font-size:11px; color:var(--fgf); margin-top:1px; }
+  .a-act { display:flex; align-items:center; padding:20px var(--gut); }
+  .a-at { font-size:21px; font-weight:600; color:var(--ac); letter-spacing:-0.01em; }
+  .a-as { font-size:11px; color:var(--fgm); margin-top:4px; }
+  .a-arw { width:8px; height:8px; border-top:1px solid var(--ac); border-right:1px solid var(--ac); transform:rotate(45deg); }
+  .a-note { padding:12px var(--gut) 24px; font-size:11px; color:var(--fgf); line-height:1.7; }
+  .a-sech { display:flex; align-items:baseline; justify-content:space-between; padding:0 var(--gut) 12px; }
+  .a-strip { display:flex; gap:8px; padding-left:var(--gut); }
+  .a-th { position:relative; width:100px; height:100px; border-radius:1px; flex-shrink:0; }
+  .a-tt { position:absolute; left:4px; bottom:4px; font-size:10px; color:var(--fgm); }
+  .a-td { position:absolute; top:4px; left:4px; width:5px; height:5px; border-radius:50%; }
+  .a-foot { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:8px;
+            padding:16px var(--gut); border-top:1px solid var(--r); background:var(--bg); }
+  .a-ft { font-size:10px; color:var(--fgf); letter-spacing:0.02em; }
+
+  /* ---------- B 影像优先 ---------- */
+  .b-mos { display:grid; grid-template-columns:1fr 1fr; gap:1.5px; padding-top:88px; }
+  .b-cell { position:relative; aspect-ratio:1; }
+  .b-cell.wide { grid-column:span 2; aspect-ratio:2/1.1; }
+  .b-cd { position:absolute; top:8px; right:8px; width:5px; height:5px; border-radius:50%; }
+  .b-ct { position:absolute; left:8px; bottom:8px; font-size:10px; color:rgba(255,255,255,0.5); letter-spacing:0.04em; }
+  .b-bar { position:absolute; top:0; left:0; right:0; height:88px; z-index:20; padding:44px 0 0 var(--gut);
+           background:rgba(10,11,13,0.55); backdrop-filter:blur(28px) saturate(160%);
+           -webkit-backdrop-filter:blur(28px) saturate(160%); border-bottom:1px solid rgba(255,255,255,0.10);
+           display:flex; flex-direction:column; justify-content:center; }
+  .b-bn { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+  .b-bm { display:flex; align-items:baseline; gap:3px; margin-top:2px; }
+  .b-n { font-size:13px; font-weight:500; }
+  .b-u { font-size:10px; color:var(--dkfgm); margin-right:8px; }
+  .b-dock { position:absolute; left:0; right:0; bottom:0; z-index:20; display:flex; align-items:center;
+            justify-content:space-between; padding:12px var(--gut) 22px;
+            background:linear-gradient(to top, rgba(10,11,13,0.94) 40%, rgba(10,11,13,0));
+            backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+  .b-side { flex:1; display:flex; align-items:center; gap:4px; }
+  .b-side.r { justify-content:flex-end; }
+  .b-dt { font-size:10px; color:var(--dkfgm); letter-spacing:0.06em; }
+  .b-sh { position:relative; width:66px; height:66px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .b-ring { position:absolute; inset:0; border-radius:50%; border:1.5px solid rgba(255,255,255,0.85); }
+  .b-core { width:52px; height:52px; border-radius:50%; background:#fff; }
+
+  /* ---------- C 仪器极简 ---------- */
+  .c-root { display:flex; flex-direction:column; height:100%; }
+  .c-top { padding:24px var(--gut) 0; }
+  .c-nm { font-size:21px; font-weight:600; letter-spacing:-0.01em; margin-top:8px; }
+  .c-line { margin-top:12px; font-size:13px; display:flex; align-items:baseline; gap:2px; }
+  .c-u { font-size:10px; color:var(--fgf); margin-left:1px; }
+  .c-d { color:var(--rs); margin:0 8px; font-size:11px; }
+  .c-stage { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 0; }
+  .c-dial { position:relative; width:210px; height:210px; display:flex; align-items:center; justify-content:center; }
+  .c-ring { position:absolute; inset:0; border-radius:50%; border:1px solid var(--rs); }
+  .c-tick { position:absolute; inset:0; }
+  .c-tick::before { content:''; position:absolute; top:-1px; left:50%; width:1px; height:8px; margin-left:-0.5px; background:var(--rs); }
+  .c-core { width:150px; height:150px; border-radius:50%; background:var(--fg);
+            display:flex; align-items:center; justify-content:center; }
+  .c-lens { width:58px; height:58px; border-radius:50%; border:1px solid rgba(255,255,255,0.22); }
+  .c-cap { margin-top:24px; font-size:16px; font-weight:600; letter-spacing:0.24em; text-indent:0.24em; }
+  .c-sub { margin-top:4px; font-size:11px; color:var(--fgf); }
+  .c-bot { padding-bottom:32px; }
+  .c-strip { display:flex; gap:4px; padding:0 var(--gut) 20px; }
+  .c-sq { position:relative; flex:1; aspect-ratio:1; border-radius:1px; }
+  .c-sd { position:absolute; top:3px; left:3px; width:4px; height:4px; border-radius:50%; }
+  .c-more { display:flex; align-items:center; justify-content:center; background:var(--sunken);
+            border:1px solid var(--r); font-size:10px; color:var(--fgm); }
+  .c-foot { display:flex; align-items:center; justify-content:space-between; padding:12px var(--gut) 0; }
+  .c-fl { display:flex; align-items:center; gap:4px; }
+  .c-ft { font-size:10px; color:var(--fgm); letter-spacing:0.04em; }
+
+  .pulse { width:4px; height:4px; border-radius:50%; background:var(--a); }
+  .doc { background:#EDEFF2; } .scene { background:#E7EAE8; }
+  .ddoc { background:linear-gradient(145deg,#2A2E35,#1B1E23); }
+  .dscene { background:linear-gradient(145deg,#2C312D,#1C201D); }
+  .fw { color:var(--w); } .fm { color:var(--m); } .fa { color:var(--a); }
+  .bw { background:var(--w); } .bm { background:var(--m); } .ba { background:var(--a); }
+  .lw { color:#F97316; } .lm { color:#60A5FA; } .la { color:#4ADE80; }
+  .lbw { background:#F97316; } .lbm { background:#60A5FA; } .lba { background:#4ADE80; }
+
+  /* ---- 页脚 ---- */
+  .foot { margin-top:52px; border-top:1px solid var(--rule); padding-top:20px; }
+  .foot h2 { font-family:var(--mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+             color:var(--faint); font-weight:500; margin:0 0 12px; }
+  .foot ul { margin:0; padding-left:18px; color:var(--muted); font-size:14px; line-height:1.75; max-width:74ch; }
+  .foot li + li { margin-top:5px; }
+  .foot b { color:var(--ink); font-weight:600; }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="mast__row">
+      <span>AI Workdeck 移动端</span><span>主界面方向</span><span>2026-08-17</span><span>微信小程序 · 浅色侧</span>
+    </div>
+    <h1 class="mast__t">取证界面三版方向</h1>
+    <p class="mast__d">
+      三版都走器械感，差别在信息如何组织、以及主控件的形态。共同点是全部去掉了初版的浅灰底加白卡片
+      ——那是后台仪表盘的语汇。分区改为纯白底加发丝线，层级靠字级跨度而不是颜色。
+    </p>
+  </header>
+
+  <div class="rowscroll">
+    <div class="cols">
+
+      <!-- ============ A ============ -->
+      <section>
+        <div class="col__head">
+          <span class="col__code">A</span>
+          <span class="col__name">编辑排版</span>
+          <span class="col__ref">pages/va</span>
+        </div>
+        <ul class="col__spec">
+          <li><b>气质</b><span>排版考究的法律文书</span></li>
+          <li><b>数字</b><span>44px 细字重，右对齐成一竖列，像账簿</span></li>
+          <li><b>主控件</b><span>全宽一行，无按钮形状</span></li>
+          <li><b>取舍</b><span>信息最全；但没有强视觉焦点</span></li>
+        </ul>
+
+        <div class="phone"><div class="screen"><div class="mp">
+          <div class="notch"></div><div class="capsule"><i></i><i></i><i></i></div>
+          <div class="navpad"></div>
+          <div class="a-head">
+            <div class="lbl">当前项目</div>
+            <div class="a-name">华创科技 A 轮尽调</div>
+          </div>
+          <div class="hair"></div>
+          <div class="a-stats">
+            <div class="a-stat"><span class="a-dot bw"></span><span class="a-num mn">12</span>
+              <div><div class="a-nm">待传输</div><div class="a-wh">在手机上</div></div></div>
+            <div class="a-stat"><span class="a-dot bm"></span><span class="a-num mn">3</span>
+              <div><div class="a-nm">传输中</div><div class="a-wh">在路上</div></div></div>
+            <div class="a-stat"><span class="a-dot ba"></span><span class="a-num mn">148</span>
+              <div><div class="a-nm">已归档</div><div class="a-wh">现场影像 / 08-17</div></div></div>
+          </div>
+          <div class="hair"></div>
+          <div class="a-act">
+            <div style="flex:1"><div class="a-at">开始拍摄</div><div class="a-as">归档至 现场影像 / 2026-08-17</div></div>
+            <span class="a-arw"></span>
+          </div>
+          <div class="hair"></div>
+          <div class="a-note">每张影像记录拍摄时间、地点、设备与 SHA-256 校验值。</div>
+          <div class="a-sech"><span class="lbl">最近影像</span><span style="font-size:11px;color:var(--fgm)">全部</span></div>
+          <div class="a-strip">
+            <div class="a-th doc"><span class="a-td ba"></span><span class="a-tt mn">14:22</span></div>
+            <div class="a-th doc"><span class="a-td ba"></span><span class="a-tt mn">14:21</span></div>
+            <div class="a-th scene"><span class="a-td bm"></span><span class="a-tt mn">14:19</span></div>
+            <div class="a-th doc"><span class="a-td bw"></span><span class="a-tt mn">14:18</span></div>
+          </div>
+          <div class="a-foot"><span class="pulse"></span><span class="a-ft">桌面端在线 · 12 秒前同步 · MacBook Pro</span></div>
+        </div></div></div>
+      </section>
+
+      <!-- ============ B ============ -->
+      <section>
+        <div class="col__head">
+          <span class="col__code">B</span>
+          <span class="col__name">影像优先</span>
+          <span class="col__ref">pages/vb</span>
+        </div>
+        <ul class="col__spec">
+          <li><b>气质</b><span>接触印相的样张，深色</span></li>
+          <li><b>数字</b><span>退到顶部玻璃条，13px 一行</span></li>
+          <li><b>主控件</b><span>悬浮圆形快门，物理相机语汇</span></li>
+          <li><b>取舍</b><span>唯一真正用上毛玻璃的一版；信息密度最低</span></li>
+        </ul>
+
+        <div class="phone"><div class="screen"><div class="mp mp--dark">
+          <div class="notch"></div><div class="capsule capsule--dk"><i></i><i></i><i></i></div>
+          <div class="b-mos">
+            <div class="b-cell wide ddoc"><span class="b-cd lba"></span><span class="b-ct mn">14:22</span></div>
+            <div class="b-cell ddoc"><span class="b-cd lba"></span><span class="b-ct mn">14:21</span></div>
+            <div class="b-cell dscene"><span class="b-cd lbm"></span><span class="b-ct mn">14:19</span></div>
+            <div class="b-cell ddoc"><span class="b-cd lbw"></span><span class="b-ct mn">14:18</span></div>
+            <div class="b-cell dscene"><span class="b-cd lbw"></span><span class="b-ct mn">14:16</span></div>
+            <div class="b-cell wide ddoc"><span class="b-cd lba"></span><span class="b-ct mn">14:11</span></div>
+          </div>
+          <div class="b-bar">
+            <div class="b-bn">华创科技 A 轮尽调</div>
+            <div class="b-bm">
+              <span class="mn b-n lw">12</span><span class="b-u">待传</span>
+              <span class="mn b-n lm">3</span><span class="b-u">传输中</span>
+              <span class="mn b-n la">148</span><span class="b-u">已归档</span>
+            </div>
+          </div>
+          <div class="b-dock">
+            <div class="b-side"><span class="pulse lba"></span><span class="b-dt">桌面端在线</span></div>
+            <div class="b-sh"><span class="b-ring"></span><span class="b-core"></span></div>
+            <div class="b-side r"><span class="b-dt">现场影像 08-17</span></div>
+          </div>
+        </div></div></div>
+      </section>
+
+      <!-- ============ C ============ -->
+      <section>
+        <div class="col__head">
+          <span class="col__code">C</span>
+          <span class="col__name">仪器极简</span>
+          <span class="col__ref">pages/vc</span>
+        </div>
+        <ul class="col__spec">
+          <li><b>气质</b><span>只有一个按钮的器械，Braun 语汇</span></li>
+          <li><b>数字</b><span>顶部一行 13px 等宽，不喊</span></li>
+          <li><b>主控件</b><span>210px 转盘，四刻度 + 镜头环</span></li>
+          <li><b>取舍</b><span>最快能用；留白最多，单手最好按</span></li>
+        </ul>
+
+        <div class="phone"><div class="screen"><div class="mp">
+          <div class="notch"></div><div class="capsule"><i></i><i></i><i></i></div>
+          <div class="c-root">
+            <div class="navpad"></div>
+            <div class="c-top">
+              <div class="lbl">当前项目</div>
+              <div class="c-nm">华创科技 A 轮尽调</div>
+              <div class="c-line mn">
+                <span class="fw" style="font-weight:500">12</span><span class="c-u">待传</span>
+                <span class="c-d">/</span>
+                <span class="fm" style="font-weight:500">3</span><span class="c-u">传输中</span>
+                <span class="c-d">/</span>
+                <span class="fa" style="font-weight:500">148</span><span class="c-u">已归档</span>
+              </div>
+            </div>
+            <div class="c-stage">
+              <div class="c-dial">
+                <span class="c-ring"></span>
+                <span class="c-tick"></span><span class="c-tick" style="transform:rotate(90deg)"></span>
+                <span class="c-tick" style="transform:rotate(180deg)"></span><span class="c-tick" style="transform:rotate(270deg)"></span>
+                <span class="c-core"><span class="c-lens"></span></span>
+              </div>
+              <div class="c-cap">拍摄</div>
+              <div class="c-sub">归档至 现场影像 / 2026-08-17</div>
+            </div>
+            <div class="c-bot">
+              <div class="c-strip">
+                <div class="c-sq doc"><span class="c-sd ba"></span></div>
+                <div class="c-sq doc"><span class="c-sd ba"></span></div>
+                <div class="c-sq scene"><span class="c-sd bm"></span></div>
+                <div class="c-sq doc"><span class="c-sd bw"></span></div>
+                <div class="c-sq scene"><span class="c-sd bw"></span></div>
+                <div class="c-sq c-more mn">+143</div>
+              </div>
+              <div class="hair"></div>
+              <div class="c-foot">
+                <div class="c-fl"><span class="pulse"></span><span class="c-ft">桌面端在线 · 12 秒前</span></div>
+                <span class="c-ft" style="color:var(--fgf)">SHA-256 · GPS · 时间戳</span>
+              </div>
+            </div>
+          </div>
+        </div></div></div>
+      </section>
+
+    </div>
+  </div>
+
+  <footer class="foot">
+    <h2>初版为什么被否</h2>
+    <ul>
+      <li><b>浅灰底加白卡片加阴影</b>，三个卡片垂直堆叠 —— 后台仪表盘语汇，视觉吵且没有层次，只是把内容装进盒子摞起来。</li>
+      <li><b>三个彩色大数字并排配竖分隔线</b> —— 像财务报表。这一版全部改为色只做小点，数字靠字级和位置建立秩序。</li>
+      <li><b>蓝色渐变圆角大按钮</b> —— 营销落地页的东西，塑料感。三版分别改成全宽排版行、物理快门、转盘。</li>
+      <li><b>毛玻璃用在纯色背景上等于白做</b> —— 玻璃需要下面有影像可透。只有 B 版真正成立。</li>
+      <li>缩略图占位是灰绿灰蓝色块，看着像图裂了。现在统一压到近中性、直角、极窄缝。</li>
+    </ul>
+
+    <h2 style="margin-top:26px">还没做的</h2>
+    <ul>
+      <li>拍摄页、队列页、文件页 —— 等主界面方向定了再一次做完，避免返工。</li>
+      <li>深色侧（取景与影像浏览）的完整色板 —— B 版已经是深色，可直接扩展。</li>
+      <li>安卓上 <code>backdrop-filter</code> 的实机验证。中低端机会降级为实色加顶边高光，B 版受影响最大。</li>
+    </ul>
+  </footer>
+</div>

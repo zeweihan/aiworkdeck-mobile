@@ -1,0 +1,153 @@
+.root {
+  min-height: 100vh;
+  background: var(--dk-bg);
+}
+
+/* ---- 影像马赛克 ------------------------------------------------------ */
+.mosaic {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rpx;                      /* 极窄的缝——像接触印相的样张，不像卡片列表 */
+  padding-bottom: 260rpx;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  animation: rise var(--d-slow) var(--e-out) both;
+}
+
+.cell--wide { grid-column: span 2; aspect-ratio: 2 / 1.1; }
+
+/* 占位色。接真图后删掉，比例与圆角保持不变。 */
+.cell--doc   { background: linear-gradient(145deg, #2A2E35 0%, #1B1E23 100%); }
+.cell--scene { background: linear-gradient(145deg, #2C312D 0%, #1C201D 100%); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 20rpx, 0) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.cell__dot {
+  position: absolute;
+  top: var(--s2);
+  right: var(--s2);
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+}
+.cell__dot--waiting { background: #F97316; }
+.cell__dot--moving  { background: #60A5FA; }
+.cell__dot--arrived { background: #4ADE80; }
+
+.cell__t {
+  position: absolute;
+  left: var(--s2);
+  bottom: var(--s2);
+  font-size: var(--t-nano);
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.04em;
+}
+
+/* ---- 顶部玻璃条 ------------------------------------------------------ */
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: rgba(10, 11, 13, 0.55);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-bottom: 1rpx solid var(--dk-rule);
+}
+
+.bar__in {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: var(--gutter);
+}
+
+.bar__name {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  color: var(--dk-fg);
+  letter-spacing: -0.01em;
+}
+
+.bar__meta { display: flex; align-items: baseline; gap: 6rpx; margin-top: 4rpx; }
+
+.bar__n { font-size: var(--t-small); font-weight: 500; }
+.bar__n--waiting { color: #F97316; }
+.bar__n--moving  { color: #60A5FA; }
+.bar__n--arrived { color: #4ADE80; }
+
+.bar__sep {
+  font-size: var(--t-nano);
+  color: var(--dk-fg-muted);
+  margin-right: var(--s2);
+}
+
+/* ---- 底部玻璃座 ------------------------------------------------------ */
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s3) var(--gutter) 0;
+  background: linear-gradient(to top, rgba(10, 11, 13, 0.92) 40%, rgba(10, 11, 13, 0));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dock__side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+.dock__side--r { justify-content: flex-end; }
+
+.dock__pulse {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #4ADE80;
+}
+
+.dock__t { font-size: var(--t-nano); color: var(--dk-fg-muted); letter-spacing: 0.06em; }
+.dock__t--faint { color: rgba(255, 255, 255, 0.28); margin-left: var(--s1); }
+
+/* ---- 快门 ------------------------------------------------------------
+ * 物理相机的快门语汇：外环 + 内芯，按下内芯收缩。不用图标。 */
+.shutter {
+  position: relative;
+  width: 132rpx;
+  height: 132rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shutter__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 255, 255, 0.85);
+}
+
+.shutter__core {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  transition: transform var(--d-fast) var(--e-out);
+}
+
+.shutter--down .shutter__core { transform: scale(0.86); }
