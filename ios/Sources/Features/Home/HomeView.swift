@@ -12,6 +12,8 @@ struct HomeView: View {
 
     var onCapture: () -> Void
     var onOpenLibrary: () -> Void
+    var onOpenQueue: () -> Void
+    var onOpenSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +30,18 @@ struct HomeView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Eyebrow(text: "当前项目")
+            HStack {
+                Eyebrow(text: "当前项目")
+                Spacer()
+                Button(action: onOpenSettings) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(T.L.fgFaint)
+                        .frame(width: T.touchMin, height: 28, alignment: .trailing)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("设置")
+            }
 
             Text(project.name)
                 .font(T.F.title())
@@ -53,10 +66,16 @@ struct HomeView: View {
             divider
             count(tally.arrived, "已上传", T.S.arrived)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenQueue)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "待传 \(tally.waiting) 张，传输中 \(tally.moving) 张，已上传 \(tally.arrived) 张"
         )
+        .accessibilityHint("查看上传队列")
+        .accessibilityAddTraits(.isButton)
     }
 
     private func count(_ n: Int, _ label: String, _ color: Color) -> some View {
@@ -247,6 +266,8 @@ private struct ShutterDial: View {
         link: DemoData.link,
         recent: DemoData.recent,
         onCapture: {},
-        onOpenLibrary: {}
+        onOpenLibrary: {},
+        onOpenQueue: {},
+        onOpenSettings: {}
     )
 }

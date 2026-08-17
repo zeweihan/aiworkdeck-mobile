@@ -81,16 +81,26 @@ actor EvidenceStore {
         // 3. manifest 最后写。它存在 == 这条记录完整。
         let item = CaptureItem(
             id: id, kind: kind, state: .waiting,
-            manifest: manifest, localURL: url, progress: 0
+            manifest: manifest, localURL: url, progress: 0,
+            lastError: nil, savedToAlbum: false
         )
         try writeManifest(item)
         return item
     }
 
-    func updateState(_ id: UUID, to state: TransferState, progress: Double = 0) throws {
+    func updateState(_ id: UUID, to state: TransferState, progress: Double = 0,
+                     error: String? = nil) throws {
         guard var item = try? loadOne(id) else { return }
         item.state = state
         item.progress = progress
+        // 成功时清掉旧的失败原因，否则界面会一直挂着上次那条已经不成立的错
+        item.lastError = state == .failed ? error : nil
+        try writeManifest(item)
+    }
+
+    func markSavedToAlbum(_ id: UUID) throws {
+        guard var item = try? loadOne(id) else { return }
+        item.savedToAlbum = true
         try writeManifest(item)
     }
 
@@ -148,12 +158,16 @@ actor EvidenceStore {
             state: row.state,
             manifest: row.manifest,
             localURL: mediaDir.appendingPathComponent("\(row.manifest.clientMediaId.uuidString).\(ext)"),
-            progress: row.progress
+            progress: row.progress,
+            lastError: row.lastError,
+            savedToAlbum: row.savedToAlbum ?? false
         )
     }
 
     private func writeManifest(_ item: CaptureItem) throws {
-        let row = StoredRow(kind: item.kind, state: item.state, progress: item.progress, manifest: item.manifest)
+        let row = StoredRow(kind: item.kind, state: item.state, progress: item.progress,
+                            manifest: item.manifest, lastError: item.lastError,
+                            savedToAlbum: item.savedToAlbum)
         let u = manifestDir.appendingPathComponent("\(item.id.uuidString).json")
         try JSONEncoder.iso.encode(row).write(to: u, options: .atomic)
     }
@@ -175,6 +189,9 @@ private struct StoredRow: Codable {
     let state: TransferState
     let progress: Double
     let manifest: CaptureManifest
+    // 后加的两个字段用可选 + 默认值：老记录没有它们，解码不能因此整条失败
+    var lastError: String?
+    var savedToAlbum: Bool?
 }
 
 struct DeviceFacts: Sendable {

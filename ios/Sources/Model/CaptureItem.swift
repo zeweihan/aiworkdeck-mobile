@@ -73,6 +73,11 @@ struct CaptureItem: Identifiable, Sendable {
     let localURL: URL
     /// 上传进度 0...1，仅 .moving 时有意义
     var progress: Double
+    /// 上次失败原因。队列页要显示「为什么失败」——只给一个红点，
+    /// 用户既不知道该重试还是该找人，也不知道是自己网络的问题还是我们的问题。
+    var lastError: String?
+    /// 是否已存进系统相册（开关打开时）。避免重复写入相册。
+    var savedToAlbum: Bool
 
     var capturedAt: Date { manifest.capturedAt }
 }

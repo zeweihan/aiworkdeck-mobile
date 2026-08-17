@@ -61,6 +61,20 @@ final class AppModel {
         Task { await UploadQueue.shared.retryFailed() }
     }
 
+    /// 单条重试。队列页每行都有，不用为了一条失败去点「全部重试」。
+    func retry(_ item: CaptureItem) {
+        Task {
+            try? await EvidenceStore.shared.updateState(item.id, to: .waiting, progress: 0)
+            await refresh()
+            await UploadQueue.shared.kick()
+        }
+    }
+
+    /// 切项目：清掉选择回到选择页。不动已拍的影像，它们仍属于原项目的队列。
+    func clearProjectSelection() {
+        selectedProjectId = nil
+    }
+
     func signOut() {
         API.shared.logout()
         account = nil
@@ -108,10 +122,30 @@ final class AppModel {
             )
             await refresh()
             kickUpload()
+            await saveToAlbumIfEnabled()
         } catch {
             lastError = "保存失败：\(error.localizedDescription)"
         }
     }
 
+    /// 存进系统相册（开关打开时）。**与上传彼此独立**——
+    /// 相册存不进去不该影响上传，反之亦然，两条链任何一条断了另一条都要继续走。
+    private func saveToAlbumIfEnabled() async {
+        guard Prefs.saveToAlbum else { return }
+        let pending = items.filter { !$0.savedToAlbum }
+        for item in pending {
+            do {
+                try await AlbumSaver.save(url: item.localURL, kind: item.kind)
+                try? await EvidenceStore.shared.markSavedToAlbum(item.id)
+            } catch {
+                // 不打断、不弹窗。相册失败最常见的原因是没给权限，
+                // 设置页里已经把这件事说清楚了，这里再弹一次是噪音。
+                albumWarning = error.localizedDescription
+            }
+        }
+        await refresh()
+    }
+
+    var albumWarning: String?
     var lastError: String?
 }

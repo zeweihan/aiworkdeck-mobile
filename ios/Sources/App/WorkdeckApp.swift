@@ -21,7 +21,7 @@ private struct RootView: View {
     @State private var route: Route?
 
     private enum Route: Hashable, Identifiable {
-        case capture, library
+        case capture, library, queue, settings
         var id: Self { self }
     }
 
@@ -50,7 +50,9 @@ private struct RootView: View {
             link: model.link,
             recent: model.items,
             onCapture: { route = .capture },
-            onOpenLibrary: { route = .library }
+            onOpenLibrary: { route = .library },
+            onOpenQueue: { route = .queue },
+            onOpenSettings: { route = .settings }
         )
         .fullScreenCover(item: $route) { r in
             switch r {
@@ -58,6 +60,10 @@ private struct RootView: View {
                 CaptureView(onClose: { route = nil })
                     .environment(model)
                     .preferredColorScheme(.dark)
+            case .queue:
+                QueueView(onClose: { route = nil }).environment(model)
+            case .settings:
+                SettingsView(onClose: { route = nil }).environment(model)
             case .library:
                 LibraryView(
                     project: model.project,

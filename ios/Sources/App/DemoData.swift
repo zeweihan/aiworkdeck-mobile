@@ -51,7 +51,9 @@ enum DemoData {
                     tsaToken: nil
                 ),
                 localURL: URL(fileURLWithPath: "/dev/null"),
-                progress: progress
+                progress: progress,
+                lastError: state == .failed ? "连不上服务器，检查网络后重试" : nil,
+                savedToAlbum: false
             )
         }
     }()

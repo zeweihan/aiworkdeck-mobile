@@ -1,0 +1,122 @@
+import SwiftUI
+
+/// 上传队列。存在的理由只有一个：**出事的时候能看懂、能自救。**
+/// 只给一个红点，用户既不知道该重试还是该找人，也不知道是自己网络的问题还是我们的问题。
+struct QueueView: View {
+    @Environment(AppModel.self) private var model
+    var onClose: () -> Void
+
+    private var failed: [CaptureItem] { model.items.filter { $0.state == .failed } }
+    private var active: [CaptureItem] { model.items.filter { $0.state == .waiting || $0.state == .moving } }
+    private var done: [CaptureItem] { model.items.filter { $0.state == .arrived } }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    if !failed.isEmpty { section("失败 · 需要处理", failed, tint: T.S.failed) }
+                    if !active.isEmpty { section("排队中", active, tint: T.S.moving) }
+                    if !done.isEmpty { section("已上传", done, tint: T.S.arrived) }
+                    if model.items.isEmpty { empty }
+                }
+                .padding(.horizontal, T.Sp.gutter)
+            }
+            .background(T.L.bg)
+            .navigationTitle("上传队列")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("关闭", action: onClose)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !failed.isEmpty {
+                        Button("全部重试") { model.retryFailedUploads() }
+                            .font(T.F.small())
+                    }
+                }
+            }
+        }
+    }
+
+    private func section(_ title: String, _ items: [CaptureItem], tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Eyebrow(text: title)
+                Spacer()
+                Text("\(items.count)")
+                    .font(T.F.mono(11, .medium))
+                    .foregroundStyle(tint)
+            }
+            .padding(.top, T.Sp.s6)
+            .padding(.bottom, T.Sp.s2)
+
+            ForEach(items) { item in
+                row(item)
+                Hairline()
+            }
+        }
+    }
+
+    private func row(_ item: CaptureItem) -> some View {
+        HStack(alignment: .top, spacing: T.Sp.s3) {
+            ThumbPlaceholder(kind: item.kind)
+                .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: T.Sp.s1) {
+                    StatusDot(state: item.state, size: 5)
+                    Text(item.state.caption)
+                        .font(T.F.small())
+                        .foregroundStyle(T.L.fg)
+                    Text(RelativeTime.clock(item.capturedAt))
+                        .font(T.F.mono(11))
+                        .foregroundStyle(T.L.fgFaint)
+                }
+
+                if item.state == .moving {
+                    ProgressView(value: max(item.progress, 0.05))
+                        .tint(T.S.moving)
+                        .padding(.top, 2)
+                }
+
+                // 失败原因照实显示。区分「你的网络」与「我们这边」，
+                // 用户才知道是该换个地方重试还是该找人。
+                if let err = item.lastError, item.state == .failed {
+                    Text(err)
+                        .font(T.F.nano())
+                        .foregroundStyle(T.S.failed)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 1)
+                }
+
+                // 哈希前 12 位。要核对时不用进详情页。
+                Text(item.manifest.sha256.prefix(12))
+                    .font(T.F.mono(10))
+                    .foregroundStyle(T.L.fgFaint)
+                    .padding(.top, 1)
+            }
+
+            Spacer(minLength: 0)
+
+            if item.state == .failed {
+                Button("重试") { model.retry(item) }
+                    .font(T.F.micro())
+                    .foregroundStyle(T.L.accent)
+            }
+        }
+        .padding(.vertical, T.Sp.s3)
+    }
+
+    private var empty: some View {
+        VStack(alignment: .leading, spacing: T.Sp.s2) {
+            Text("还没有拍摄的影像")
+                .font(T.F.body())
+                .foregroundStyle(T.L.fg)
+            Text("拍摄后会自动排队上传到当前项目。")
+                .font(T.F.micro())
+                .foregroundStyle(T.L.fgFaint)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, T.Sp.s16)
+    }
+}
