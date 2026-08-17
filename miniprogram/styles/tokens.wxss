@@ -1,0 +1,87 @@
+/* AI Workdeck Mobile — 设计令牌
+ *
+ * 单一来源。所有页面与组件只许引用变量，不许写死颜色/间距。
+ * iOS 端有一份逐值对应的 Swift 版本（ios/Sources/DesignTokens.swift），
+ * 两边由 scripts/check-tokens.mjs 校验一致。改这里必须同步那边。
+ */
+
+page {
+  /* ---- 色板：权威藏青 + 琥珀 ---------------------------------------- */
+  --color-primary: #1E3A8A;        /* 主色，导航、主按钮 */
+  --color-primary-deep: #172554;   /* 按下态、深色压边 */
+  --color-primary-soft: #EEF2FB;   /* 主色的极浅底，用于选中行 */
+  --color-on-primary: #FFFFFF;
+
+  --color-accent: #B45309;         /* 琥珀。只表示「等待中/待处理」，不作装饰 */
+  --color-accent-soft: #FEF3E2;
+
+  /* ---- 中性 ---------------------------------------------------------- */
+  --color-bg: #F8FAFC;             /* 页面底 */
+  --color-surface: #FFFFFF;        /* 卡片、列表 */
+  --color-fg: #0F172A;             /* 正文 */
+  --color-fg-muted: #475569;       /* 次要文字，对 --color-surface 为 7.5:1 */
+  --color-fg-faint: #94A3B8;       /* 仅用于非关键的辅助信息，不承载语义 */
+  --color-border: #E2E8F0;         /* 常规分隔 */
+  --color-border-strong: #CBD5E1;  /* 输入框、需要被看见的边界 */
+
+  /* ---- 状态：这个 App 的主线叙事就是「照片在哪」 ---------------------- */
+  --color-state-waiting: #B45309;  /* 在手机上，还没传 */
+  --color-state-moving: #1E3A8A;   /* 正在上传 */
+  --color-state-arrived: #15803D;  /* 已落到电脑上的项目目录 */
+  --color-state-failed: #DC2626;
+
+  /* ---- 间距：8 基准，标准密度 ---------------------------------------- */
+  --space-1: 8rpx;
+  --space-2: 16rpx;
+  --space-3: 24rpx;
+  --space-4: 32rpx;
+  --space-6: 48rpx;
+  --space-8: 64rpx;
+  --space-12: 96rpx;
+
+  /* ---- 圆角 ---------------------------------------------------------- */
+  --radius-sm: 8rpx;
+  --radius-md: 16rpx;
+  --radius-lg: 24rpx;
+  --radius-full: 9999rpx;
+
+  /* ---- 字号：用 px 不用 rpx ------------------------------------------
+   * rpx 会随屏宽缩放，小屏上正文会掉到 14px 以下。字号固定，只有布局跟着屏宽走。
+   */
+  --font-display: 28px;
+  --font-title: 20px;
+  --font-heading: 17px;
+  --font-body: 16px;
+  --font-caption: 13px;
+  --font-micro: 11px;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* 中文界面用苹方（iOS 自带）/ 思源黑体（安卓自带），零加载成本。
+   * 格调不靠衬线体撑——小屏上衬线可读性差。靠字距、留白、层级和克制的色彩。 */
+  --font-sans: system-ui, -apple-system, "PingFang SC", "HarmonyOS Sans SC",
+               "Source Han Sans SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  /* 哈希、时间戳、坐标一律等宽——取证信息要能逐字符核对 */
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ---- 高度 ---------------------------------------------------------- */
+  --elev-1: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
+  --elev-2: 0 8rpx 24rpx rgba(15, 23, 42, 0.08);
+  --elev-3: 0 16rpx 48rpx rgba(15, 23, 42, 0.12);
+
+  /* ---- 动效 ----------------------------------------------------------
+   * 150-300ms。动效只用来表达「照片正在离开手机 / 在路上 / 已抵达」。
+   * 不做装饰性动画。
+   */
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 300ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);      /* 浮现、进入 */
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);        /* 退出，比进入快 */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* 仅用于确认反馈 */
+
+  /* ---- 触控：最小 44x44pt 是硬指标 ------------------------------------ */
+  --touch-min: 88rpx;   /* 44pt @ 750rpx 基准 */
+  --touch-gap: 16rpx;   /* 相邻可点区域最小间距 */
+}

@@ -1,0 +1,46 @@
+@import './styles/tokens.wxss';
+@import './styles/glass.wxss';
+
+page {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
+  line-height: var(--leading-normal);
+  /* 现场光线差，字重稍轻反而更清晰；抗锯齿交给系统 */
+  -webkit-font-smoothing: antialiased;
+}
+
+view, text, button, input {
+  box-sizing: border-box;
+}
+
+/* 所有可点区域最小 44pt。这条是硬指标，不是建议。 */
+.tappable {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 按下反馈：120ms 内必须有视觉响应，否则用户会重复点 */
+.tappable:active {
+  opacity: 0.6;
+  transform: scale(0.97);
+  transition: opacity var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+
+/* 等宽：哈希、时间戳、坐标 —— 取证信息要能逐字符核对 */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 细分隔线。1rpx 在高密度屏上就是真正的一物理像素 */
+.hairline {
+  height: 1rpx;
+  background: var(--color-border);
+}

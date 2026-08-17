@@ -1,0 +1,4 @@
+{
+  "desc": "内部工具，不索引",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

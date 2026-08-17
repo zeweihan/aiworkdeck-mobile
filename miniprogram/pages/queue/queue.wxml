@@ -1,0 +1,7 @@
+<nav-bar title="上传队列" subtitle="12 等待 · 3 上传中" show-back="{{true}}" />
+<view class="page">
+  <view class="empty">
+    <text class="empty__title">队列页开发中</text>
+    <text class="empty__text">这里会显示每张影像的上传进度、失败重试，以及桌面端确认落盘的回执。</text>
+  </view>
+</view>

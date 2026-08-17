@@ -1,0 +1,39 @@
+{
+  "appid": "touristappid",
+  "projectname": "AI Workdeck 移动端",
+  "description": "现场取证拍摄、同步归档到项目目录、文件管理",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "libVersion": "3.5.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "bigPackageSizeSupport": true,
+    "useCompilerPlugins": [
+      "typescript"
+    ],
+    "ignoreUploadUnusedFiles": true,
+    "minifyWXML": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "项目首页",
+          "pathName": "pages/index/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "上传队列",
+          "pathName": "pages/queue/queue",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  }
+}

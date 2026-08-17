@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "types": ["miniprogram-api-typings"],
+    "skipLibCheck": true
+  },
+  "include": ["./miniprogram/**/*.ts"],
+  "exclude": ["node_modules"]
+}

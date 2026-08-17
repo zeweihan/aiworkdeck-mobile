@@ -1,0 +1,78 @@
+<nav-bar
+  title="{{project.name}}"
+  subtitle="归档至 {{project.archivePath}}"
+  scroll-top="{{scrollTop}}"
+  bind:titletap="onSwitchProject"
+/>
+
+<view class="page">
+
+  <!-- 桌面端连接状态。这条决定了照片今天到底能不能落地，所以放在最上面。 -->
+  <view class="link rise {{glassMode === 'solid' ? 'glass--solid' : ''}} {{desktop.online ? '' : 'link--offline'}}">
+    <image class="link__icon" src="{{desktop.online ? Icon.monitorNavy : Icon.monitorSlate}}" mode="aspectFit" />
+    <view class="link__text">
+      <view class="link__title">{{desktop.online ? '桌面端在线' : '桌面端离线'}}</view>
+      <view class="link__meta">{{desktop.detail}}</view>
+    </view>
+    <view class="link__pulse {{desktop.online ? 'link__pulse--on' : ''}}"></view>
+  </view>
+
+  <!-- 状态三联：这个 App 的主线叙事就是「照片在哪」 -->
+  <view class="states rise rise-1">
+    <view class="state" bindtap="onOpenQueue">
+      <view class="state__num state__num--waiting">{{counts.waiting}}</view>
+      <view class="state__label">等待中</view>
+      <view class="state__hint">在手机上</view>
+    </view>
+    <view class="state__div"></view>
+    <view class="state" bindtap="onOpenQueue">
+      <view class="state__num state__num--moving">{{counts.moving}}</view>
+      <view class="state__label">上传中</view>
+      <view class="state__hint">在路上</view>
+    </view>
+    <view class="state__div"></view>
+    <view class="state" bindtap="onOpenQueue">
+      <view class="state__num state__num--arrived">{{counts.arrived}}</view>
+      <view class="state__label">已抵达</view>
+      <view class="state__hint">已归档</view>
+    </view>
+  </view>
+
+  <!-- 主行动。现场是单手操作、光线差、可能还有点紧张，所以按钮要大、要稳、只有一个。 -->
+  <view class="capture tappable rise rise-2" bindtap="onCapture" aria-label="开始拍摄">
+    <image class="capture__icon" src="{{Icon.cameraWhite}}" mode="aspectFit" />
+    <view class="capture__label">开始拍摄</view>
+    <view class="capture__sub">照片自动归入今天的现场影像</view>
+  </view>
+
+  <!-- 取证信息说明。律师需要知道每张照片带了什么，这不是装饰。 -->
+  <view class="assure rise rise-3">
+    <image class="assure__icon" src="{{Icon.shieldNavy}}" mode="aspectFit" />
+    <text class="assure__text">每张影像记录拍摄时间、地点、设备与 SHA-256 校验值</text>
+  </view>
+
+  <view class="section rise rise-4">
+    <view class="section__head">
+      <text class="section__title">最近影像</text>
+      <view class="section__more tappable" bindtap="onOpenFiles">
+        <text class="section__more-text">全部</text>
+        <image class="section__more-icon" src="{{Icon.chevronFaint}}" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="grid">
+      <view
+        wx:for="{{recent}}"
+        wx:key="id"
+        class="tile"
+        style="animation-delay: {{index * 50 + 250}}ms"
+      >
+        <view class="tile__thumb tile__thumb--{{item.kind}}"></view>
+        <view class="tile__badge tile__badge--{{item.state}}"></view>
+        <view class="tile__time mono">{{item.time}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="tail" style="height: calc(var(--space-12) + {{metrics.bottomInset}}px);"></view>
+</view>

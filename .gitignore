@@ -1,0 +1,21 @@
+node_modules/
+miniprogram/**/*.js
+miniprogram/**/*.js.map
+.DS_Store
+*.log
+
+# iOS
+ios/build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# 凭证：绝不入库
+*.p8
+*.p12
+*.mobileprovision
+*.certSigningRequest
+fastlane/.env
+
+# 走查产物
+shot-*.png

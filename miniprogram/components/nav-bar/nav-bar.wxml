@@ -1,0 +1,23 @@
+<!-- 自定义导航栏。
+     高度全部来自全局度量（app.globalData.metrics），组件自己不做任何测量。
+     右侧 padding 让开胶囊按钮，安卓与 iOS 的差异已在 layout.ts 里抹平。 -->
+<view
+  class="nav {{glassMode === 'solid' ? 'glass--solid' : ''}} {{scrolled ? 'nav--scrolled' : ''}}"
+  style="height: {{metrics.navTotalHeight}}px; padding-top: {{metrics.statusBarHeight}}px;"
+>
+  <view class="nav__content" style="height: {{metrics.navContentHeight}}px; padding-right: {{metrics.capsuleRightInset}}px;">
+    <view wx:if="{{showBack}}" class="nav__back tappable" bindtap="onBack" aria-label="返回">
+      <view class="nav__back-glyph"></view>
+    </view>
+
+    <view class="nav__titles" bindtap="onTitleTap">
+      <view class="nav__title">{{title}}</view>
+      <view wx:if="{{subtitle}}" class="nav__subtitle">{{subtitle}}</view>
+    </view>
+
+    <slot name="action"></slot>
+  </view>
+</view>
+
+<!-- 占位：把内容顶下去，避免被固定定位的导航栏盖住 -->
+<view style="height: {{metrics.navTotalHeight}}px;"></view>
