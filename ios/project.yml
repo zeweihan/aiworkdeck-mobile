@@ -26,10 +26,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
         PRODUCT_NAME: Workdeck
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        # 仅竖屏。现场单手举着拍，横屏没有使用场景，开了只会误转。
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"
     info:
       path: Info.plist
@@ -38,6 +34,17 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Workdeck
         ITSAppUsesNonExemptEncryption: false
+
+        # 这几条必须写在 plist 里，不能用 INFOPLIST_KEY_* 构建设置：
+        # 那组设置只对「自动生成 Info.plist」的流程生效，一旦像这里给了显式
+        # plist 路径就完全不合并，静默失效。少了 UILaunchScreen 的表现是
+        # 整个 App 被降级到兼容尺寸letterbox——顶部一条黑带、底部内容被切。
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # 仅竖屏。现场单手举着拍，横屏没有使用场景，开了只会误转。
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
 
         # Apple 的 purpose string 是 SDK 链接期强制，不是运行期强制：
         # 只要二进制链接到引用了受限 API 的 SDK 就必须声明，否则 ITMS-90683 直接拒。

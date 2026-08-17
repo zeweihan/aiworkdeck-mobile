@@ -145,10 +145,16 @@ struct HomeView: View {
     }
 
     private var thumbStrip: some View {
-        HStack(spacing: T.Sp.s1) {
+        // 用 LazyVGrid 的等分列，不用 HStack + aspectRatio(.fit)：
+        // Rectangle 与 Text 在 HStack 里争宽度时，aspectRatio(.fit) 会把
+        // 缩略图压成几乎零宽，界面上只剩一排状态点。踩过一次。
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: T.Sp.s1), count: 6),
+            spacing: T.Sp.s1
+        ) {
             ForEach(recent.prefix(5)) { item in
                 ThumbPlaceholder(kind: item.kind)
-                    .aspectRatio(1, contentMode: .fit)
+                    .aspectRatio(1, contentMode: .fill)
                     .overlay(alignment: .topLeading) {
                         StatusDot(state: item.state, size: 4)
                             .padding(3)
@@ -157,11 +163,15 @@ struct HomeView: View {
 
             let rest = max(tally.arrived + tally.waiting + tally.moving - 5, 0)
             if rest > 0 {
-                Text("+\(rest)")
-                    .font(T.F.mono(10))
-                    .foregroundStyle(T.L.fgMuted)
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(1, contentMode: .fit)
+                // 用 Color.clear 撑出方格再叠字，不要直接给 Text 加 aspectRatio：
+                // Text 有固有高度，aspectRatio 会照它算，结果这一格比邻居矮一截。
+                Color.clear
+                    .aspectRatio(1, contentMode: .fill)
+                    .overlay {
+                        Text("+\(rest)")
+                            .font(T.F.mono(10))
+                            .foregroundStyle(T.L.fgMuted)
+                    }
                     .background(T.L.sunken)
                     .overlay(
                         RoundedRectangle(cornerRadius: 1)
