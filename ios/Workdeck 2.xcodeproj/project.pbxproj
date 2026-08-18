@@ -1,0 +1,376 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1234828056260DBF5B50B950 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72378D7DEF2D8DE819A5DF37 /* LibraryView.swift */; };
+		313BE55B69902BE1028C9DD2 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08C9E0F1E80C12415CCA753 /* Components.swift */; };
+		41DC04038F7E2367F9EA3CB9 /* WorkdeckApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BECCD2356DD3BC04DEE028D /* WorkdeckApp.swift */; };
+		5DF44D1DA0320A432466E6E0 /* CaptureItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239AB7BB20D073F5DF77E89A /* CaptureItem.swift */; };
+		9AFFF852FEC536964C3747D9 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EABBBB44033769D7AF0CA10A /* HomeView.swift */; };
+		B24401765B2A8CDB296E89AC /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DB42E62280584B7400C29BE /* DemoData.swift */; };
+		FC89F8D481DE614B2D632B9B /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43447A2BE0E6A067F4E37EB6 /* Tokens.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0DB42E62280584B7400C29BE /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
+		1BECCD2356DD3BC04DEE028D /* WorkdeckApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkdeckApp.swift; sourceTree = "<group>"; };
+		239AB7BB20D073F5DF77E89A /* CaptureItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureItem.swift; sourceTree = "<group>"; };
+		37397D4C7A7C75104E9BE2AF /* Workdeck.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Workdeck.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		43447A2BE0E6A067F4E37EB6 /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
+		72378D7DEF2D8DE819A5DF37 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		B08C9E0F1E80C12415CCA753 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		EABBBB44033769D7AF0CA10A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		05ADA52B843E58FA03E9D3BA /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				EABBBB44033769D7AF0CA10A /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		11FCDEE9136ECDF7D227D4AB /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				FBCA317186A3A6F6D1600215 /* App */,
+				5A8090C112DD3EEDA3A1BF56 /* Design */,
+				D18509B256F6739D9157EA5B /* Features */,
+				BDAB4DCEEA268E02FA4BCB55 /* Model */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		17CC6F7DB7B755CCF6209C05 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				37397D4C7A7C75104E9BE2AF /* Workdeck.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1F80A42428DE5268829E7A0F /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				72378D7DEF2D8DE819A5DF37 /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		5A8090C112DD3EEDA3A1BF56 /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				B08C9E0F1E80C12415CCA753 /* Components.swift */,
+				43447A2BE0E6A067F4E37EB6 /* Tokens.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		79AE5A85E2285B71E039813A = {
+			isa = PBXGroup;
+			children = (
+				11FCDEE9136ECDF7D227D4AB /* Sources */,
+				17CC6F7DB7B755CCF6209C05 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BDAB4DCEEA268E02FA4BCB55 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				239AB7BB20D073F5DF77E89A /* CaptureItem.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		D18509B256F6739D9157EA5B /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				05ADA52B843E58FA03E9D3BA /* Home */,
+				1F80A42428DE5268829E7A0F /* Library */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		FBCA317186A3A6F6D1600215 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				0DB42E62280584B7400C29BE /* DemoData.swift */,
+				1BECCD2356DD3BC04DEE028D /* WorkdeckApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C2DD0AACA31F43F5C49D4E51 /* Workdeck */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 42F66AA3E8DBF869935DD9AE /* Build configuration list for PBXNativeTarget "Workdeck" */;
+			buildPhases = (
+				BFDA4A1DD70FC38223A4A352 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Workdeck;
+			packageProductDependencies = (
+			);
+			productName = Workdeck;
+			productReference = 37397D4C7A7C75104E9BE2AF /* Workdeck.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		461EE127AF871C27B566BCB9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					C2DD0AACA31F43F5C49D4E51 = {
+						DevelopmentTeam = X9B97KVA84;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B862737B7EEB79C9FB33B796 /* Build configuration list for PBXProject "Workdeck" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 79AE5A85E2285B71E039813A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 54;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C2DD0AACA31F43F5C49D4E51 /* Workdeck */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BFDA4A1DD70FC38223A4A352 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5DF44D1DA0320A432466E6E0 /* CaptureItem.swift in Sources */,
+				313BE55B69902BE1028C9DD2 /* Components.swift in Sources */,
+				B24401765B2A8CDB296E89AC /* DemoData.swift in Sources */,
+				9AFFF852FEC536964C3747D9 /* HomeView.swift in Sources */,
+				1234828056260DBF5B50B950 /* LibraryView.swift in Sources */,
+				FC89F8D481DE614B2D632B9B /* Tokens.swift in Sources */,
+				41DC04038F7E2367F9EA3CB9 /* WorkdeckApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		09A9DC9B9DEC515D5A9D5659 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = X9B97KVA84;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		0BFE7604F3CE329069A956EF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aiworkdeck.mobile;
+				PRODUCT_NAME = Workdeck;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		1F518996EEB7E07CEF2C0D06 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = X9B97KVA84;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		4EB53873AFD63CEBA93B465A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aiworkdeck.mobile;
+				PRODUCT_NAME = Workdeck;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		42F66AA3E8DBF869935DD9AE /* Build configuration list for PBXNativeTarget "Workdeck" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4EB53873AFD63CEBA93B465A /* Debug */,
+				0BFE7604F3CE329069A956EF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B862737B7EEB79C9FB33B796 /* Build configuration list for PBXProject "Workdeck" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1F518996EEB7E07CEF2C0D06 /* Debug */,
+				09A9DC9B9DEC515D5A9D5659 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 461EE127AF871C27B566BCB9 /* Project object */;
+}

@@ -74,8 +74,17 @@ platform :ios do
 
     upload_to_testflight(
       api_key: key,
+      # 不等处理完是为了省 5-15 分钟；代价是 fastlane 传完即退、**不做分组**。
+      # 所以下面必须补一步把构建挂进内部测试组，否则包在 ASC 里是 VALID 的，
+      # 测试组里却一个都没有，手机上永远只看得到最早那版（2026-08-18 踩过，
+      # 连发五版都没送到测试员手上）。
       skip_waiting_for_build_processing: true,
       changelog: ENV["CHANGELOG"] || "现场拍摄与本地归档：拍照/录像、SHA-256、时间与地点。上传链路未接。"
     )
+
+    # 传完把构建挂进内部测试组（见上面的注释）。放在 lane 内、upload 之后。
+    sh("cd .. && ASC_APP_ID=6802233845 ASC_KEY_ID=#{ENV.fetch('ASC_KEY_ID')} " \
+       "ASC_ISSUER_ID=#{ENV.fetch('ASC_ISSUER_ID')} ASC_KEY_PATH=#{ENV.fetch('ASC_KEY_PATH')} " \
+       "python3 scripts/attach-build-to-group.py")
   end
 end
