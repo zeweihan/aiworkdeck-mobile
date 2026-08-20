@@ -11,16 +11,19 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: X9B97KVA84        # Zhen Shan Mei Grace Legacy Limited（国际版）
+    DEVELOPMENT_TEAM: X9B97KVA84        # Zhen Shan Mei Grace Legacy Limited（国际版）；大陆版在 WorkdeckCN target 覆盖
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
 # 签名设置必须写在 target 上，不能写在这里：
 # 项目级的 CODE_SIGN_IDENTITY 会被目标级默认值（iPhone Developer）压掉，
 # 表现是 CODE_SIGN_STYLE 和描述文件都生效了、唯独身份还是 Developer，
-# 然后报「profile doesn't include signing certificate」。见 targets.Workdeck.settings。
+# 然后报「profile doesn't include signing certificate」。见 targetTemplates.WorkdeckApp.settings。
 
-targets:
-  Workdeck:
+# 国际版（Workdeck）与大陆版（WorkdeckCN）共用同一份代码与 Info.plist，
+# 只有 bundle id / 开发团队 / 描述文件三处不同——全部收在 targets 里，
+# 其余一律写在这个模板里，避免 purpose string 之类的东西改一处漏一处。
+targetTemplates:
+  WorkdeckApp:
     type: application
     platform: iOS
     sources:
@@ -28,7 +31,6 @@ targets:
       - path: Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
         PRODUCT_NAME: Workdeck
         TARGETED_DEVICE_FAMILY: "1"
         # 少了这条，altool 会以 90713「Missing CFBundleIconName」拒收整个包，
@@ -42,14 +44,13 @@ targets:
           CODE_SIGNING_ALLOWED: NO
         # 发版：手动签名。本账号 0 台注册用于开发的设备，自动签名在归档阶段
         # 会去要 Development profile 然后撞死（No profiles for ... were found）。
-        # 描述文件由 fastlane sigh 签发，名字固定是 "<bundleid> AppStore"。
+        # 描述文件名见各 target 的 PROVISIONING_PROFILE_SPECIFIER。
         Release:
           CODE_SIGN_STYLE: Manual
           # 带 [sdk=iphoneos*] 的这条才是真正生效的那个；不带限定的压不住
           # Xcode 默认的 "iPhone Developer"。
           CODE_SIGN_IDENTITY: "Apple Distribution"
           "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution"
-          PROVISIONING_PROFILE_SPECIFIER: "com.aiworkdeck.mobile AppStore"
     info:
       path: Info.plist
       properties:
@@ -80,3 +81,38 @@ targets:
           记录每张影像的拍摄地点，写入归档信息。仅在拍摄时读取一次，不做后台定位。
         NSPhotoLibraryAddUsageDescription: >-
           在你主动导出某张影像时，将其存入系统相册。
+
+targets:
+  # 国际版：App Store 国际区，真善美承澤（香港）团队。
+  # 两个 target 都显式声明共享 scheme：不声明的话 XcodeGen 不落
+  # xcshareddata/xcschemes，xcodebuild 走隐式 scheme 解析，实测会把
+  # -scheme WorkdeckCN 解析到 Workdeck target（归档出国际版 bundle），
+  # 然后在 exportArchive 阶段以「requires a provisioning profile」报错。
+  Workdeck:
+    templates: [WorkdeckApp]
+    scheme:
+      configVariants: []
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
+      configs:
+        Release:
+          # 由 fastlane sigh 签发，名字模式固定是 "<bundleid> AppStore"。
+          PROVISIONING_PROFILE_SPECIFIER: "com.aiworkdeck.mobile AppStore"
+
+  # 大陆版：App Store 中国区，北京京微资易团队（8WKHZVR2W8）。
+  # 证书/描述文件不走 sigh（私钥在本机 5-Tech/x-apple-jwzy/，非 fastlane 生成），
+  # profile 是 ASC API 建的，名字是下面这个，别按 sigh 的命名模式找。
+  # 注意：Distribution 证书 579SG95VN2 的公钥/SHA-1 已填进 App 备案，
+  # 撤销重建证书 = 必须同步做备案变更（见 5-Tech/EXTERNAL_SERVICES.md §6.7）。
+  WorkdeckCN:
+    templates: [WorkdeckApp]
+    scheme:
+      configVariants: []
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.cn
+        DEVELOPMENT_TEAM: 8WKHZVR2W8
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN AppStore"
