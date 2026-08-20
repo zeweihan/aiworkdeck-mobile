@@ -1,206 +1,150 @@
+/* 主界面。视觉语汇与 login/project 一致：纯白底、发丝线分区（.rule 来自
+ * tokens.wxss）、字级跨度做层级、无卡片阴影；状态色只做小圆点，不染大数字。 */
+
 .page {
-  padding: var(--space-3) var(--space-4) 0;
+  padding: 0 var(--gutter);
+  background: var(--bg);
 }
 
-/* ---- 桌面端连接状态 ------------------------------------------------------ */
-.link {
+/* ---- 当前设备 + 切换项目 -------------------------------------------------- */
+.device {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1rpx solid var(--color-border);
-  box-shadow: var(--elev-1);
+  justify-content: space-between;
+  padding: var(--s4) 0;
 }
 
-.link.glass--solid {
-  background: var(--color-surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
+.device__text { display: flex; flex-direction: column; gap: 2rpx; }
 
-.link--offline { background: var(--color-surface); }
-
-.link__icon { width: 36rpx; height: 36rpx; flex-shrink: 0; }
-.link__text { flex: 1; min-width: 0; }
-
-.link__title {
-  font-size: var(--font-caption);
+.device__name {
+  font-size: var(--t-body);
   font-weight: 600;
-  color: var(--color-fg);
-  line-height: 1.3;
+  color: var(--fg);
 }
 
-.link__meta {
-  font-size: var(--font-micro);
-  color: var(--color-fg-muted);
-  line-height: 1.4;
-  margin-top: 2rpx;
+.device__hint {
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
 }
 
-/* 在线呼吸点。唯一一处循环动画——它表示「连接是活的」，承载语义。 */
-.link__pulse {
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: var(--radius-full);
-  background: var(--color-fg-faint);
+.device__switch {
+  display: flex;
+  align-items: center;
+  gap: 2rpx;
   flex-shrink: 0;
 }
 
-.link__pulse--on {
-  background: var(--color-state-arrived);
-  animation: awd-breathe 2.4s var(--ease-out) infinite;
+.device__switch-text {
+  font-size: var(--t-small);
+  color: var(--accent);
+  font-weight: 500;
 }
 
-@keyframes awd-breathe {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.4); }
-  50%      { opacity: 0.75; box-shadow: 0 0 0 8rpx rgba(21, 128, 61, 0); }
-}
+.device__chevron { width: 28rpx; height: 28rpx; }
 
-/* ---- 状态三联 ------------------------------------------------------------ */
-.states {
+/* ---- 状态三联 -------------------------------------------------------------- */
+.stats {
   display: flex;
-  align-items: stretch;
-  margin-top: var(--space-3);
-  padding: var(--space-4) var(--space-2);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border: 1rpx solid var(--color-border);
-  box-shadow: var(--elev-1);
+  padding: var(--s4) 0;
 }
 
-.state {
+.stat {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rpx;
+  gap: var(--s1);
   min-height: var(--touch-min);
   justify-content: center;
 }
 
-.state:active { opacity: 0.6; }
-
-.state__div {
-  width: 1rpx;
-  background: var(--color-border);
-  margin: var(--space-1) 0;
-}
-
-.state__num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--font-display);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-
-.state__num--waiting { color: var(--color-state-waiting); }
-.state__num--moving  { color: var(--color-state-moving); }
-.state__num--arrived { color: var(--color-state-arrived); }
-
-.state__label {
-  font-size: var(--font-caption);
-  font-weight: 500;
-  color: var(--color-fg);
-  margin-top: var(--space-1);
-}
-
-.state__hint {
-  font-size: var(--font-micro);
-  color: var(--color-fg-faint);
-}
-
-/* ---- 主行动 -------------------------------------------------------------- */
-.capture {
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  padding: var(--space-6) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
-  box-shadow: 0 12rpx 32rpx rgba(30, 58, 138, 0.24);
-}
-
-.capture__icon { width: 56rpx; height: 56rpx; }
-
-.capture__label {
-  font-size: var(--font-title);
-  font-weight: 600;
-  color: var(--color-on-primary);
-  letter-spacing: 0.02em;
-  margin-top: var(--space-1);
-}
-
-.capture__sub {
-  font-size: var(--font-micro);
-  color: rgba(255, 255, 255, 0.72);
-}
-
-/* ---- 取证说明 ------------------------------------------------------------ */
-.assure {
+.stat__row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-sm);
+  gap: var(--s1);
 }
 
-.assure__icon { width: 30rpx; height: 30rpx; flex-shrink: 0; }
-
-.assure__text {
-  font-size: var(--font-micro);
-  color: var(--color-primary);
-  line-height: 1.5;
+.stat__dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
 }
 
-/* ---- 最近影像 ------------------------------------------------------------ */
-.section { margin-top: var(--space-6); }
+.stat__dot--waiting { background: var(--st-waiting); }
+.stat__dot--moving  { background: var(--st-moving); }
+.stat__dot--arrived { background: var(--st-arrived); }
 
-.section__head {
+.stat__num {
+  font-size: var(--t-display);
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+}
+
+.stat__label {
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+}
+
+/* ---- 主行动：全 App 唯一强调色实心按钮，仍不加阴影 ------------------------- */
+.capture {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin: var(--s5) 0 var(--s3);
+  padding: var(--s5) var(--s4);
+  border-radius: var(--s3);
+  background: var(--accent);
 }
 
-.section__title {
-  font-size: var(--font-heading);
+.capture__title {
+  font-size: var(--t-title);
   font-weight: 600;
-  color: var(--color-fg);
-  letter-spacing: -0.01em;
+  color: #FFFFFF;
+  letter-spacing: 0.01em;
 }
 
-.section__more {
-  flex-direction: row;
-  gap: 2rpx;
-  justify-content: flex-end;
-  min-width: auto;
-  padding-left: var(--space-3);
+.capture__sub {
+  margin-top: 4rpx;
+  font-size: var(--t-micro);
+  color: rgba(255, 255, 255, 0.72);
 }
 
-.section__more-text { font-size: var(--font-caption); color: var(--color-fg-muted); }
-.section__more-icon { width: 26rpx; height: 26rpx; }
+.capture__icon { width: 48rpx; height: 48rpx; flex-shrink: 0; }
+
+/* ---- 能力边界说明（D6，不能默默降级） ------------------------------------- */
+.note { padding: 0 0 var(--s4); }
+
+.note__text {
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+  line-height: 1.6;
+}
+
+/* ---- 最近影像 -------------------------------------------------------------- */
+.section { padding: var(--s4) 0 var(--s6); }
+
+.section .label { display: block; margin-bottom: var(--s3); }
+
+.section__empty {
+  padding: var(--s6) 0;
+  text-align: center;
+  font-size: var(--t-small);
+  color: var(--fg-faint);
+}
 
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
+  gap: var(--s2);
 }
 
 .tile {
   position: relative;
   aspect-ratio: 1;
-  border-radius: var(--radius-sm);
+  border-radius: var(--s1);
   overflow: hidden;
-  background: var(--color-muted);
-  animation: awd-rise var(--dur-base) var(--ease-out) both;
+  background: var(--bg-sunken);
 }
 
 /* 占位缩略图。接后端后换成真实图片，保留同样的圆角与比例。 */
@@ -209,26 +153,26 @@
 .tile__thumb--scene { background: linear-gradient(150deg, #E3E9E4 0%, #CFD9D2 100%); }
 
 /* 状态点压在缩略图上——扫一眼就知道哪些还没走 */
-.tile__badge {
+.tile__dot {
   position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: var(--radius-full);
+  top: var(--s1);
+  right: var(--s1);
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
   border: 2rpx solid rgba(255, 255, 255, 0.9);
 }
 
-.tile__badge--waiting { background: var(--color-state-waiting); }
-.tile__badge--moving  { background: var(--color-state-moving); }
-.tile__badge--arrived { background: var(--color-state-arrived); }
+.tile__dot--waiting { background: var(--st-waiting); }
+.tile__dot--moving  { background: var(--st-moving); }
+.tile__dot--arrived { background: var(--st-arrived); }
 
 .tile__time {
   position: absolute;
-  left: var(--space-1);
-  bottom: var(--space-1);
-  font-size: var(--font-micro);
-  color: var(--color-fg-muted);
+  left: var(--s1);
+  bottom: var(--s1);
+  font-size: var(--t-micro);
+  color: var(--fg-muted);
   background: rgba(255, 255, 255, 0.82);
   padding: 0 6rpx;
   border-radius: 4rpx;

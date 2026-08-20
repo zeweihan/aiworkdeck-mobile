@@ -2,11 +2,11 @@
 @import './styles/glass.wxss';
 
 page {
-  background: var(--color-bg);
-  color: var(--color-fg);
+  background: var(--bg);
+  color: var(--fg);
   font-family: var(--font-sans);
-  font-size: var(--font-body);
-  line-height: var(--leading-normal);
+  font-size: var(--t-body);
+  line-height: 1.5;
   /* 现场光线差，字重稍轻反而更清晰；抗锯齿交给系统 */
   -webkit-font-smoothing: antialiased;
 }
@@ -28,8 +28,8 @@ view, text, button, input {
 .tappable:active {
   opacity: 0.6;
   transform: scale(0.97);
-  transition: opacity var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-out);
+  transition: opacity var(--d-fast) var(--e-out),
+              transform var(--d-fast) var(--e-out);
 }
 
 /* 等宽：哈希、时间戳、坐标 —— 取证信息要能逐字符核对 */
@@ -42,5 +42,5 @@ view, text, button, input {
 /* 细分隔线。1rpx 在高密度屏上就是真正的一物理像素 */
 .hairline {
   height: 1rpx;
-  background: var(--color-border);
+  background: var(--rule);
 }

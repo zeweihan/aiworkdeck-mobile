@@ -1,5 +1,6 @@
 import { getMetrics, metricsToStyle, type Metrics } from './utils/layout'
 import { getGlassMode, type GlassMode } from './utils/capability'
+import { recoverOnLaunch } from './utils/queue'
 
 interface GlobalData {
   metrics: Metrics
@@ -19,5 +20,8 @@ App<{ globalData: GlobalData }>({
       metricsStyle: metricsToStyle(metrics),
       glassMode: getGlassMode(),
     }
+
+    // 上传队列的断点恢复：上次运行被杀时卡在上传中的条目回拨待上传接着传。
+    recoverOnLaunch()
   },
 })
