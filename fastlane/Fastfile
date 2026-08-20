@@ -93,3 +93,68 @@ platform :ios do
        ".venv/bin/python scripts/attach-build-to-group.py")
   end
 end
+
+# ---------------- 大陆版（北京京微资易，Team 8WKHZVR2W8） ----------------
+# 与国际版 beta 的三点不同，改这条 lane 前先读：
+# 1) 凭据是另一套 ASC Key（jwzy 团队，Admin）。默认值就是现役那套，
+#    env（ASC_CN_*）只用于覆盖，平时一个变量都不用 export。
+# 2) 不跑 cert/sigh：Distribution 证书 579SG95VN2 的私钥是本机 openssl 生成的，
+#    fastlane 拿不到；2026-08-20 已导入 fastlane_build keychain，profile
+#    （AI WorkDeck CN AppStore / VCM2ZDV8KD）也已装进本机。机器重装后照
+#    5-Tech/EXTERNAL_SERVICES.md §6.7 把 p12 与 .mobileprovision 装回来即可。
+#    另：这张证书的公钥/SHA-1 已绑 App 备案，撤销重建=同步做备案变更。
+# 3) 不需要 attach-build-to-group.py：CN 的内部测试组（942673b0…）建的时候
+#    就是 hasAccessToAllBuilds，构建处理完自动对组可见。
+
+def asc_key_cn
+  app_store_connect_api_key(
+    key_id:     ENV["ASC_CN_KEY_ID"]    || "DVBHRK8PVA",
+    issuer_id:  ENV["ASC_CN_ISSUER_ID"] || "880299d8-2f8c-421e-a53a-06278a21e0d0",
+    key_filepath: ENV["ASC_CN_KEY_PATH"] ||
+      File.expand_path("~/Documents/2024-2044/5-Tech/x-apple-jwzy/AuthKey_DVBHRK8PVA.p8"),
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc "大陆版打包并上传 TestFlight（com.aiworkdeck.mobile.cn，ASC App 6803309103）"
+  lane :beta_cn do
+    key = asc_key_cn
+
+    kc_path = File.expand_path("~/Library/Keychains/fastlane_build-db")
+    UI.user_error!("fastlane_build keychain 不存在，先照 EXTERNAL_SERVICES.md §6.7 恢复") unless File.exist?(kc_path)
+    unlock_keychain(path: "fastlane_build", password: "fastlane_build", set_default: false)
+
+    build = latest_testflight_build_number(
+      api_key: key, app_identifier: "com.aiworkdeck.mobile.cn", initial_build_number: 0
+    ) + 1
+    UI.message("大陆版本次 build 号 #{build}")
+    sh("cd .. && xcodegen generate --spec ios/project.yml --project ios") rescue nil
+
+    build_app(
+      project: "ios/Workdeck.xcodeproj",
+      scheme: "WorkdeckCN",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "ios/build",
+      output_name: "WorkdeckCN.ipa",
+      xcargs: "CURRENT_PROJECT_VERSION=#{build}",
+      # gym 默认会扫工程里所有 target 的签名设置并入 exportOptions——会把国际版
+      # 「com.aiworkdeck.mobile → …AppStore」的映射也塞进来，xcodebuild 拿京微资易
+      # 团队找 HK 的 profile 直接 EXPORT FAILED。关掉探测，只认下面显式给的映射。
+      skip_profile_detection: true,
+      export_options: {
+        signingStyle: "manual",
+        teamID: "8WKHZVR2W8",
+        provisioningProfiles: { "com.aiworkdeck.mobile.cn" => "AI WorkDeck CN AppStore" }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      app_identifier: "com.aiworkdeck.mobile.cn",
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "现场拍摄与本地归档：拍照/录像、SHA-256、时间与地点。"
+    )
+  end
+end
