@@ -83,8 +83,13 @@ platform :ios do
     )
 
     # 传完把构建挂进内部测试组（见上面的注释）。放在 lane 内、upload 之后。
+    # 用仓库 venv 的 python：裸 python3 是 brew 管的，PEP 668 拒装 PyJWT，
+    # 且 brew 升级会清空 site-packages——2026-08-20 就是这么断的（build 7 传上去进不了组）。
+    # venv 不在了就现场重建，别让进组这步再静默依赖机器状态。
+    sh("cd .. && test -x .venv/bin/python || " \
+       "(python3 -m venv .venv && .venv/bin/pip install --quiet pyjwt cryptography)")
     sh("cd .. && ASC_APP_ID=6802233845 ASC_KEY_ID=#{ENV.fetch('ASC_KEY_ID')} " \
        "ASC_ISSUER_ID=#{ENV.fetch('ASC_ISSUER_ID')} ASC_KEY_PATH=#{ENV.fetch('ASC_KEY_PATH')} " \
-       "python3 scripts/attach-build-to-group.py")
+       ".venv/bin/python scripts/attach-build-to-group.py")
   end
 end

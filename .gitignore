@@ -30,3 +30,4 @@ fastlane/README.md
 ios/build/
 fastlane/certs/
 fastlane/profiles/
+.venv/
