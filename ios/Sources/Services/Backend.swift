@@ -92,18 +92,16 @@ struct LoginResult: Decodable {
     let user: AccountUser
 }
 
-/// 项目卡片。后端 ProjectCardDTO 字段远比这里多，只声明用得到的——
-/// 多余的键 JSONDecoder 会安全忽略。
-struct ProjectSummary: Decodable, Identifiable, Hashable, Sendable {
-    let id: Int
+/// 项目目录条目（GET /api/mobile/projects）。**这是桌面端推上云的目录镜像**，
+/// key 是那台桌面机本地库的项目 id——跨机同号不同物，所以必须连着 deviceId 一起用，
+/// 上传时两个都要带。spec：docs/specs/2026-08-20-project-sync-relay.md。
+struct RelayProject: Decodable, Identifiable, Hashable, Sendable, Encodable {
+    let deviceId: String
+    let deviceName: String?
+    let key: String
     let name: String
-    let myRole: String?
-}
 
-/// 建文件记录的返回。
-struct RemoteFile: Decodable {
-    let id: Int
-    let name: String
+    var id: String { deviceId + ":" + key }
 }
 
 struct CodeOnly: Decodable {
@@ -152,42 +150,39 @@ actor API {
 
     // MARK: 项目与上传
 
-    /// 账号下的项目。**注意这个端点返回裸数组，不带 {code,message,data} 信封**，
+    /// 项目目录（桌面端推上云的镜像）。**返回裸数组，不带 {code,message,data} 信封**，
     /// 与 auth 那几个端点的形状不一样——照信封解会直接失败。
-    func myProjects() async throws -> [ProjectSummary] {
-        try await getRaw("/api/projects/my", as: [ProjectSummary].self)
+    /// 空数组的最常见原因不是 bug：桌面端没开着、或桌面端还没登录同一个账号。
+    func myProjects() async throws -> [RelayProject] {
+        try await getRaw("/api/mobile/projects", as: [RelayProject].self)
     }
 
-    /// 上传是两段式：先建文件记录拿 id，再把字节 PUT 进去。
-    /// 分成两段的好处是断点续传时不用重建记录，坏处是中途失败会留下空记录——
-    /// 所以建记录放在真正要传的那一刻，不提前批量建。
-    func upload(item: CaptureItem, projectId: Int, fileName: String,
+    /// 上传一件现场影像到中转区（POST /api/mobile/media，单步 multipart）。
+    /// 幂等键是 clientMediaId：弱网重传、进程被杀重启都不会在中转区产生重复件，
+    /// 所以这里不需要「先建记录再传字节」的两段式。
+    func upload(item: CaptureItem, project: RelayProject, fileName: String,
                 progress: @Sendable @escaping (Double) -> Void) async throws {
-        let attrs = try? FileManager.default.attributesOfItem(atPath: item.localURL.path)
-        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
-        // fileSize 必须以 JSON **数字**发出：后端 CreateFileRequest.fileSize 是 Long。
-        // 发成字符串现在能work只是因为 Jackson 默认做强转——那是靠宽容不是靠正确，
-        // 哪天后端收紧 coercion 就会静默炸在建记录这一步。
-        let record = try await postRaw("/api/projects/\(projectId)/files/file",
-                                       body: ["name": fileName,
-                                              "fileType": item.kind == .photo ? "image" : "video",
-                                              "fileSize": size],
-                                       as: RemoteFile.self)
-        try await putBytes(fileId: record.id, from: item.localURL, progress: progress)
-    }
-
-    private func putBytes(fileId: Int, from url: URL,
-                          progress: @Sendable @escaping (Double) -> Void) async throws {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/files/\(fileId)/upload"))
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/mobile/media"))
         req.httpMethod = "POST"
         let boundary = "awd-\(UUID().uuidString)"
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
 
+        let iso = ISO8601DateFormatter()
+        let fields: [(String, String)] = [
+            ("deviceId", project.deviceId),
+            ("projectKey", project.key),
+            ("clientMediaId", item.manifest.clientMediaId.uuidString.lowercased()),
+            ("fileName", fileName),
+            ("mediaType", item.kind == .photo ? "image" : "video"),
+            ("capturedAt", iso.string(from: item.capturedAt)),
+        ]
+
         // 用 fromFile 而不是把整份读进内存：现场录像几百 MB，读进内存会被系统杀掉。
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("up-\(UUID().uuidString)")
-        try makeMultipartFile(at: tmp, boundary: boundary, source: url)
+        try makeMultipartFile(at: tmp, boundary: boundary, fields: fields,
+                              source: item.localURL, uploadName: fileName)
         defer { try? FileManager.default.removeItem(at: tmp) }
 
         progress(0.05)
@@ -204,12 +199,41 @@ actor API {
         }
     }
 
+    struct MediaStatus: Decodable, Sendable {
+        let clientMediaId: String
+        let delivered: Bool
+        let waitingSeconds: Int64
+    }
+
+    /// 影像投递状态：delivered = 桌面端已确认落盘（中转区已删）。裸数组。
+    func mediaStatus(clientMediaIds: [String]) async throws -> [MediaStatus] {
+        guard !clientMediaIds.isEmpty else { return [] }
+        var comps = URLComponents(url: Backend.baseURL.appendingPathComponent("/api/mobile/media/status"),
+                                  resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "clientMediaIds", value: clientMediaIds.joined(separator: ","))]
+        var req = URLRequest(url: comps.url!)
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let (data, resp) = try await send(req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+        }
+        do { return try JSONDecoder().decode([MediaStatus].self, from: data) }
+        catch { throw APIError(message: "无法解析服务器响应") }
+    }
+
     /// 把 multipart 信封写成磁盘文件，避免整份载荷进内存。
-    private nonisolated func makeMultipartFile(at dst: URL, boundary: String, source: URL) throws {
+    /// 文本字段在前、文件在后——服务端流式解析时先拿到寻址字段。
+    private nonisolated func makeMultipartFile(at dst: URL, boundary: String,
+                                               fields: [(String, String)],
+                                               source: URL, uploadName: String) throws {
         FileManager.default.createFile(atPath: dst.path, contents: nil)
         let h = try FileHandle(forWritingTo: dst)
         defer { try? h.close() }
-        let head = "--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(source.lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+        for (name, value) in fields {
+            let part = "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n"
+            try h.write(contentsOf: Data(part.utf8))
+        }
+        let head = "--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(uploadName)\"\r\nContent-Type: application/octet-stream\r\n\r\n"
         try h.write(contentsOf: Data(head.utf8))
         let r = try FileHandle(forReadingFrom: source)
         defer { try? r.close() }

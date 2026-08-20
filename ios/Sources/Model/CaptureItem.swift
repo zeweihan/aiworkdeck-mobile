@@ -7,6 +7,8 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
     case waiting
     /// 正在上传到中转区
     case moving
+    /// 已进中转区，等桌面端取回（桌面端不开着就一直停在这）
+    case uploaded
     /// 桌面端已确认落盘，中转区已删除
     case arrived
     case failed
@@ -15,20 +17,21 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
         switch self {
         case .waiting: "待传输"
         case .moving: "传输中"
-        case .arrived: "已上传"
+        case .uploaded: "已上传"
+        case .arrived: "已抵达"
         case .failed: "失败"
         }
     }
 
-    /// 文案刻意说「已上传」而不是「已归档」「已抵达」：
-    /// 现在只保证进了项目的云端存储，**桌面端拉取那一半还没做**。
-    /// 说「已抵达」会让人以为东西已经在自己电脑上了，那是假的。
-    /// 等桌面端确认落盘的回执做完，再把这里改成「已抵达」。
+    /// 「已上传」与「已抵达」是两回事：前者只保证进了中转区，
+    /// 后者是桌面端确认落盘的回执（ACK 后中转区即删）。
+    /// 桌面端是 Electron，关掉就不取件——uploaded 停多久都是真实状态，不要装成 arrived。
     var whereItIs: String {
         switch self {
         case .waiting: "在手机上"
         case .moving: "在路上"
-        case .arrived: "在项目里"
+        case .uploaded: "在中转区，等电脑取回"
+        case .arrived: "在你电脑上"
         case .failed: "需重试"
         }
     }

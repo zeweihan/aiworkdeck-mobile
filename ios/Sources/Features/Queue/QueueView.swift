@@ -8,6 +8,7 @@ struct QueueView: View {
 
     private var failed: [CaptureItem] { model.items.filter { $0.state == .failed } }
     private var active: [CaptureItem] { model.items.filter { $0.state == .waiting || $0.state == .moving } }
+    private var uploaded: [CaptureItem] { model.items.filter { $0.state == .uploaded } }
     private var done: [CaptureItem] { model.items.filter { $0.state == .arrived } }
 
     var body: some View {
@@ -16,7 +17,8 @@ struct QueueView: View {
                 LazyVStack(spacing: 0) {
                     if !failed.isEmpty { section("失败 · 需要处理", failed, tint: T.S.failed) }
                     if !active.isEmpty { section("排队中", active, tint: T.S.moving) }
-                    if !done.isEmpty { section("已上传", done, tint: T.S.arrived) }
+                    if !uploaded.isEmpty { section("已上传 · 等电脑取回", uploaded, tint: T.S.moving) }
+                    if !done.isEmpty { section("已抵达电脑", done, tint: T.S.arrived) }
                     if model.items.isEmpty { empty }
                 }
                 .padding(.horizontal, T.Sp.gutter)
@@ -24,6 +26,14 @@ struct QueueView: View {
             .background(T.L.bg)
             .navigationTitle("上传队列")
             .navigationBarTitleDisplayMode(.inline)
+            // 开着队列页时每 20 秒问一次投递回执——「已上传」翻成「已抵达」
+            // 的那一下应该发生在用户眼前，而不是下次冷启动
+            .task {
+                while !Task.isCancelled {
+                    model.checkDelivered()
+                    try? await Task.sleep(for: .seconds(20))
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("关闭", action: onClose)
