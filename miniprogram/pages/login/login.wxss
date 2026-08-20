@@ -1,0 +1,116 @@
+/* 登录页。视觉语汇照抄 index 页：纯白底、发丝线分区（.rule 来自 tokens.wxss）、
+ * 字级跨度做层级、无卡片阴影——不用 box-shadow，分区靠 .rule 与留白。 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+
+.hero {
+  margin-top: var(--s10);
+}
+
+.hero__title {
+  font-size: var(--t-title);
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.hero__sub {
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+/* ---- 表单：发丝线分区，不做输入框边框 ------------------------------------ */
+.form {
+  margin-top: var(--s8);
+}
+
+.field {
+  padding: var(--s3) 0;
+}
+
+.field__label {
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+}
+
+.field__input {
+  display: block;
+  width: 100%;
+  margin-top: var(--s2);
+  height: 56rpx;
+  font-size: var(--t-title);
+  color: var(--fg);
+}
+
+.field__placeholder {
+  color: var(--fg-faint);
+  font-weight: 400;
+}
+
+.field__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.field__input--code {
+  flex: 1;
+}
+
+.code-btn {
+  flex-shrink: 0;
+  padding: 0 var(--s4);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.code-btn--disabled {
+  background: var(--bg-sunken);
+  color: var(--fg-faint);
+}
+
+.code-btn__text {
+  font-size: var(--t-small);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---- 提交：全 App 唯一一处强调色实心按钮，仍不加阴影 ---------------------- */
+.submit {
+  margin-top: var(--s8);
+  height: 96rpx;
+  border-radius: var(--s2);
+  background: var(--accent);
+}
+
+.submit--disabled {
+  background: var(--rule-strong);
+}
+
+.submit__text {
+  color: #FFFFFF;
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.footer {
+  margin-top: auto;
+  padding: var(--s6) 0;
+  text-align: center;
+}
+
+.footer__text {
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+  line-height: 1.6;
+}

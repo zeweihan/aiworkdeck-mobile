@@ -1,0 +1,85 @@
+/* 项目选择页。视觉语汇照抄 index 页：纯白底、发丝线分区（.rule 来自 tokens.wxss）、
+ * 字级跨度做层级、无卡片阴影。 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+
+/* ---- 加载 / 错误 / 空态：三态共用一套居中布局 ---------------------------- */
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s16) var(--s4) 0;
+  text-align: center;
+}
+
+.status__text {
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+.status__btn {
+  margin-top: var(--s2);
+  padding: 0 var(--s5);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: var(--t-small);
+  font-weight: 500;
+}
+
+/* ---- 分组列表 -------------------------------------------------------------- */
+.groups {
+  padding-top: var(--s4);
+}
+
+.group {
+  margin-top: var(--s5);
+}
+
+.group:first-child {
+  margin-top: 0;
+}
+
+.group__head {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+  letter-spacing: 0.08em;
+  margin-bottom: var(--s2);
+}
+
+.item {
+  justify-content: space-between;
+  padding: 0 var(--s1);
+}
+
+.item__name {
+  font-size: var(--t-body);
+  color: var(--fg);
+}
+
+.item__chevron {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+}
+
+.footer {
+  margin-top: auto;
+  padding: var(--s10) 0 var(--s6);
+  text-align: center;
+}
+
+.footer__text {
+  display: inline-flex;
+  font-size: var(--t-small);
+  color: var(--fg-faint);
+}

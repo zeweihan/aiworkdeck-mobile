@@ -5,74 +5,72 @@
   bind:titletap="onSwitchProject"
 />
 
-<view class="page">
+<view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
 
-  <!-- 桌面端连接状态。这条决定了照片今天到底能不能落地，所以放在最上面。 -->
-  <view class="link rise {{glassMode === 'solid' ? 'glass--solid' : ''}} {{desktop.online ? '' : 'link--offline'}}">
-    <image class="link__icon" src="{{desktop.online ? Icon.monitorNavy : Icon.monitorSlate}}" mode="aspectFit" />
-    <view class="link__text">
-      <view class="link__title">{{desktop.online ? '桌面端在线' : '桌面端离线'}}</view>
-      <view class="link__meta">{{desktop.detail}}</view>
+  <!-- 当前设备 + 切换项目，替掉原来的桌面在线演示行 -->
+  <view class="device tappable" bindtap="onSwitchProject">
+    <view class="device__text">
+      <text class="device__name">{{deviceName}}</text>
+      <text class="device__hint">桌面端设备</text>
     </view>
-    <view class="link__pulse {{desktop.online ? 'link__pulse--on' : ''}}"></view>
-  </view>
-
-  <!-- 状态三联：这个 App 的主线叙事就是「照片在哪」 -->
-  <view class="states rise rise-1">
-    <view class="state" bindtap="onOpenQueue">
-      <view class="state__num state__num--waiting">{{counts.waiting}}</view>
-      <view class="state__label">等待中</view>
-      <view class="state__hint">在手机上</view>
-    </view>
-    <view class="state__div"></view>
-    <view class="state" bindtap="onOpenQueue">
-      <view class="state__num state__num--moving">{{counts.moving}}</view>
-      <view class="state__label">上传中</view>
-      <view class="state__hint">在路上</view>
-    </view>
-    <view class="state__div"></view>
-    <view class="state" bindtap="onOpenQueue">
-      <view class="state__num state__num--arrived">{{counts.arrived}}</view>
-      <view class="state__label">已抵达</view>
-      <view class="state__hint">已归档</view>
+    <view class="device__switch">
+      <text class="device__switch-text">切换项目</text>
+      <image class="device__chevron" src="{{Icon.chevron}}" mode="aspectFit" />
     </view>
   </view>
+  <view class="rule"></view>
+
+  <!-- 状态三联：色只做小圆点，数字本身不着色 -->
+  <view class="stats">
+    <view class="stat tappable" bindtap="onOpenQueue">
+      <view class="stat__row">
+        <view class="stat__dot stat__dot--waiting"></view>
+        <view class="stat__num mono">{{counts.waiting}}</view>
+      </view>
+      <view class="stat__label">等待中</view>
+    </view>
+    <view class="stat tappable" bindtap="onOpenQueue">
+      <view class="stat__row">
+        <view class="stat__dot stat__dot--moving"></view>
+        <view class="stat__num mono">{{counts.moving}}</view>
+      </view>
+      <view class="stat__label">上传中</view>
+    </view>
+    <view class="stat tappable" bindtap="onOpenQueue">
+      <view class="stat__row">
+        <view class="stat__dot stat__dot--arrived"></view>
+        <view class="stat__num mono">{{counts.arrived}}</view>
+      </view>
+      <view class="stat__label">已抵达</view>
+    </view>
+  </view>
+  <view class="rule"></view>
 
   <!-- 主行动。现场是单手操作、光线差、可能还有点紧张，所以按钮要大、要稳、只有一个。 -->
-  <view class="capture tappable rise rise-2" bindtap="onCapture" aria-label="开始拍摄">
-    <image class="capture__icon" src="{{Icon.cameraWhite}}" mode="aspectFit" />
-    <view class="capture__label">开始拍摄</view>
-    <view class="capture__sub">照片自动归入今天的现场影像</view>
-  </view>
-
-  <!-- 取证信息说明。律师需要知道每张照片带了什么，这不是装饰。 -->
-  <view class="assure rise rise-3">
-    <image class="assure__icon" src="{{Icon.shieldNavy}}" mode="aspectFit" />
-    <text class="assure__text">每张影像记录拍摄时间、地点、设备与 SHA-256 校验值</text>
-  </view>
-
-  <view class="section rise rise-4">
-    <view class="section__head">
-      <text class="section__title">最近影像</text>
-      <view class="section__more tappable" bindtap="onOpenFiles">
-        <text class="section__more-text">全部</text>
-        <image class="section__more-icon" src="{{Icon.chevronFaint}}" mode="aspectFit" />
-      </view>
+  <view class="capture tappable" bindtap="onCapture" aria-label="开始拍摄">
+    <view class="capture__text">
+      <view class="capture__title">开始拍摄</view>
+      <view class="capture__sub">拍摄内容自动归入今天的现场影像</view>
     </view>
+    <image class="capture__icon" src="{{Icon.cameraWhite}}" mode="aspectFit" />
+  </view>
 
-    <view class="grid">
-      <view
-        wx:for="{{recent}}"
-        wx:key="id"
-        class="tile"
-        style="animation-delay: {{index * 50 + 250}}ms"
-      >
+  <!-- D6：能力边界要明示，不能默默降级 -->
+  <view class="note">
+    <text class="note__text">录像单段最长 60 秒，长内容自动分段归档；本端录像为记录用途，证据用途请用 iOS 端。</text>
+  </view>
+  <view class="rule"></view>
+
+  <view class="section">
+    <text class="label">最近影像</text>
+
+    <view class="grid" wx:if="{{recent.length}}">
+      <view wx:for="{{recent}}" wx:key="id" class="tile">
         <view class="tile__thumb tile__thumb--{{item.kind}}"></view>
-        <view class="tile__badge tile__badge--{{item.state}}"></view>
+        <view class="tile__dot tile__dot--{{item.state}}"></view>
         <view class="tile__time mono">{{item.time}}</view>
       </view>
     </view>
+    <view class="section__empty" wx:else>还没有拍摄记录</view>
   </view>
-
-  <view class="tail" style="height: calc(var(--space-12) + {{metrics.bottomInset}}px);"></view>
 </view>

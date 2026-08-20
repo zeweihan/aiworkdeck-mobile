@@ -1,0 +1,48 @@
+<nav-bar title="选择项目" show-back="{{showBack}}" scroll-top="{{scrollTop}}" />
+
+<view class="page">
+
+  <view wx:if="{{loading}}" class="status">
+    <text class="status__text">加载中…</text>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="status">
+    <text class="status__text">{{errorMessage}}</text>
+    <view class="status__btn tappable" bindtap="onRetry">
+      <text>重试</text>
+    </view>
+  </view>
+
+  <view wx:elif="{{groups.length === 0}}" class="status">
+    <text class="status__text">桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里</text>
+    <view class="status__btn tappable" bindtap="onRefresh">
+      <text>刷新</text>
+    </view>
+  </view>
+
+  <view wx:else class="groups">
+    <view wx:for="{{groups}}" wx:for-item="group" wx:for-index="gi" wx:key="deviceId" class="group">
+      <text class="group__head">{{group.deviceName}}</text>
+      <view
+        wx:for="{{group.items}}"
+        wx:for-item="item"
+        wx:for-index="ii"
+        wx:key="key"
+        class="item tappable"
+        data-gi="{{gi}}"
+        data-ii="{{ii}}"
+        bindtap="onSelectProject"
+      >
+        <text class="item__name">{{item.name}}</text>
+        <image class="item__chevron" src="{{Icon.chevron}}" mode="aspectFit" />
+      </view>
+      <view class="rule"></view>
+    </view>
+  </view>
+
+  <view class="footer" style="padding-bottom: {{metrics.bottomInset}}px;">
+    <view class="footer__text tappable" bindtap="onLogout">
+      <text>退出登录</text>
+    </view>
+  </view>
+</view>

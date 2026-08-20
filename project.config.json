@@ -1,5 +1,5 @@
 {
-  "appid": "touristappid",
+  "appid": "wx67b9a7d0449be0b4",
   "projectname": "AI Workdeck 移动端",
   "description": "现场取证拍摄、同步归档到项目目录、文件管理",
   "miniprogramRoot": "miniprogram/",
@@ -28,7 +28,19 @@
           "scene": null
         },
         {
-          "name": "上传队列",
+          "name": "登录",
+          "pathName": "pages/login/login",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "项目选择",
+          "pathName": "pages/project/project",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "传输队列",
           "pathName": "pages/queue/queue",
           "query": "",
           "scene": null
