@@ -125,7 +125,8 @@ actor EvidenceStore {
         let all = try loadAll()
         return TransferTally(
             waiting: all.filter { $0.state == .waiting || $0.state == .failed }.count,
-            moving: all.filter { $0.state == .moving }.count,
+            // uploaded 计入「在路上」：进了中转区但还没到电脑
+            moving: all.filter { $0.state == .moving || $0.state == .uploaded }.count,
             arrived: all.filter { $0.state == .arrived }.count
         )
     }

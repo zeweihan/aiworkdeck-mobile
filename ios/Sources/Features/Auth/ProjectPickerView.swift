@@ -5,7 +5,7 @@ import SwiftUI
 struct ProjectPickerView: View {
     @Environment(AppModel.self) private var model
 
-    @State private var projects: [ProjectSummary] = []
+    @State private var projects: [RelayProject] = []
     @State private var loading = true
     @State private var error: String?
 
@@ -60,8 +60,8 @@ struct ProjectPickerView: View {
                                     .font(T.F.body())
                                     .foregroundStyle(T.L.fg)
                                     .lineLimit(1)
-                                if let r = p.myRole {
-                                    Text(roleLabel(r))
+                                if let d = p.deviceName, !d.isEmpty {
+                                    Text(d)
                                         .font(T.F.nano())
                                         .foregroundStyle(T.L.fgFaint)
                                 }
@@ -78,16 +78,6 @@ struct ProjectPickerView: View {
                     Hairline()
                 }
             }
-        }
-    }
-
-    private func roleLabel(_ r: String) -> String {
-        switch r.uppercased() {
-        case "OWNER": "我创建的"
-        case "ADMIN": "管理员"
-        case "MEMBER": "成员"
-        case "CLIENT": "客户"
-        default: r
         }
     }
 
@@ -111,10 +101,12 @@ struct ProjectPickerView: View {
 
     private var emptyBlock: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Text("这个账号下还没有项目")
+            Text("还没同步到项目")
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
-            Text("在桌面端或网页端新建一个项目后，回到这里下拉刷新。")
+            // 说实话：列表来自桌面端的自动同步，前提是桌面端开着且登录同一手机号。
+            // 不要写「新建项目后刷新」——不满足前提时那句话怎么做都不会应验。
+            Text("在电脑上用同一手机号登录 AI WorkDeck 并保持运行，项目会在一分钟内出现在这里。")
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
             Button("重新读取") { Task { await load() } }

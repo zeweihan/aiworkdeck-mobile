@@ -42,7 +42,8 @@ struct StatusDot: View {
     private var color: Color {
         switch state {
         case .waiting: onDark ? T.S.waitingOnDark : T.S.waiting
-        case .moving: onDark ? T.S.movingOnDark : T.S.moving
+        // uploaded 仍在「路上」的语义族：进了中转区但还没到电脑，绿点会撒谎
+        case .moving, .uploaded: onDark ? T.S.movingOnDark : T.S.moving
         case .arrived: onDark ? T.S.arrivedOnDark : T.S.arrived
         case .failed: T.S.failed
         }

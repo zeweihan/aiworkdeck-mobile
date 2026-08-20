@@ -32,9 +32,17 @@ final class AppModel {
     // MARK: - 账号
 
     /// 选中的归档目标。nil = 还没选，界面走项目选择页。
-    /// 存 UserDefaults 就够——项目 id 不是凭据，泄露它没有意义。
-    var selectedProjectId: Int? {
-        didSet { UserDefaults.standard.set(selectedProjectId ?? 0, forKey: "selectedProjectId") }
+    /// 存 UserDefaults 就够——项目条目不是凭据，泄露它没有意义。
+    /// （旧版存的是 Int 型云端项目 id，键 selectedProjectId；目录镜像的 key 是
+    /// 桌面机本地 id，两个命名空间不通，升级后旧选择一律作废、回到选择页。）
+    var selectedProject: RelayProject? {
+        didSet {
+            if let p = selectedProject, let data = try? JSONEncoder().encode(p) {
+                UserDefaults.standard.set(data, forKey: "selectedRelayProject")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedRelayProject")
+            }
+        }
     }
 
     func didLogin(_ result: LoginResult) async {
@@ -42,11 +50,11 @@ final class AppModel {
         await refresh()
     }
 
-    func selectProject(_ p: ProjectSummary) async {
-        selectedProjectId = p.id
-        project = FieldProject(id: String(p.id), name: p.name,
+    func selectProject(_ p: RelayProject) async {
+        selectedProject = p
+        project = FieldProject(id: p.id, name: p.name,
                                archivePath: "现场影像 / \(AppModel.today)")
-        await UploadQueue.shared.configure(projectId: p.id) { [weak self] in
+        await UploadQueue.shared.configure(project: p) { [weak self] in
             await self?.refresh()
         }
         await UploadQueue.shared.kick()
@@ -72,7 +80,15 @@ final class AppModel {
 
     /// 切项目：清掉选择回到选择页。不动已拍的影像，它们仍属于原项目的队列。
     func clearProjectSelection() {
-        selectedProjectId = nil
+        selectedProject = nil
+    }
+
+    /// 查投递回执：停在中转区的影像被桌面端取走后改成「已抵达」。
+    func checkDelivered() {
+        Task {
+            await UploadQueue.shared.checkDelivered()
+            await refresh()
+        }
     }
 
     func signOut() {
@@ -100,18 +116,26 @@ final class AppModel {
         if SessionStore.current != nil, account == nil {
             account = AccountUser(id: 0, username: "", displayName: "", avatarUrl: "", role: "USER")
         }
-        let saved = UserDefaults.standard.integer(forKey: "selectedProjectId")
-        if saved > 0 { selectedProjectId = saved }
-        if let pid = selectedProjectId {
-            await UploadQueue.shared.configure(projectId: pid) { [weak self] in
+        // 旧版的 Int 键作废（命名空间已换），顺手清掉
+        UserDefaults.standard.removeObject(forKey: "selectedProjectId")
+        if let data = UserDefaults.standard.data(forKey: "selectedRelayProject"),
+           let saved = try? JSONDecoder().decode(RelayProject.self, from: data) {
+            selectedProject = saved
+            project = FieldProject(id: saved.id, name: saved.name,
+                                   archivePath: "现场影像 / \(AppModel.today)")
+            await UploadQueue.shared.configure(project: saved) { [weak self] in
                 await self?.refresh()
             }
         }
         didRestore = true
         try? await EvidenceStore.shared.sweepOrphans()
         await refresh()
-        // 上次没传完的，启动就接着传
-        if selectedProjectId != nil { await UploadQueue.shared.kick() }
+        // 上次没传完的，启动就接着传；停在中转区的顺手查一次回执
+        if selectedProject != nil {
+            await UploadQueue.shared.kick()
+            await UploadQueue.shared.checkDelivered()
+            await refresh()
+        }
     }
 
     func store(data: Data, kind: MediaKind, at: Date, location: (lat: Double, lon: Double, accuracy: Double)?) async {

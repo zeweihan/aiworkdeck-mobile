@@ -11,19 +11,19 @@ actor UploadQueue {
     static let shared = UploadQueue()
 
     private var running = false
-    private var projectId: Int?
+    private var project: RelayProject?
 
     /// 进度回调，UI 层订阅。
     private var onChange: (@Sendable () async -> Void)?
 
-    func configure(projectId: Int?, onChange: (@Sendable () async -> Void)?) {
-        self.projectId = projectId
+    func configure(project: RelayProject?, onChange: (@Sendable () async -> Void)?) {
+        self.project = project
         self.onChange = onChange
     }
 
     /// 启动一轮。已经在跑就直接返回，不排队叠加。
     func kick() async {
-        guard !running, let projectId else { return }
+        guard !running, let project else { return }
         running = true
         defer { running = false }
 
@@ -38,11 +38,12 @@ actor UploadQueue {
 
                 try await API.shared.upload(
                     item: item,
-                    projectId: projectId,
+                    project: project,
                     fileName: Self.fileName(for: item)
                 ) { _ in }
 
-                try await EvidenceStore.shared.updateState(item.id, to: .arrived, progress: 1)
+                // 进了中转区 ≠ 到了电脑：真正的 arrived 由 checkDelivered 按回执改
+                try await EvidenceStore.shared.updateState(item.id, to: .uploaded, progress: 1)
                 await onChange?()
             } catch {
                 // 失败退回 failed 而不是 waiting：否则会立刻被下一轮捞起来无限重试，
@@ -55,6 +56,24 @@ actor UploadQueue {
                 break
             }
         }
+    }
+
+    /// 对停在中转区的影像查投递回执，桌面端确认落盘的改成 arrived。
+    /// 查询失败静默返回——回执只是状态汇报，不该产生任何打扰。
+    func checkDelivered() async {
+        let uploaded = (try? await EvidenceStore.shared.loadAll())?
+            .filter { $0.state == .uploaded } ?? []
+        guard !uploaded.isEmpty else { return }
+        let ids = uploaded.map { $0.manifest.clientMediaId.uuidString.lowercased() }
+        guard let status = try? await API.shared.mediaStatus(clientMediaIds: ids) else { return }
+        let delivered = Set(status.filter { $0.delivered }.map { $0.clientMediaId })
+        var changed = false
+        for item in uploaded
+        where delivered.contains(item.manifest.clientMediaId.uuidString.lowercased()) {
+            try? await EvidenceStore.shared.updateState(item.id, to: .arrived, progress: 1)
+            changed = true
+        }
+        if changed { await onChange?() }
     }
 
     /// 把失败的重新排回待传。用户手动点「重试」时调用。

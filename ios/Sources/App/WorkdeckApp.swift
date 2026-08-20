@@ -32,7 +32,7 @@ private struct RootView: View {
                 Color(T.L.bg).ignoresSafeArea()
             } else if !model.isSignedIn {
                 LoginView().environment(model)
-            } else if model.selectedProjectId == nil {
+            } else if model.selectedProject == nil {
                 // 不选项目就不知道照片往哪去。与其让人先拍完再问，不如进门就定。
                 ProjectPickerView().environment(model)
             } else {
@@ -40,7 +40,7 @@ private struct RootView: View {
             }
         }
         .animation(T.A.base, value: model.isSignedIn)
-        .animation(T.A.base, value: model.selectedProjectId)
+        .animation(T.A.base, value: model.selectedProject)
     }
 
     private var signedIn: some View {
