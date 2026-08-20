@@ -1,42 +1,42 @@
 .page {
-  padding: var(--space-3) var(--space-4) 0;
+  padding: var(--s3) var(--s4) 0;
 }
 
 /* ---- 桌面端连接状态 ------------------------------------------------------ */
 .link {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
+  gap: var(--s3);
+  padding: var(--s3);
+  border-radius: 16rpx;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1rpx solid var(--color-border);
-  box-shadow: var(--elev-1);
+  border: 1rpx solid var(--rule);
+  box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
 }
 
 .link.glass--solid {
-  background: var(--color-surface);
+  background: var(--bg);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.link--offline { background: var(--color-surface); }
+.link--offline { background: var(--bg); }
 
 .link__icon { width: 36rpx; height: 36rpx; flex-shrink: 0; }
 .link__text { flex: 1; min-width: 0; }
 
 .link__title {
-  font-size: var(--font-caption);
+  font-size: var(--t-small);
   font-weight: 600;
-  color: var(--color-fg);
+  color: var(--fg);
   line-height: 1.3;
 }
 
 .link__meta {
-  font-size: var(--font-micro);
-  color: var(--color-fg-muted);
+  font-size: var(--t-micro);
+  color: var(--fg-muted);
   line-height: 1.4;
   margin-top: 2rpx;
 }
@@ -45,14 +45,14 @@
 .link__pulse {
   width: 14rpx;
   height: 14rpx;
-  border-radius: var(--radius-full);
-  background: var(--color-fg-faint);
+  border-radius: 50%;
+  background: var(--fg-faint);
   flex-shrink: 0;
 }
 
 .link__pulse--on {
-  background: var(--color-state-arrived);
-  animation: awd-breathe 2.4s var(--ease-out) infinite;
+  background: var(--st-arrived);
+  animation: awd-breathe 2.4s var(--e-out) infinite;
 }
 
 @keyframes awd-breathe {
@@ -64,12 +64,12 @@
 .states {
   display: flex;
   align-items: stretch;
-  margin-top: var(--space-3);
-  padding: var(--space-4) var(--space-2);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border: 1rpx solid var(--color-border);
-  box-shadow: var(--elev-1);
+  margin-top: var(--s3);
+  padding: var(--s4) var(--s2);
+  background: var(--bg);
+  border-radius: 16rpx;
+  border: 1rpx solid var(--rule);
+  box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
 }
 
 .state {
@@ -86,58 +86,58 @@
 
 .state__div {
   width: 1rpx;
-  background: var(--color-border);
-  margin: var(--space-1) 0;
+  background: var(--rule);
+  margin: var(--s1) 0;
 }
 
 .state__num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--font-display);
+  font-size: var(--t-display);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
 
-.state__num--waiting { color: var(--color-state-waiting); }
-.state__num--moving  { color: var(--color-state-moving); }
-.state__num--arrived { color: var(--color-state-arrived); }
+.state__num--waiting { color: var(--st-waiting); }
+.state__num--moving  { color: var(--st-moving); }
+.state__num--arrived { color: var(--st-arrived); }
 
 .state__label {
-  font-size: var(--font-caption);
+  font-size: var(--t-small);
   font-weight: 500;
-  color: var(--color-fg);
-  margin-top: var(--space-1);
+  color: var(--fg);
+  margin-top: var(--s1);
 }
 
 .state__hint {
-  font-size: var(--font-micro);
-  color: var(--color-fg-faint);
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
 }
 
 /* ---- 主行动 -------------------------------------------------------------- */
 .capture {
   flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  padding: var(--space-6) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
+  gap: var(--s1);
+  margin-top: var(--s3);
+  padding: var(--s6) var(--s4);
+  border-radius: 24rpx;
+  background: linear-gradient(160deg, var(--accent) 0%, #172554 100%);
   box-shadow: 0 12rpx 32rpx rgba(30, 58, 138, 0.24);
 }
 
 .capture__icon { width: 56rpx; height: 56rpx; }
 
 .capture__label {
-  font-size: var(--font-title);
+  font-size: var(--t-title);
   font-weight: 600;
-  color: var(--color-on-primary);
+  color: #FFFFFF;
   letter-spacing: 0.02em;
-  margin-top: var(--space-1);
+  margin-top: var(--s1);
 }
 
 .capture__sub {
-  font-size: var(--font-micro);
+  font-size: var(--t-micro);
   color: rgba(255, 255, 255, 0.72);
 }
 
@@ -145,35 +145,35 @@
 .assure {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-sm);
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--accent-wash);
+  border-radius: 8rpx;
 }
 
 .assure__icon { width: 30rpx; height: 30rpx; flex-shrink: 0; }
 
 .assure__text {
-  font-size: var(--font-micro);
-  color: var(--color-primary);
+  font-size: var(--t-micro);
+  color: var(--accent);
   line-height: 1.5;
 }
 
 /* ---- 最近影像 ------------------------------------------------------------ */
-.section { margin-top: var(--space-6); }
+.section { margin-top: var(--s6); }
 
 .section__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--s3);
 }
 
 .section__title {
-  font-size: var(--font-heading);
+  font-size: var(--t-heading);
   font-weight: 600;
-  color: var(--color-fg);
+  color: var(--fg);
   letter-spacing: -0.01em;
 }
 
@@ -182,25 +182,25 @@
   gap: 2rpx;
   justify-content: flex-end;
   min-width: auto;
-  padding-left: var(--space-3);
+  padding-left: var(--s3);
 }
 
-.section__more-text { font-size: var(--font-caption); color: var(--color-fg-muted); }
+.section__more-text { font-size: var(--t-small); color: var(--fg-muted); }
 .section__more-icon { width: 26rpx; height: 26rpx; }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
+  gap: var(--s2);
 }
 
 .tile {
   position: relative;
   aspect-ratio: 1;
-  border-radius: var(--radius-sm);
+  border-radius: 8rpx;
   overflow: hidden;
-  background: var(--color-muted);
-  animation: awd-rise var(--dur-base) var(--ease-out) both;
+  background: var(--bg-sunken);
+  animation: awd-rise var(--d-base) var(--e-out) both;
 }
 
 /* 占位缩略图。接后端后换成真实图片，保留同样的圆角与比例。 */
@@ -211,24 +211,24 @@
 /* 状态点压在缩略图上——扫一眼就知道哪些还没走 */
 .tile__badge {
   position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
+  top: var(--s1);
+  right: var(--s1);
   width: 16rpx;
   height: 16rpx;
-  border-radius: var(--radius-full);
+  border-radius: 50%;
   border: 2rpx solid rgba(255, 255, 255, 0.9);
 }
 
-.tile__badge--waiting { background: var(--color-state-waiting); }
-.tile__badge--moving  { background: var(--color-state-moving); }
-.tile__badge--arrived { background: var(--color-state-arrived); }
+.tile__badge--waiting { background: var(--st-waiting); }
+.tile__badge--moving  { background: var(--st-moving); }
+.tile__badge--arrived { background: var(--st-arrived); }
 
 .tile__time {
   position: absolute;
-  left: var(--space-1);
-  bottom: var(--space-1);
-  font-size: var(--font-micro);
-  color: var(--color-fg-muted);
+  left: var(--s1);
+  bottom: var(--s1);
+  font-size: var(--t-micro);
+  color: var(--fg-muted);
   background: rgba(255, 255, 255, 0.82);
   padding: 0 6rpx;
   border-radius: 4rpx;

@@ -74,5 +74,5 @@
     </view>
   </view>
 
-  <view class="tail" style="height: calc(var(--space-12) + {{metrics.bottomInset}}px);"></view>
+  <view class="tail" style="height: calc(var(--s10) + {{metrics.bottomInset}}px);"></view>
 </view>
