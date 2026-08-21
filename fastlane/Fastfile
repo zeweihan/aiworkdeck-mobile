@@ -1,5 +1,15 @@
 # 全程走 App Store Connect API Key，不做交互登录、不碰 2FA。
 # Key 是 Admin 角色（创建 Distribution 证书必须 Admin，Developer 角色会卡住）。
+
+# cert 动作装 WWDR 中间证书时用的是裸 `curl -f`，没有重试。Apple 的
+# certificateauthority CDN 会间歇性回 403 / 半路断流（2026-08-21 发版实测：
+# AppleWWDRCAG2.cer 一次 403、一次 curl(56)），而 fastlane 只要 curl 非零就
+# 直接 UI.user_error!("Could not install WWDR certificate") 整条 lane 挂掉——
+# 哪怕那几张证书早就在钥匙串里。这个开关让它改用 --http1.1 --retry 3
+# --retry-all-errors（fastlane 为 issue #20960 留的口子），重试后拿到证书、
+# security import 报「已存在」，fastlane 认这条信息并放行。
+ENV["FASTLANE_WWDR_USE_HTTP1_AND_RETRIES"] ||= "true"
+
 default_platform(:ios)
 
 def asc_key
