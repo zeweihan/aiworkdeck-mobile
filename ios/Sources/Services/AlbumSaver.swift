@@ -7,11 +7,15 @@ import Photos
 /// 原设计的理由是：手机丢了、相册被翻，尽调材料不该躺在相册里。
 /// 现在做成开关，把这个权衡摆在设置页上让用户每次都是知情选择。
 ///
-/// 只写入「AI WorkDeck」这个自建相册，不散落在「最近项目」里——
-/// 至少让它们聚在一处，需要删的时候能一次删干净。
+/// **只做「添加」，不建、不找自定义相册。** 旧实现想把影像归进一个自建的
+/// 「AI WorkDeck」相册，但 `PHAssetCollection.fetchAssetCollections` 与
+/// `creationRequestForAssetCollection` 都是读写级操作：在只拿到 addOnly 授权的
+/// 情况下调用，系统会再弹一次「完整访问」授权，而这个 App 从来没有声明
+/// `NSPhotoLibraryUsageDescription`——TCC 对缺少用途说明的授权请求的处理是
+/// 直接杀进程。表现就是「第一次按快门即闪退」，TestFlight 上没有任何日志
+/// （dev-board#101，iPhone 17 Pro Max / iOS 26 实测）。
+/// 要恢复自建相册必须同时声明读权限并申请 .readWrite，那是产品决策，不在这里偷偷做。
 enum AlbumSaver {
-    static let albumName = "AI WorkDeck"
-
     enum SaveError: LocalizedError {
         case denied
         case failed(String)
@@ -37,42 +41,17 @@ enum AlbumSaver {
 
     static func save(url: URL, kind: MediaKind) async throws {
         guard await ensureAuthorized() else { throw SaveError.denied }
-        let collection = try await ensureAlbum()
-
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                let req: PHAssetChangeRequest? = kind == .photo
-                    ? PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
-                    : PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-                guard let placeholder = req?.placeholderForCreatedAsset,
-                      let album = PHAssetCollectionChangeRequest(for: collection) else { return }
-                album.addAssets([placeholder] as NSArray)
+                if kind == .photo {
+                    PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
+                } else {
+                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+                }
             }
         } catch {
             throw SaveError.failed(error.localizedDescription)
         }
-    }
-
-    private static func ensureAlbum() async throws -> PHAssetCollection {
-        if let existing = findAlbum() { return existing }
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumName)
-            }
-        } catch {
-            throw SaveError.failed("无法创建相册：\(error.localizedDescription)")
-        }
-        guard let created = findAlbum() else {
-            throw SaveError.failed("相册创建后仍找不到")
-        }
-        return created
-    }
-
-    private static func findAlbum() -> PHAssetCollection? {
-        let opts = PHFetchOptions()
-        opts.predicate = NSPredicate(format: "title = %@", albumName)
-        return PHAssetCollection.fetchAssetCollections(
-            with: .album, subtype: .albumRegular, options: opts).firstObject
     }
 }
 

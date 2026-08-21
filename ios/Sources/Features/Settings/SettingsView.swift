@@ -20,7 +20,7 @@ struct SettingsView: View {
                                 // 把权衡摆在这儿，让每次选择都是知情的。
                                 // 这不是吓唬人——尽调影像进相册，手机丢了或被查时
                                 // 它就躺在那儿。
-                                Text("存入名为「AI WorkDeck」的相册。关掉则影像只留在本应用内，手机相册里看不到。")
+                                Text("拍完同时存一份到系统相册。关掉则影像只留在本应用内，手机相册里看不到。")
                                     .font(T.F.nano())
                                     .foregroundStyle(T.L.fgFaint)
                                     .fixedSize(horizontal: false, vertical: true)
