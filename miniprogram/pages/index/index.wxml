@@ -47,12 +47,39 @@
   <view class="rule"></view>
 
   <!-- 主行动。现场是单手操作、光线差、可能还有点紧张，所以按钮要大、要稳、只有一个。 -->
-  <view class="capture tappable" bindtap="onCapture" aria-label="开始拍摄">
+  <view
+    class="capture tappable {{recording ? 'capture--disabled' : ''}}"
+    bindtap="onCapture"
+    aria-label="开始拍摄"
+  >
     <view class="capture__text">
       <view class="capture__title">开始拍摄</view>
       <view class="capture__sub">拍摄内容自动归入今天的现场影像</view>
     </view>
     <image class="capture__icon" src="{{Icon.cameraWhite}}" mode="aspectFit" />
+  </view>
+
+  <!-- 录音入口：拍摄的姊妹行动，浅底描边不与主按钮争强调；
+       录制中换成 计时 + 段号 + 停止，续段全静默不打断 -->
+  <view class="record tappable" wx:if="{{!recording}}" bindtap="onStartRecord" aria-label="开始录音">
+    <view class="record__text">
+      <view class="record__title">开始录音</view>
+      <view class="record__sub">录音自动归入今天的现场录音，单段满 10 分钟自动续录</view>
+    </view>
+    <image class="record__icon" src="{{Icon.micNavy}}" mode="aspectFit" />
+  </view>
+  <view class="record record--active" wx:else>
+    <view class="record__text">
+      <view class="record__status">
+        <view class="record__pulse"></view>
+        <text class="record__timer mono">{{recordElapsed}}</text>
+        <text class="record__segment">第 {{recordSegment}} 段</text>
+      </view>
+      <view class="record__sub">录音中，每段录满自动续录下一段</view>
+    </view>
+    <view class="record__stop tappable" bindtap="onStopRecord" aria-label="停止录音">
+      <text>停止</text>
+    </view>
   </view>
 
   <!-- D6：能力边界要明示，不能默默降级 -->

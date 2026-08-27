@@ -86,6 +86,21 @@ media_type, file_size, storage_path, captured_at, created_at, delivered_at)`，
 既有 App 登录即落到正确账号（能看到云端既有项目），3 完成后项目目录出现，4 完成后
 拍摄归档全链路通。
 
+## 2026-08-27 增补：音频、配额与到期（dev-board#226/#228）
+
+- `POST /api/mobile/media` 的 `mediaType` 枚举扩为 `image | video | audio`；
+  音频在桌面端落 `现场录音/YYYY-MM-DD/`（影像仍落 `现场影像/YYYY-MM-DD/`）。
+- 中转区配额 3GB / 保存期 30 天（取代上文的 7 天 TTL 兜底口径）。空间已满时
+  上传返回 HTTP 200 + `{"code":1,"message":"云端空间已满（3GB）：请在桌面端打开
+  AI WorkDeck 收取已上传的文件后重试"}`，客户端把 message 原文展示给用户。
+- `GET /api/mobile/media/status` 数组元素新增 `expiresAt`（ISO 本地时间字符串，
+  仅未投递/未抵达件带）；客户端在剩余不足 3 天时催收。
+- 新增 `GET /api/mobile/media/usage` → 裸对象 `{usedBytes, quotaBytes}`
+  （小程序 v1 暂不展示，仅记契约）。
+- 小程序录音：RecorderManager mp3 / 16kHz 单声道，单段最长 10 分钟
+  （RecorderManager 上限），到顶静默自动续录，段号递增，
+  文件名 `录音_yyyyMMdd_HHmmss_段N.mp3`。
+
 ## 验证
 
 - 后端单元/集成测试（mvn，JDK 21）。

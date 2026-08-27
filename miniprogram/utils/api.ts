@@ -50,6 +50,8 @@ export interface MediaStatus {
   clientMediaId: string
   delivered: boolean
   waitingSeconds: number
+  /** 中转区到期时刻（ISO 本地时间字符串），仅未投递件带；投递后不再有意义 */
+  expiresAt?: string
 }
 
 export function getSession(): string | null {
@@ -193,7 +195,7 @@ export function uploadMedia(opts: {
   projectKey: string
   clientMediaId: string
   fileName: string
-  mediaType: 'image' | 'video'
+  mediaType: 'image' | 'video' | 'audio'
   capturedAt: string
   onProgress?: (percent: number) => void
 }): Promise<void> {

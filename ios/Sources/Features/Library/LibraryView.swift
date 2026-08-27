@@ -78,8 +78,16 @@ struct LibraryView: View {
             }
             .accessibilityElement()
             .accessibilityLabel(
-                "\(item.kind == .video ? "录像" : "照片")，\(RelativeTime.clock(item.capturedAt))，\(item.state.caption)"
+                "\(kindLabel(item.kind))，\(RelativeTime.clock(item.capturedAt))，\(item.state.caption)"
             )
+    }
+
+    private func kindLabel(_ kind: MediaKind) -> String {
+        switch kind {
+        case .photo: "照片"
+        case .video: "录像"
+        case .audio: "录音"
+        }
     }
 
     // MARK: - 顶栏（玻璃压在影像上）

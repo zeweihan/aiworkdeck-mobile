@@ -112,6 +112,81 @@
 
 .capture__icon { width: 48rpx; height: 48rpx; flex-shrink: 0; }
 
+/* 录制中拍摄按钮禁用：只降透明度，不换色相 */
+.capture--disabled { opacity: 0.4; }
+
+/* ---- 录音：拍摄的姊妹行动，浅底描边不与唯一强调色实心按钮争强调 ------------ */
+.record {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 var(--s3);
+  padding: var(--s4);
+  border-radius: var(--s3);
+  background: var(--accent-wash);
+  border: 1rpx solid var(--rule-strong);
+}
+
+.record__title {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.record__sub {
+  margin-top: 4rpx;
+  font-size: var(--t-micro);
+  color: var(--fg-muted);
+}
+
+.record__icon { width: 44rpx; height: 44rpx; flex-shrink: 0; }
+
+/* 录制中 */
+.record--active { border-color: var(--accent); }
+
+.record__status {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.record__pulse {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--st-failed);
+  animation: record-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.record__timer {
+  font-size: var(--t-title);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.record__segment {
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+}
+
+.record__stop {
+  flex-shrink: 0;
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s4);
+  border-radius: var(--s2);
+  background: var(--accent);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
 /* ---- 能力边界说明（D6，不能默默降级） ------------------------------------- */
 .note { padding: 0 0 var(--s4); }
 
@@ -151,6 +226,7 @@
 .tile__thumb { width: 100%; height: 100%; }
 .tile__thumb--doc   { background: linear-gradient(150deg, #E8EDF5 0%, #D4DDEA 100%); }
 .tile__thumb--scene { background: linear-gradient(150deg, #E3E9E4 0%, #CFD9D2 100%); }
+.tile__thumb--audio { background: linear-gradient(150deg, #EEE9F2 0%, #DCD4E3 100%); }
 
 /* 状态点压在缩略图上——扫一眼就知道哪些还没走 */
 .tile__dot {

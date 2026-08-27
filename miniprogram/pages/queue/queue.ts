@@ -16,6 +16,10 @@ interface DisplayItem {
   projectName: string
   statusText: string
   waitingText: string
+  /** failed 态的服务端/网络层可读错误原文（如「云端空间已满」），空串不渲染 */
+  errorText: string
+  /** 快到期的黄字提醒，空串不渲染 */
+  expiresText: string
   dotClass: string
   canRetry: boolean
 }
@@ -50,6 +54,23 @@ function waitingText(item: QueueItem): string {
   return `已等待 ${Math.floor(seconds / 60)} 分钟`
 }
 
+/** iOS 的 JSC 解析不带时区的 ISO 字符串不可靠，手工拆字段按本地时间构造 */
+function parseLocalIso(s: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(s)
+  if (!m) return null
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || '0')).getTime()
+}
+
+/** 已上传未抵达且剩余保存期不足 3 天：黄字催收，过期即删不可隐瞒 */
+function expiresText(item: QueueItem): string {
+  if (item.state !== 'uploaded' || !item.expiresAt) return ''
+  const ts = parseLocalIso(item.expiresAt)
+  if (ts === null) return ''
+  if (ts - Date.now() >= 3 * 24 * 3600 * 1000) return ''
+  const d = new Date(ts)
+  return `云端保存至 ${d.getMonth() + 1}月${d.getDate()}日，请尽快在桌面端接收`
+}
+
 function dotClass(state: QueueState): string {
   if (state === 'failed') return 'dot--failed'
   if (state === 'waiting') return 'dot--waiting'
@@ -65,6 +86,8 @@ function toDisplayItem(item: QueueItem): DisplayItem {
     projectName: item.projectName,
     statusText: statusText(item.state),
     waitingText: waitingText(item),
+    errorText: item.state === 'failed' ? item.errorMessage || '' : '',
+    expiresText: expiresText(item),
     dotClass: dotClass(item.state),
     canRetry: item.state === 'failed',
   }

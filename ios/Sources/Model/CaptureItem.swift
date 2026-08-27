@@ -40,6 +40,7 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
 enum MediaKind: String, Codable, Sendable {
     case photo
     case video
+    case audio
 }
 
 /// 取证归档信息。

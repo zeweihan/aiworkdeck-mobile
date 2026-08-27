@@ -18,9 +18,9 @@ export type QueueState = 'waiting' | 'uploading' | 'uploaded' | 'arrived' | 'fai
 export interface QueueItem {
   /** uuid()，幂等键，重传不产生重复件 */
   clientMediaId: string
-  /** 照片_20260820_141516.jpg / 录像_20260820_141516_段1.mp4 */
+  /** 照片_20260820_141516.jpg / 录像_20260820_141516_段1.mp4 / 录音_20260820_141516_段1.mp3 */
   fileName: string
-  mediaType: 'image' | 'video'
+  mediaType: 'image' | 'video' | 'audio'
   /** saveFile 后的沙盒路径；saveFile 失败时是临时路径 */
   filePath: string
   saved: boolean
@@ -33,7 +33,9 @@ export interface QueueItem {
   errorMessage?: string
   /** uploaded 态由 status 轮询回填 */
   waitingSeconds?: number
-  /** 录像分段序号，从 1 起 */
+  /** 中转区到期时刻（ISO 本地时间字符串），uploaded 未抵达件由 status 轮询回填 */
+  expiresAt?: string
+  /** 录像/录音分段序号，从 1 起 */
   segmentIndex?: number
   /** Date.now()，列表排序与显示 HH:mm 用 */
   createdAt: number
@@ -100,12 +102,15 @@ function pad2(n: number): string {
   return n < 10 ? '0' + n : String(n)
 }
 
-function fileNameFor(mediaType: 'image' | 'video', at: Date, segmentIndex?: number): string {
+function fileNameFor(mediaType: 'image' | 'video' | 'audio', at: Date, segmentIndex?: number): string {
   const stamp =
     `${at.getFullYear()}${pad2(at.getMonth() + 1)}${pad2(at.getDate())}_` +
     `${pad2(at.getHours())}${pad2(at.getMinutes())}${pad2(at.getSeconds())}`
   if (mediaType === 'image') {
     return `照片_${stamp}.jpg`
+  }
+  if (mediaType === 'audio') {
+    return `录音_${stamp}_段${segmentIndex ?? 1}.mp3`
   }
   return `录像_${stamp}_段${segmentIndex ?? 1}.mp4`
 }
@@ -119,7 +124,7 @@ function fileNameFor(mediaType: 'image' | 'video', at: Date, segmentIndex?: numb
  */
 export function enqueueCapture(
   tempFilePath: string,
-  mediaType: 'image' | 'video',
+  mediaType: 'image' | 'video' | 'audio',
   project: RelayProject,
   segmentIndex?: number,
 ): QueueItem {
@@ -279,6 +284,7 @@ export function pollStatus(): Promise<boolean> {
       } else {
         updateItem(it.clientMediaId, (x) => {
           x.waitingSeconds = status.waitingSeconds
+          x.expiresAt = status.expiresAt
         })
         stillPending = true
       }

@@ -40,6 +40,12 @@ enum AlbumSaver {
     }
 
     static func save(url: URL, kind: MediaKind) async throws {
+        // PhotoKit 没有音频资产，且取证录音本不该进相册——直接返回，不报错。
+        // 拿 m4a 去 creationRequestForAssetFromVideo 会静默失败或产生废资产。
+        switch kind {
+        case .audio: return
+        case .photo, .video: break
+        }
         guard await ensureAuthorized() else { throw SaveError.denied }
         do {
             try await PHPhotoLibrary.shared().performChanges {

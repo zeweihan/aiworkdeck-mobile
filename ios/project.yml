@@ -76,7 +76,7 @@ targetTemplates:
         NSCameraUsageDescription: >-
           拍摄现场资料与取证影像。影像只保存在本应用内，不写入系统相册。
         NSMicrophoneUsageDescription: >-
-          录制现场影像时同时录音，作为取证记录的一部分。
+          现场录音取证与录像收声都需要使用麦克风，录到的声音只作为取证记录保存。
         NSLocationWhenInUseUsageDescription: >-
           记录每张影像的拍摄地点，写入归档信息。仅在拍摄时读取一次，不做后台定位。
         NSPhotoLibraryAddUsageDescription: >-
