@@ -53,7 +53,7 @@ actor EvidenceStore {
         try ensureDirs()
 
         let id = UUID()
-        let ext = kind == .photo ? "jpg" : "mov"
+        let ext = Self.ext(for: kind)
         let url = mediaDir.appendingPathComponent("\(id.uuidString).\(ext)")
 
         // 1. 原图先落盘
@@ -152,7 +152,7 @@ actor EvidenceStore {
 
     private func decode(at url: URL) throws -> CaptureItem {
         let row = try JSONDecoder.iso.decode(StoredRow.self, from: Data(contentsOf: url))
-        let ext = row.kind == .photo ? "jpg" : "mov"
+        let ext = Self.ext(for: row.kind)
         return CaptureItem(
             id: row.manifest.clientMediaId,
             kind: row.kind,
@@ -171,6 +171,15 @@ actor EvidenceStore {
                             savedToAlbum: item.savedToAlbum)
         let u = manifestDir.appendingPathComponent("\(item.id.uuidString).json")
         try JSONEncoder.iso.encode(row).write(to: u, options: .atomic)
+    }
+
+    /// 落盘扩展名是存储层契约：写入与读取必须同源，否则 decode 会拼出不存在的路径。
+    nonisolated static func ext(for kind: MediaKind) -> String {
+        switch kind {
+        case .photo: "jpg"
+        case .video: "mov"
+        case .audio: "m4a"
+        }
     }
 
     /// 流式分块算哈希：现场录像可以到几百 MB，整份读进内存会被系统杀掉。

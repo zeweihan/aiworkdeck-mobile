@@ -6,6 +6,7 @@ struct SettingsView: View {
 
     @State private var saveToAlbum = Prefs.saveToAlbum
     @State private var albumError: String?
+    @State private var usage: API.MediaUsage?
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,7 @@ struct SettingsView: View {
 
                     group("归档目标") {
                         infoRow("当前项目", model.project.name)
+                        infoRow("云端中转", usageCaption)
                         Button("切换项目") { model.clearProjectSelection() }
                             .font(T.F.small())
                             .foregroundStyle(T.L.accent)
@@ -68,6 +70,8 @@ struct SettingsView: View {
                 .padding(.bottom, T.Sp.s16)
             }
             .background(T.L.bg)
+            // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量
+            .task { usage = try? await API.shared.mediaUsage() }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -96,6 +100,14 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 「已用 / 配额」。满了之后上传会被拒并提示去桌面端收件，这行让用户提前有数。
+    private var usageCaption: String {
+        guard let usage else { return "—" }
+        let f = ByteCountFormatter()
+        f.countStyle = .binary
+        return "\(f.string(fromByteCount: usage.usedBytes)) / \(f.string(fromByteCount: usage.quotaBytes))"
     }
 
     private func requestAlbumPermission() async {

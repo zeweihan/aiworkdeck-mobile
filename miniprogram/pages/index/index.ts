@@ -2,6 +2,7 @@ import { Icon } from '../../utils/icons'
 import type { Metrics } from '../../utils/layout'
 import { getSession, getSelectedProject, type RelayProject } from '../../utils/api'
 import { listItems, counts, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
+import { startRecording, stopRecording, isRecording } from '../../utils/recorder'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -13,9 +14,15 @@ const POLL_INTERVAL = 5000
 /** 首页缩略图用的精简展示结构 */
 interface RecentItem {
   id: string
-  kind: 'doc' | 'scene'
+  kind: 'doc' | 'scene' | 'audio'
   state: 'waiting' | 'moving' | 'arrived'
   time: string
+}
+
+function toRecentKind(mediaType: QueueItem['mediaType']): RecentItem['kind'] {
+  if (mediaType === 'video') return 'scene'
+  if (mediaType === 'audio') return 'audio'
+  return 'doc'
 }
 
 /** 队列的五态收窄成首页缩略图用的三态：waiting/failed 都算「还没走」 */
@@ -50,10 +57,15 @@ Page({
     deviceName: '',
     counts: { waiting: 0, moving: 0, arrived: 0 },
     recent: [] as RecentItem[],
+    recording: false,
+    recordElapsed: '00:00',
+    recordSegment: 1,
   },
 
   unsubscribe: null as (() => void) | null,
   pollTimer: null as number | null,
+  recordTimer: null as number | null,
+  recordStartedAt: 0,
 
   onLoad() {
     const app = getApp<AppGlobal>()
@@ -77,6 +89,11 @@ Page({
       deviceName: project.deviceName || '桌面设备',
     })
 
+    // 录制态与真实 recorder 对齐：页面被 reLaunch 重建等场景下不残留假录制中
+    if (this.data.recording && !isRecording()) {
+      this.stopRecordUi()
+    }
+
     this.refresh()
     if (!this.unsubscribe) {
       this.unsubscribe = subscribe(() => this.refresh())
@@ -93,6 +110,7 @@ Page({
 
   onUnload() {
     this.stopPolling()
+    this.stopRecordTimer()
     if (this.unsubscribe) {
       this.unsubscribe()
       this.unsubscribe = null
@@ -118,7 +136,7 @@ Page({
       .slice(0, 6)
       .map((item) => ({
         id: item.clientMediaId,
-        kind: item.mediaType === 'video' ? 'scene' : 'doc',
+        kind: toRecentKind(item.mediaType),
         state: toDisplayState(item.state),
         time: formatTime(item.createdAt),
       }))
@@ -134,6 +152,7 @@ Page({
   },
 
   async onCapture() {
+    if (this.data.recording) return
     wx.vibrateShort({ type: 'light' })
     const project = getSelectedProject()
     if (!project) return
@@ -184,6 +203,56 @@ Page({
         wx.showToast({ title: '拍摄未完成', icon: 'none' })
       }
       return null
+    }
+  },
+
+  /** 开始录音：权限被拒或已在录不进入录制态；分段续录全静默，见 recorder.ts */
+  async onStartRecord() {
+    if (this.data.recording) return
+    wx.vibrateShort({ type: 'light' })
+    const project = getSelectedProject()
+    if (!project) return
+
+    const started = await startRecording(project, {
+      onSegment: (segmentIndex) => this.setData({ recordSegment: segmentIndex }),
+      onFinish: () => this.stopRecordUi(),
+      onError: (message) => {
+        this.stopRecordUi()
+        wx.showToast({ title: message, icon: 'none' })
+      },
+    })
+    if (!started) return
+
+    this.recordStartedAt = Date.now()
+    this.setData({ recording: true, recordSegment: 1, recordElapsed: '00:00' })
+    this.startRecordTimer()
+  },
+
+  onStopRecord() {
+    wx.vibrateShort({ type: 'light' })
+    // 末段入队后 recorder 回调 onFinish → stopRecordUi
+    stopRecording()
+  },
+
+  stopRecordUi() {
+    this.stopRecordTimer()
+    this.setData({ recording: false, recordElapsed: '00:00', recordSegment: 1 })
+  },
+
+  startRecordTimer() {
+    this.stopRecordTimer()
+    this.recordTimer = setInterval(() => {
+      const total = Math.floor((Date.now() - this.recordStartedAt) / 1000)
+      const mm = `${Math.floor(total / 60)}`.padStart(2, '0')
+      const ss = `${total % 60}`.padStart(2, '0')
+      this.setData({ recordElapsed: `${mm}:${ss}` })
+    }, 1000)
+  },
+
+  stopRecordTimer() {
+    if (this.recordTimer !== null) {
+      clearInterval(this.recordTimer)
+      this.recordTimer = null
     }
   },
 

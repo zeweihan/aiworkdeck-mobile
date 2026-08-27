@@ -83,10 +83,13 @@ final class AppModel {
         selectedProject = nil
     }
 
+    /// 未投递件的中转区到期时刻（键 clientMediaId 小写）。队列页做到期提醒用。
+    var cloudExpiry: [String: Date] = [:]
+
     /// 查投递回执：停在中转区的影像被桌面端取走后改成「已抵达」。
     func checkDelivered() {
         Task {
-            await UploadQueue.shared.checkDelivered()
+            cloudExpiry = await UploadQueue.shared.checkDelivered()
             await refresh()
         }
     }
@@ -133,7 +136,7 @@ final class AppModel {
         // 上次没传完的，启动就接着传；停在中转区的顺手查一次回执
         if selectedProject != nil {
             await UploadQueue.shared.kick()
-            await UploadQueue.shared.checkDelivered()
+            cloudExpiry = await UploadQueue.shared.checkDelivered()
             await refresh()
         }
     }
@@ -156,7 +159,8 @@ final class AppModel {
     /// 相册存不进去不该影响上传，反之亦然，两条链任何一条断了另一条都要继续走。
     private func saveToAlbumIfEnabled() async {
         guard Prefs.saveToAlbum else { return }
-        let pending = items.filter { !$0.savedToAlbum }
+        // 录音不进相册：PhotoKit 没有音频资产，混进来只会在这个循环里反复空转。
+        let pending = items.filter { !$0.savedToAlbum && $0.kind != .audio }
         for item in pending {
             do {
                 try await AlbumSaver.save(url: item.localURL, kind: item.kind)

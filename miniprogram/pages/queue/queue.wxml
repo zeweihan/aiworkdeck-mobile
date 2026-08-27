@@ -13,7 +13,9 @@
           <view class="item__name">{{item.fileName}}</view>
           <view class="item__meta">{{item.time}} · {{item.projectName}}</view>
           <view class="item__status">{{item.statusText}}</view>
+          <view class="item__error" wx:if="{{item.errorText}}">{{item.errorText}}</view>
           <view class="item__waiting" wx:if="{{item.waitingText}}">{{item.waitingText}}</view>
+          <view class="item__expires" wx:if="{{item.expiresText}}">{{item.expiresText}}</view>
         </view>
         <view
           class="item__retry tappable"

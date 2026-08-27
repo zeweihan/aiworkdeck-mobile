@@ -60,12 +60,14 @@ actor UploadQueue {
 
     /// 对停在中转区的影像查投递回执，桌面端确认落盘的改成 arrived。
     /// 查询失败静默返回——回执只是状态汇报，不该产生任何打扰。
-    func checkDelivered() async {
+    /// 返回未投递件的中转区到期时刻（键 clientMediaId 小写），队列页拿去做到期提醒。
+    @discardableResult
+    func checkDelivered() async -> [String: Date] {
         let uploaded = (try? await EvidenceStore.shared.loadAll())?
             .filter { $0.state == .uploaded } ?? []
-        guard !uploaded.isEmpty else { return }
+        guard !uploaded.isEmpty else { return [:] }
         let ids = uploaded.map { $0.manifest.clientMediaId.uuidString.lowercased() }
-        guard let status = try? await API.shared.mediaStatus(clientMediaIds: ids) else { return }
+        guard let status = try? await API.shared.mediaStatus(clientMediaIds: ids) else { return [:] }
         let delivered = Set(status.filter { $0.delivered }.map { $0.clientMediaId })
         var changed = false
         for item in uploaded
@@ -74,6 +76,24 @@ actor UploadQueue {
             changed = true
         }
         if changed { await onChange?() }
+        var expiry: [String: Date] = [:]
+        for st in status where !st.delivered {
+            if let s = st.expiresAt, let d = Self.parseExpiry(s) {
+                expiry[st.clientMediaId.lowercased()] = d
+            }
+        }
+        return expiry
+    }
+
+    /// expiresAt 是服务端给的 ISO 本地时间字符串（无时区、可能带小数秒）。
+    /// 提醒是「天」级颗粒度，按本机时区解析足够。
+    private static func parseExpiry(_ s: String) -> Date? {
+        let trimmed = s.split(separator: ".").first.map(String.init) ?? s
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return f.date(from: trimmed)
     }
 
     /// 把失败的重新排回待传。用户手动点「重试」时调用。
@@ -93,8 +113,12 @@ actor UploadQueue {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd-HHmmss"
         let stamp = f.string(from: item.capturedAt)
-        let ext = item.kind == .photo ? "jpg" : "mov"
+        let (prefix, ext) = switch item.kind {
+        case .photo: ("现场影像", "jpg")
+        case .video: ("现场影像", "mov")
+        case .audio: ("现场录音", "m4a")
+        }
         let short = item.id.uuidString.prefix(4)
-        return "现场影像-\(stamp)-\(short).\(ext)"
+        return "\(prefix)-\(stamp)-\(short).\(ext)"
     }
 }

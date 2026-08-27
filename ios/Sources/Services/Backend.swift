@@ -169,12 +169,18 @@ actor API {
         if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
 
         let iso = ISO8601DateFormatter()
+        // 三分支写死：录音落成 "video" 会被桌面端当录像归档，静默错档比报错更糟。
+        let mediaType = switch item.kind {
+        case .photo: "image"
+        case .video: "video"
+        case .audio: "audio"
+        }
         let fields: [(String, String)] = [
             ("deviceId", project.deviceId),
             ("projectKey", project.key),
             ("clientMediaId", item.manifest.clientMediaId.uuidString.lowercased()),
             ("fileName", fileName),
-            ("mediaType", item.kind == .photo ? "image" : "video"),
+            ("mediaType", mediaType),
             ("capturedAt", iso.string(from: item.capturedAt)),
         ]
 
@@ -203,6 +209,18 @@ actor API {
         let clientMediaId: String
         let delivered: Bool
         let waitingSeconds: Int64
+        /// 中转区到期时刻（ISO 本地时间字符串，仅未投递件有）。到期未取回即清理。
+        let expiresAt: String?
+    }
+
+    struct MediaUsage: Decodable, Sendable {
+        let usedBytes: Int64
+        let quotaBytes: Int64
+    }
+
+    /// 云端中转区用量（GET /api/mobile/media/usage）。裸对象，无信封。
+    func mediaUsage() async throws -> MediaUsage {
+        try await getRaw("/api/mobile/media/usage", as: MediaUsage.self)
     }
 
     /// 影像投递状态：delivered = 桌面端已确认落盘（中转区已删）。裸数组。

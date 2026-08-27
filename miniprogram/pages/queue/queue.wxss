@@ -75,6 +75,22 @@
   margin-top: 2rpx;
 }
 
+/* 失败原因原文（如「云端空间已满」）：红色小字，用户要看得见才知道怎么办 */
+.item__error {
+  font-size: var(--t-micro);
+  color: var(--st-failed);
+  margin-top: 2rpx;
+  line-height: 1.5;
+}
+
+/* 快到期催收：暖色小字，与等待提示同一档 */
+.item__expires {
+  font-size: var(--t-micro);
+  color: var(--st-waiting);
+  margin-top: 2rpx;
+  line-height: 1.5;
+}
+
 .item__retry {
   flex-shrink: 0;
   padding: 0 var(--s3);

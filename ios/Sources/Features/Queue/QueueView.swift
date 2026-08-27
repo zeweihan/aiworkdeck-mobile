@@ -99,6 +99,18 @@ struct QueueView: View {
                         .padding(.top, 1)
                 }
 
+                // 中转区不是网盘：到期未被桌面端取走就会被清理。
+                // 只在还剩不到 3 天时说话，平时不打扰。
+                if item.state == .uploaded,
+                   let exp = model.cloudExpiry[item.manifest.clientMediaId.uuidString.lowercased()],
+                   exp.timeIntervalSinceNow < 3 * 86_400 {
+                    Text("云端保存至 \(Self.monthDay(exp))，请尽快在桌面端接收")
+                        .font(T.F.nano())
+                        .foregroundStyle(T.S.waiting)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 1)
+                }
+
                 // 哈希前 12 位。要核对时不用进详情页。
                 Text(item.manifest.sha256.prefix(12))
                     .font(T.F.mono(10))
@@ -115,6 +127,12 @@ struct QueueView: View {
             }
         }
         .padding(.vertical, T.Sp.s3)
+    }
+
+    private static func monthDay(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "M月d日"
+        return f.string(from: d)
     }
 
     private var empty: some View {

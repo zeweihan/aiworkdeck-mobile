@@ -94,8 +94,10 @@ struct ThumbPlaceholder: View {
         let pair: (Color, Color) = switch (onDark, kind) {
         case (true, .photo): (Color(hex: 0x2A2E35), Color(hex: 0x1B1E23))
         case (true, .video): (Color(hex: 0x2C312D), Color(hex: 0x1C201D))
+        case (true, .audio): (Color(hex: 0x322E28), Color(hex: 0x201D19))
         case (false, .photo): (Color(hex: 0xEDEFF2), Color(hex: 0xE6E9EE))
         case (false, .video): (Color(hex: 0xE7EAE8), Color(hex: 0xDFE4E1))
+        case (false, .audio): (Color(hex: 0xF0EDE7), Color(hex: 0xE9E4DC))
         }
         return LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
