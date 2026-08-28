@@ -69,7 +69,7 @@ struct QueueView: View {
 
     private func row(_ item: CaptureItem) -> some View {
         HStack(alignment: .top, spacing: T.Sp.s3) {
-            ThumbPlaceholder(kind: item.kind)
+            EvidenceThumb(item: item)
                 .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {

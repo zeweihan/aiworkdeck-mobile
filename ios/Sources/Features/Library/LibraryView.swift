@@ -10,7 +10,6 @@ struct LibraryView: View {
     let link: DesktopLink
     let items: [CaptureItem]
 
-    var onCapture: () -> Void
     var onClose: () -> Void
 
     @State private var appeared = false
@@ -52,7 +51,7 @@ struct LibraryView: View {
     // MARK: - 单元格
 
     private func cell(_ item: CaptureItem) -> some View {
-        ThumbPlaceholder(kind: item.kind, onDark: true)
+        EvidenceThumb(item: item, onDark: true)
             .aspectRatio(1, contentMode: .fill)
             .overlay(alignment: .topTrailing) {
                 StatusDot(state: item.state, onDark: true)
@@ -162,7 +161,8 @@ struct LibraryView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            ShutterButton(action: onCapture)
+            // 首页现在就是取景器：这里的快门收回浏览页即回到镜头
+            ShutterButton(action: onClose)
 
             Text(project.archivePath)
                 .font(T.F.nano())
@@ -219,7 +219,6 @@ private struct ShutterButton: View {
         tally: DemoData.tally,
         link: DemoData.link,
         items: DemoData.recent,
-        onCapture: {},
         onClose: {}
     )
 }

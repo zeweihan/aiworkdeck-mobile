@@ -1,255 +1,392 @@
-/* 主界面。视觉语汇与 login/project 一致：纯白底、发丝线分区（.rule 来自
- * tokens.wxss）、字级跨度做层级、无卡片阴影；状态色只做小圆点，不染大数字。 */
+/* 拍摄主界面。D7：拍摄流程走深色（--dk-* 令牌），器械感——深底、发丝线、
+ * 等宽数字、状态色只做小圆点。整页不滚动，取景区吃掉剩余高度。 */
 
-.page {
-  padding: 0 var(--gutter);
-  background: var(--bg);
+page {
+  background: var(--dk-bg);
 }
 
-/* ---- 当前设备 + 切换项目 -------------------------------------------------- */
-.device {
+.cap {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--dk-bg);
+  box-sizing: border-box;
+}
+
+/* ---- 顶部信息层 ------------------------------------------------------------ */
+.top {
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  padding: var(--s4) 0;
+  gap: var(--s3);
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+  padding-bottom: var(--s3);
 }
 
-.device__text { display: flex; flex-direction: column; gap: 2rpx; }
-
-.device__name {
-  font-size: var(--t-body);
-  font-weight: 600;
-  color: var(--fg);
+.top__project {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* 压过 .tappable 的居中，保持左对齐 */
+  align-items: flex-start;
+  gap: 2rpx;
 }
 
-.device__hint {
-  font-size: var(--t-micro);
-  color: var(--fg-faint);
-}
-
-.device__switch {
+.top__name-row {
   display: flex;
   align-items: center;
-  gap: 2rpx;
+  gap: 4rpx;
+}
+
+.top__name {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  color: var(--dk-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top__chevron {
+  width: 28rpx;
+  height: 28rpx;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.top__path {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
+}
+
+.top__stats {
+  display: flex;
+  gap: var(--s3);
   flex-shrink: 0;
 }
 
-.device__switch-text {
-  font-size: var(--t-small);
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.device__chevron { width: 28rpx; height: 28rpx; }
-
-/* ---- 状态三联 -------------------------------------------------------------- */
-.stats {
-  display: flex;
-  padding: var(--s4) 0;
-}
-
-.stat {
-  flex: 1;
+.top__stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s1);
-  min-height: var(--touch-min);
-  justify-content: center;
+  gap: 2rpx;
 }
 
-.stat__row {
-  display: flex;
-  align-items: center;
-  gap: var(--s1);
-}
-
-.stat__dot {
-  width: 12rpx;
-  height: 12rpx;
+.top__dot {
+  width: 10rpx;
+  height: 10rpx;
   border-radius: 50%;
 }
 
-.stat__dot--waiting { background: var(--st-waiting); }
-.stat__dot--moving  { background: var(--st-moving); }
-.stat__dot--arrived { background: var(--st-arrived); }
+.top__dot--waiting { background: var(--st-waiting); }
+.top__dot--moving  { background: var(--st-moving); }
+.top__dot--arrived { background: var(--st-arrived); }
 
-.stat__num {
-  font-size: var(--t-display);
+.top__num {
+  font-size: var(--t-body);
   font-weight: 600;
-  color: var(--fg);
-  letter-spacing: -0.02em;
+  color: var(--dk-fg);
 }
 
-.stat__label {
-  font-size: var(--t-small);
-  color: var(--fg-muted);
+.top__label {
+  font-size: var(--t-nano);
+  color: var(--dk-fg-muted);
 }
 
-/* ---- 主行动：全 App 唯一强调色实心按钮，仍不加阴影 ------------------------- */
-.capture {
+/* ---- 取景区 ----------------------------------------------------------------- */
+.finder {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000000;
+}
+
+.finder__camera {
+  width: 100%;
+  height: 100%;
+}
+
+/* 相机权限被拒的降级态 */
+.finder__denied {
+  height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  margin: var(--s5) 0 var(--s3);
-  padding: var(--s5) var(--s4);
-  border-radius: var(--s3);
-  background: var(--accent);
+  justify-content: center;
+  padding: 0 var(--s8);
+  text-align: center;
+  gap: var(--s3);
 }
 
-.capture__title {
-  font-size: var(--t-title);
-  font-weight: 600;
-  color: #FFFFFF;
-  letter-spacing: 0.01em;
-}
-
-.capture__sub {
-  margin-top: 4rpx;
-  font-size: var(--t-micro);
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.capture__icon { width: 48rpx; height: 48rpx; flex-shrink: 0; }
-
-/* 录制中拍摄按钮禁用：只降透明度，不换色相 */
-.capture--disabled { opacity: 0.4; }
-
-/* ---- 录音：拍摄的姊妹行动，浅底描边不与唯一强调色实心按钮争强调 ------------ */
-.record {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 0 var(--s3);
-  padding: var(--s4);
-  border-radius: var(--s3);
-  background: var(--accent-wash);
-  border: 1rpx solid var(--rule-strong);
-}
-
-.record__title {
+.finder__denied-title {
   font-size: var(--t-heading);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--dk-fg);
 }
 
-.record__sub {
-  margin-top: 4rpx;
+.finder__denied-sub {
+  font-size: var(--t-small);
+  color: var(--dk-fg-muted);
+  line-height: 1.6;
+}
+
+.finder__denied-btn {
+  margin-top: var(--s2);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s6);
+  border-radius: var(--s2);
+  background: var(--dk-surface);
+  border: 1rpx solid var(--dk-rule);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--dk-fg);
+}
+
+.finder__denied-alt {
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  font-size: var(--t-small);
+  color: var(--dk-fg-muted);
+  text-decoration: underline;
+}
+
+/* 录音档面板：无画面，深色 + 麦克风 */
+.finder__audio {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  background: var(--dk-surface);
+}
+
+.finder__audio-icon {
+  width: 96rpx;
+  height: 96rpx;
+  opacity: 0.4;
+}
+
+.finder__audio-icon--live {
+  opacity: 1;
+  animation: audio-live 1.2s ease-in-out infinite;
+}
+
+@keyframes audio-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.finder__audio-hint {
+  font-size: var(--t-small);
+  color: var(--dk-fg-muted);
+}
+
+/* ---- 左下角淡水印：白字约 55% 透明度、等宽、微阴影，深色半透明衬底 -------- */
+.wm {
+  position: absolute;
+  left: var(--s3);
+  bottom: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--s1);
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.wm__line {
   font-size: var(--t-micro);
-  color: var(--fg-muted);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-.record__icon { width: 44rpx; height: 44rpx; flex-shrink: 0; }
+.wm__line--name {
+  max-width: 400rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-/* 录制中 */
-.record--active { border-color: var(--accent); }
-
-.record__status {
+/* ---- 录制中状态条 ----------------------------------------------------------- */
+.rec {
+  position: absolute;
+  top: var(--s3);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: var(--s2);
+  padding: var(--s1) var(--s3);
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.5);
 }
 
-.record__pulse {
+.rec__pulse {
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
   background: var(--st-failed);
-  animation: record-pulse 1.2s ease-in-out infinite;
+  animation: rec-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes record-pulse {
+@keyframes rec-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-.record__timer {
-  font-size: var(--t-title);
+.rec__timer {
+  font-size: var(--t-body);
   font-weight: 600;
-  color: var(--fg);
+  color: var(--dk-fg);
 }
 
-.record__segment {
-  font-size: var(--t-small);
-  color: var(--fg-muted);
+.rec__segment {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
 }
 
-.record__stop {
-  flex-shrink: 0;
+/* ---- D6 能力边界明示 -------------------------------------------------------- */
+.note {
+  padding: var(--s2) var(--gutter);
+}
+
+.note__text {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
+  line-height: 1.5;
+}
+
+/* ---- 底部控制区 ------------------------------------------------------------- */
+.ctrl {
+  padding: 0 var(--gutter) var(--s3);
+}
+
+.ctrl__modes {
+  display: flex;
+  justify-content: center;
+  gap: var(--s2);
+  padding-bottom: var(--s3);
+}
+
+.ctrl__mode {
   min-height: var(--touch-min);
   display: flex;
   align-items: center;
   padding: 0 var(--s4);
-  border-radius: var(--s2);
-  background: var(--accent);
-  font-size: var(--t-body);
-  font-weight: 600;
-  color: #FFFFFF;
-}
-
-/* ---- 能力边界说明（D6，不能默默降级） ------------------------------------- */
-.note { padding: 0 0 var(--s4); }
-
-.note__text {
-  font-size: var(--t-micro);
-  color: var(--fg-faint);
-  line-height: 1.6;
-}
-
-/* ---- 最近影像 -------------------------------------------------------------- */
-.section { padding: var(--s4) 0 var(--s6); }
-
-.section .label { display: block; margin-bottom: var(--s3); }
-
-.section__empty {
-  padding: var(--s6) 0;
-  text-align: center;
+  border-radius: 999rpx;
   font-size: var(--t-small);
-  color: var(--fg-faint);
+  color: var(--dk-fg-muted);
+  transition: color var(--d-fast) var(--e-out), background var(--d-fast) var(--e-out);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s2);
+.ctrl__mode--on {
+  color: var(--dk-fg);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.tile {
+.ctrl__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 最近一件缩略图入口 */
+.ctrl__recent {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: var(--s1);
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: var(--s2);
   overflow: hidden;
-  background: var(--bg-sunken);
+  border: 1rpx solid var(--dk-rule);
+  background: var(--dk-surface);
+  flex-shrink: 0;
 }
 
-/* 占位缩略图。接后端后换成真实图片，保留同样的圆角与比例。 */
-.tile__thumb { width: 100%; height: 100%; }
-.tile__thumb--doc   { background: linear-gradient(150deg, #E8EDF5 0%, #D4DDEA 100%); }
-.tile__thumb--scene { background: linear-gradient(150deg, #E3E9E4 0%, #CFD9D2 100%); }
-.tile__thumb--audio { background: linear-gradient(150deg, #EEE9F2 0%, #DCD4E3 100%); }
+.ctrl__recent-img {
+  width: 100%;
+  height: 100%;
+}
 
-/* 状态点压在缩略图上——扫一眼就知道哪些还没走 */
-.tile__dot {
+.ctrl__recent-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl__recent-icon {
+  width: 40rpx;
+  height: 40rpx;
+  opacity: 0.55;
+}
+
+.ctrl__recent-dot {
   position: absolute;
-  top: var(--s1);
-  right: var(--s1);
+  top: 6rpx;
+  right: 6rpx;
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
-  border: 2rpx solid rgba(255, 255, 255, 0.9);
+  border: 2rpx solid rgba(0, 0, 0, 0.6);
 }
 
-.tile__dot--waiting { background: var(--st-waiting); }
-.tile__dot--moving  { background: var(--st-moving); }
-.tile__dot--arrived { background: var(--st-arrived); }
+.ctrl__recent-dot--waiting { background: var(--st-waiting); }
+.ctrl__recent-dot--moving  { background: var(--st-moving); }
+.ctrl__recent-dot--arrived { background: var(--st-arrived); }
 
-.tile__time {
-  position: absolute;
-  left: var(--s1);
-  bottom: var(--s1);
-  font-size: var(--t-micro);
-  color: var(--fg-muted);
-  background: rgba(255, 255, 255, 0.82);
-  padding: 0 6rpx;
-  border-radius: 4rpx;
+.ctrl__recent-empty {
+  width: 100%;
+  height: 100%;
+}
+
+/* 大快门：约屏宽 16%（750rpx 设计稿 → 120rpx），外环 + 内芯 */
+.shutter {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  border: 6rpx solid rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shutter__core {
+  transition: border-radius var(--d-fast) var(--e-out), transform var(--d-fast) var(--e-out);
+}
+
+.shutter__core--photo {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+}
+
+.shutter__core--rec {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: var(--st-failed);
+}
+
+.shutter__core--stop {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
+  background: var(--st-failed);
+}
+
+.ctrl__spacer {
+  width: 104rpx;
+  flex-shrink: 0;
 }

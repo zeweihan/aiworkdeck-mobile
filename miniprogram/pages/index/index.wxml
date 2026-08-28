@@ -1,103 +1,135 @@
-<nav-bar
-  title="{{project.name}}"
-  subtitle="归档至 {{project.archivePath}}"
-  scroll-top="{{scrollTop}}"
-  bind:titletap="onSwitchProject"
-/>
+<!-- 取景器优先的拍摄主界面（D7 深色）。
+     顶部信息 / 中部取景 + 左下角淡水印 / 底部三档模式 + 大快门 + 最近缩略图入口。
+     导航高度只用全局度量（metrics），页面不自己测量。 -->
+<view class="cap" style="padding-bottom: {{metrics.bottomInset}}px;">
 
-<view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
-
-  <!-- 当前设备 + 切换项目，替掉原来的桌面在线演示行 -->
-  <view class="device tappable" bindtap="onSwitchProject">
-    <view class="device__text">
-      <text class="device__name">{{deviceName}}</text>
-      <text class="device__hint">桌面端设备</text>
-    </view>
-    <view class="device__switch">
-      <text class="device__switch-text">切换项目</text>
-      <image class="device__chevron" src="{{Icon.chevron}}" mode="aspectFit" />
-    </view>
-  </view>
-  <view class="rule"></view>
-
-  <!-- 状态三联：色只做小圆点，数字本身不着色 -->
-  <view class="stats">
-    <view class="stat tappable" bindtap="onOpenQueue">
-      <view class="stat__row">
-        <view class="stat__dot stat__dot--waiting"></view>
-        <view class="stat__num mono">{{counts.waiting}}</view>
+  <!-- 顶部信息层 -->
+  <view class="top" style="padding-top: {{metrics.navTotalHeight}}px;">
+    <view class="top__project tappable" bindtap="onSwitchProject">
+      <view class="top__name-row">
+        <text class="top__name">{{project.name}}</text>
+        <image class="top__chevron" src="{{Icon.chevronWhite}}" mode="aspectFit" />
       </view>
-      <view class="stat__label">等待中</view>
+      <text class="top__path">归档至 {{project.archivePath}}</text>
     </view>
-    <view class="stat tappable" bindtap="onOpenQueue">
-      <view class="stat__row">
-        <view class="stat__dot stat__dot--moving"></view>
-        <view class="stat__num mono">{{counts.moving}}</view>
+    <view class="top__stats tappable" bindtap="onOpenQueue">
+      <view class="top__stat">
+        <view class="top__dot top__dot--waiting"></view>
+        <text class="top__num mono">{{counts.waiting}}</text>
+        <text class="top__label">待传</text>
       </view>
-      <view class="stat__label">上传中</view>
-    </view>
-    <view class="stat tappable" bindtap="onOpenQueue">
-      <view class="stat__row">
-        <view class="stat__dot stat__dot--arrived"></view>
-        <view class="stat__num mono">{{counts.arrived}}</view>
+      <view class="top__stat">
+        <view class="top__dot top__dot--moving"></view>
+        <text class="top__num mono">{{counts.moving}}</text>
+        <text class="top__label">传输中</text>
       </view>
-      <view class="stat__label">已抵达</view>
-    </view>
-  </view>
-  <view class="rule"></view>
-
-  <!-- 主行动。现场是单手操作、光线差、可能还有点紧张，所以按钮要大、要稳、只有一个。 -->
-  <view
-    class="capture tappable {{recording ? 'capture--disabled' : ''}}"
-    bindtap="onCapture"
-    aria-label="开始拍摄"
-  >
-    <view class="capture__text">
-      <view class="capture__title">开始拍摄</view>
-      <view class="capture__sub">拍摄内容自动归入今天的现场影像</view>
-    </view>
-    <image class="capture__icon" src="{{Icon.cameraWhite}}" mode="aspectFit" />
-  </view>
-
-  <!-- 录音入口：拍摄的姊妹行动，浅底描边不与主按钮争强调；
-       录制中换成 计时 + 段号 + 停止，续段全静默不打断 -->
-  <view class="record tappable" wx:if="{{!recording}}" bindtap="onStartRecord" aria-label="开始录音">
-    <view class="record__text">
-      <view class="record__title">开始录音</view>
-      <view class="record__sub">录音自动归入今天的现场录音，单段满 10 分钟自动续录</view>
-    </view>
-    <image class="record__icon" src="{{Icon.micNavy}}" mode="aspectFit" />
-  </view>
-  <view class="record record--active" wx:else>
-    <view class="record__text">
-      <view class="record__status">
-        <view class="record__pulse"></view>
-        <text class="record__timer mono">{{recordElapsed}}</text>
-        <text class="record__segment">第 {{recordSegment}} 段</text>
+      <view class="top__stat">
+        <view class="top__dot top__dot--arrived"></view>
+        <text class="top__num mono">{{counts.arrived}}</text>
+        <text class="top__label">已上传</text>
       </view>
-      <view class="record__sub">录音中，每段录满自动续录下一段</view>
-    </view>
-    <view class="record__stop tappable" bindtap="onStopRecord" aria-label="停止录音">
-      <text>停止</text>
     </view>
   </view>
 
-  <!-- D6：能力边界要明示，不能默默降级 -->
+  <!-- 取景区 -->
+  <view class="finder">
+    <camera
+      wx:if="{{mode !== 'audio' && cameraState !== 'denied'}}"
+      class="finder__camera"
+      device-position="back"
+      flash="off"
+      binderror="onCameraError"
+      bindinitdone="onCameraReady"
+    />
+
+    <!-- 相机权限被拒 / 初始化失败的降级态：明示 + 去设置 + 系统相机兜底 -->
+    <view wx:if="{{mode !== 'audio' && cameraState === 'denied'}}" class="finder__denied">
+      <text class="finder__denied-title">相机权限未开启</text>
+      <text class="finder__denied-sub">取景拍摄需要使用相机。请在设置里打开「摄像头」权限后回到本页。</text>
+      <view class="finder__denied-btn tappable" bindtap="onOpenCameraSetting">
+        <text>去设置</text>
+      </view>
+      <view class="finder__denied-alt tappable" bindtap="onSystemCapture">
+        <text>改用系统相机拍摄</text>
+      </view>
+    </view>
+
+    <!-- 录音档：无取景画面，深色面板 + 麦克风 -->
+    <view wx:if="{{mode === 'audio'}}" class="finder__audio">
+      <image class="finder__audio-icon {{recording ? 'finder__audio-icon--live' : ''}}" src="{{Icon.micWhite}}" mode="aspectFit" />
+      <text class="finder__audio-hint">{{recording ? '录音中，每段录满 10 分钟自动续录下一段' : '按下方按钮开始录音'}}</text>
+    </view>
+
+    <!-- 左下角淡水印：仅界面叠加，不写入影像（保护取证哈希链的刻意决策） -->
+    <view wx:if="{{mode !== 'audio' && cameraState === 'ready'}}" class="wm">
+      <text class="wm__line mono">{{wmTime}}</text>
+      <text class="wm__line wm__line--name">{{project.name}}</text>
+      <text wx:if="{{wmCoords}}" class="wm__line mono">{{wmCoords}}</text>
+    </view>
+
+    <!-- 录制中状态条（录像/录音共用） -->
+    <view wx:if="{{recording}}" class="rec">
+      <view class="rec__pulse"></view>
+      <text class="rec__timer mono">{{recordElapsed}}</text>
+      <text class="rec__segment">第 {{recordSegment}} 段</text>
+    </view>
+  </view>
+
+  <!-- D6：能力边界明示，随模式切换 -->
   <view class="note">
-    <text class="note__text">录像单段最长 60 秒，长内容自动分段归档；本端录像为记录用途，证据用途请用 iOS 端。</text>
+    <text class="note__text">{{modeNote}}</text>
   </view>
-  <view class="rule"></view>
 
-  <view class="section">
-    <text class="label">最近影像</text>
-
-    <view class="grid" wx:if="{{recent.length}}">
-      <view wx:for="{{recent}}" wx:key="id" class="tile">
-        <view class="tile__thumb tile__thumb--{{item.kind}}"></view>
-        <view class="tile__dot tile__dot--{{item.state}}"></view>
-        <view class="tile__time mono">{{item.time}}</view>
-      </view>
+  <!-- 底部控制区 -->
+  <view class="ctrl">
+    <view class="ctrl__modes">
+      <view
+        class="ctrl__mode tappable {{mode === 'photo' ? 'ctrl__mode--on' : ''}}"
+        data-mode="photo"
+        bindtap="onSwitchMode"
+      ><text>照片</text></view>
+      <view
+        class="ctrl__mode tappable {{mode === 'video' ? 'ctrl__mode--on' : ''}}"
+        data-mode="video"
+        bindtap="onSwitchMode"
+      ><text>录像</text></view>
+      <view
+        class="ctrl__mode tappable {{mode === 'audio' ? 'ctrl__mode--on' : ''}}"
+        data-mode="audio"
+        bindtap="onSwitchMode"
+      ><text>录音</text></view>
     </view>
-    <view class="section__empty" wx:else>还没有拍摄记录</view>
+
+    <view class="ctrl__row">
+      <!-- 最近一件缩略图入口：真图（照片原图 / 录像帧图），audio 用色块底 + 麦克风 -->
+      <view class="ctrl__recent tappable" bindtap="onOpenQueue" aria-label="查看上传队列">
+        <block wx:if="{{recent}}">
+          <image
+            wx:if="{{recent.thumb}}"
+            class="ctrl__recent-img"
+            src="{{recent.thumb}}"
+            mode="aspectFill"
+            binderror="onRecentThumbError"
+          />
+          <view wx:else class="ctrl__recent-ph">
+            <image class="ctrl__recent-icon" src="{{recent.icon}}" mode="aspectFit" />
+          </view>
+          <view class="ctrl__recent-dot ctrl__recent-dot--{{recent.state}}"></view>
+        </block>
+        <view wx:else class="ctrl__recent-empty"></view>
+      </view>
+
+      <!-- 大快门：照片白芯；录像/录音红芯，录制中变红方块 -->
+      <view
+        class="shutter tappable"
+        bindtap="onShutter"
+        aria-label="{{mode === 'photo' ? '拍照' : (recording ? '停止录制' : '开始录制')}}"
+      >
+        <view class="shutter__core {{mode === 'photo' ? 'shutter__core--photo' : (recording ? 'shutter__core--stop' : 'shutter__core--rec')}}"></view>
+      </view>
+
+      <!-- 右侧占位，保持快门居中 -->
+      <view class="ctrl__spacer"></view>
+    </view>
   </view>
 </view>
