@@ -77,7 +77,7 @@ media_type, file_size, storage_path, captured_at, created_at, delivered_at)`，
 1. 官网 PR（me.phone）→ CI 自动部署两站。
 2. checkba_cloud PR（云端点 + 认领 + 桌面 relay）→ 云 jar 部署北京
    addin.aiworkdeck.com（新加坡 addin.workdeck.ai 随国际版例行更新）。
-   随部署做一次数据修正：把 18610211590 从孤立 user 4 移到桥接 user 3
+   随部署做一次数据修正：把维护者本人手机号（此处已脱敏）从孤立 user 4 移到桥接 user 3
    （与认领代码同一动作的手工前置执行）。
 3. 桌面侧改动随下一个桌面发版上车（v0.21.0 修复批次已在排队）。
 4. iOS PR → TestFlight 新构建。

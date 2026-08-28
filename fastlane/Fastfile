@@ -117,11 +117,13 @@ end
 #    就是 hasAccessToAllBuilds，构建处理完自动对组可见。
 
 def asc_key_cn
+  %w[ASC_CN_KEY_ID ASC_CN_ISSUER_ID ASC_CN_KEY_PATH].each do |k|
+    UI.user_error!("missing #{k} (fastlane/.env, 见 5-Tech/EXTERNAL_SERVICES.md §6.7)") if ENV[k].to_s.empty?
+  end
   app_store_connect_api_key(
-    key_id:     ENV["ASC_CN_KEY_ID"]    || "DVBHRK8PVA",
-    issuer_id:  ENV["ASC_CN_ISSUER_ID"] || "880299d8-2f8c-421e-a53a-06278a21e0d0",
-    key_filepath: ENV["ASC_CN_KEY_PATH"] ||
-      File.expand_path("~/Documents/2024-2044/5-Tech/x-apple-jwzy/AuthKey_DVBHRK8PVA.p8"),
+    key_id:     ENV["ASC_CN_KEY_ID"],
+    issuer_id:  ENV["ASC_CN_ISSUER_ID"],
+    key_filepath: File.expand_path(ENV["ASC_CN_KEY_PATH"]),
     in_house: false
   )
 end
