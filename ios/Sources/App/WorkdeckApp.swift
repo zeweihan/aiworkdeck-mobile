@@ -8,9 +8,6 @@ struct WorkdeckApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                // 外壳浅色。拍摄与影像浏览两处自己强制深色，不跟随系统——
-                // 那两处的深色是功能性的，不是主题偏好。
-                .preferredColorScheme(.light)
                 .task { await model.bootstrap() }
         }
     }
@@ -21,7 +18,7 @@ private struct RootView: View {
     @State private var route: Route?
 
     private enum Route: Hashable, Identifiable {
-        case capture, library, queue, settings
+        case library, queue, settings
         var id: Self { self }
     }
 
@@ -31,10 +28,14 @@ private struct RootView: View {
                 // 恢复会话前先给一张与主界面同色的空屏，避免登录页闪一下再跳走
                 Color(T.L.bg).ignoresSafeArea()
             } else if !model.isSignedIn {
+                // 外壳浅色。取景首页与影像浏览自己强制深色，不跟随系统——
+                // 那两处的深色是功能性的，不是主题偏好。
                 LoginView().environment(model)
+                    .preferredColorScheme(.light)
             } else if model.selectedProject == nil {
                 // 不选项目就不知道照片往哪去。与其让人先拍完再问，不如进门就定。
                 ProjectPickerView().environment(model)
+                    .preferredColorScheme(.light)
             } else {
                 signedIn
             }
@@ -45,32 +46,27 @@ private struct RootView: View {
 
     private var signedIn: some View {
         HomeView(
-            project: model.project,
-            tally: model.tally,
-            link: model.link,
-            recent: model.items,
-            onCapture: { route = .capture },
+            paused: route != nil,
             onOpenLibrary: { route = .library },
             onOpenQueue: { route = .queue },
             onOpenSettings: { route = .settings }
         )
+        .environment(model)
+        .preferredColorScheme(.dark)
         .fullScreenCover(item: $route) { r in
             switch r {
-            case .capture:
-                CaptureView(onClose: { route = nil })
-                    .environment(model)
-                    .preferredColorScheme(.dark)
             case .queue:
                 QueueView(onClose: { route = nil }).environment(model)
+                    .preferredColorScheme(.light)
             case .settings:
                 SettingsView(onClose: { route = nil }).environment(model)
+                    .preferredColorScheme(.light)
             case .library:
                 LibraryView(
                     project: model.project,
                     tally: model.tally,
                     link: model.link,
                     items: model.items,
-                    onCapture: { route = .capture },
                     onClose: { route = nil }
                 )
                 .preferredColorScheme(.dark)

@@ -8,7 +8,7 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: X9B97KVA84        # Zhen Shan Mei Grace Legacy Limited（国际版）；大陆版在 WorkdeckCN target 覆盖

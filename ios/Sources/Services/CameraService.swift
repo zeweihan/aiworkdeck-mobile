@@ -40,6 +40,8 @@ final class CameraService: NSObject {
             permissionDenied = true
             return
         }
+        // 去系统设置里把权限打开再回来：拒绝态要能自愈，不能一直停在提示页
+        permissionDenied = false
         await configureIfNeeded()
         sessionQueue.async { [session] in
             if !session.isRunning { session.startRunning() }
