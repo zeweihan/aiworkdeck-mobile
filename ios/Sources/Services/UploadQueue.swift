@@ -21,11 +21,25 @@ actor UploadQueue {
         self.onChange = onChange
     }
 
+    /// 失败后自动重试的退避：首败 60 秒，逐次翻倍，封顶 15 分钟；一旦传成即复位。
+    private var autoRetryBackoff: TimeInterval = 60
+    private var lastFailedRoundAt: Date?
+
     /// 启动一轮。已经在跑就直接返回，不排队叠加。
     func kick() async {
         guard !running, let project else { return }
         running = true
         defer { running = false }
+
+        // 滞留的「传输中」= 上一次进程死在上传半路（catch 没机会跑）。队列是串行 actor，
+        // 走到这里时没有任何在途上传，所以此刻所有 moving 都是尸体——复位回 waiting
+        // 重传，幂等键（clientMediaId）保证服务端不产生重复件。dev-board#241。
+        let stale = (try? await EvidenceStore.shared.loadAll())?
+            .filter { $0.state == .moving } ?? []
+        for s in stale {
+            try? await EvidenceStore.shared.updateState(s.id, to: .waiting, progress: 0)
+        }
+        if !stale.isEmpty { await onChange?() }
 
         while true {
             let pending = (try? await EvidenceStore.shared.loadAll())?
@@ -44,6 +58,7 @@ actor UploadQueue {
 
                 // 进了中转区 ≠ 到了电脑：真正的 arrived 由 checkDelivered 按回执改
                 try await EvidenceStore.shared.updateState(item.id, to: .uploaded, progress: 1)
+                autoRetryBackoff = 60
                 await onChange?()
             } catch {
                 // 失败退回 failed 而不是 waiting：否则会立刻被下一轮捞起来无限重试，
@@ -52,10 +67,29 @@ actor UploadQueue {
                 try? await EvidenceStore.shared.updateState(
                     item.id, to: .failed, progress: 0,
                     error: (error as? APIError)?.message ?? error.localizedDescription)
+                lastFailedRoundAt = Date()
+                autoRetryBackoff = min(autoRetryBackoff * 2, 15 * 60)
                 await onChange?()
                 break
             }
         }
+    }
+
+    /// 周期性自愈（AppModel 每分钟叫一次，回前台立刻叫）：滞留/待传直接续跑，
+    /// 失败按退避自动重排——现场没人会盯着队列页点重试。dev-board#241。
+    func autoKick() async {
+        guard !running else { return }
+        let items = (try? await EvidenceStore.shared.loadAll()) ?? []
+        let hasFailed = items.contains { $0.state == .failed }
+        let hasWork = items.contains { $0.state == .waiting || $0.state == .moving }
+        if hasFailed {
+            let waited = lastFailedRoundAt.map { Date().timeIntervalSince($0) } ?? .infinity
+            if waited >= autoRetryBackoff {
+                await retryFailed()
+                return
+            }
+        }
+        if hasWork { await kick() }
     }
 
     /// 对停在中转区的影像查投递回执，桌面端确认落盘的改成 arrived。
