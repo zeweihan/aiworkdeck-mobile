@@ -70,6 +70,8 @@ struct HomeView: View {
             switch phase {
             case .active:
                 if !paused, mode != .audio { Task { await camera.start() } }
+                // 回前台立刻续传：后台被杀的上传此刻已是滞留态，kick 入口会回收
+                model.kickUpload()
             case .background:
                 // 录到一半退后台：停表并落库，不丢已录的内容——现场不可复现
                 if recorder.isRecording { recorder.stop() }

@@ -139,6 +139,14 @@ final class AppModel {
             cloudExpiry = await UploadQueue.shared.checkDelivered()
             await refresh()
         }
+        // 上传自愈心跳（dev-board#241）：滞留的「传输中」与失败件不能等用户来点，
+        // 现场拍完手机就揣兜里了——每分钟自动续传，失败按退避重试
+        Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                await UploadQueue.shared.autoKick()
+            }
+        }
     }
 
     func store(data: Data, kind: MediaKind, at: Date, location: (lat: Double, lon: Double, accuracy: Double)?) async {
