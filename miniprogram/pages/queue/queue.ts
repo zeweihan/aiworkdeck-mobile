@@ -1,5 +1,7 @@
+import { Icon } from '../../utils/icons'
 import type { Metrics } from '../../utils/layout'
 import { listItems, subscribe, pollStatus, retry, type QueueItem, type QueueState } from '../../utils/queue'
+import { thumbFor, markThumbBroken } from '../../utils/thumbs'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -11,6 +13,11 @@ const POLL_INTERVAL = 5000
 /** 一条队列记录在页面上展示用的精简结构 */
 interface DisplayItem {
   clientMediaId: string
+  /** 真实缩略图路径（照片原图 / 录像帧图），空串走占位色块 + 图标 */
+  thumb: string
+  /** 占位色块的媒体类别（沿用 doc/scene/audio 的既有配色） */
+  kind: 'doc' | 'scene' | 'audio'
+  kindIcon: string
   fileName: string
   time: string
   projectName: string
@@ -78,9 +85,24 @@ function dotClass(state: QueueState): string {
   return 'dot--moving'
 }
 
+function kindOf(mediaType: QueueItem['mediaType']): DisplayItem['kind'] {
+  if (mediaType === 'video') return 'scene'
+  if (mediaType === 'audio') return 'audio'
+  return 'doc'
+}
+
+function kindIcon(mediaType: QueueItem['mediaType']): string {
+  if (mediaType === 'video') return Icon.videoSlate
+  if (mediaType === 'audio') return Icon.micSlate
+  return Icon.imageSlate
+}
+
 function toDisplayItem(item: QueueItem): DisplayItem {
   return {
     clientMediaId: item.clientMediaId,
+    thumb: thumbFor(item),
+    kind: kindOf(item.mediaType),
+    kindIcon: kindIcon(item.mediaType),
     fileName: item.fileName,
     time: formatTime(item.createdAt),
     projectName: item.projectName,
@@ -156,5 +178,11 @@ Page({
 
   onRetry(e: WechatMiniprogram.BaseEvent<WechatMiniprogram.IAnyObject, { id: string }>) {
     retry(e.currentTarget.dataset.id)
+  },
+
+  /** 缩略图渲染失败（临时文件被回收等）：记为 broken，刷新后回落占位 */
+  onThumbError(e: WechatMiniprogram.BaseEvent<WechatMiniprogram.IAnyObject, { id: string }>) {
+    markThumbBroken(e.currentTarget.dataset.id)
+    this.refresh()
   },
 })

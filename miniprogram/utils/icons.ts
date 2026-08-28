@@ -28,6 +28,12 @@ const P = {
     '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
   folder: '<path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2z"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  image:
+    '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/>' +
+    '<path d="m21 15-3.5-3.5a2 2 0 0 0-2.83 0L6 21"/>',
+  video:
+    '<path d="m16 10 5.2-3.5a.5.5 0 0 1 .8.42v10.16a.5.5 0 0 1-.8.42L16 14"/>' +
+    '<rect x="2" y="6" width="14" height="12" rx="2"/>',
 }
 
 // 原样写 '#'，交给下面的 encodeURIComponent 编码。
@@ -51,4 +57,12 @@ export const Icon = {
   monitorSlate: svg(P.monitor, SLATE, 18),
   folderSlate: svg(P.folder, SLATE, 20),
   shieldNavy: svg(P.shield, NAVY, 18),
+  // 拍摄页（深色）与队列页缩略图占位用
+  chevronWhite: svg(P.chevronRight, WHITE, 20),
+  micWhite: svg(P.mic, WHITE, 28),
+  videoWhite: svg(P.video, WHITE, 24),
+  imageWhite: svg(P.image, WHITE, 24),
+  micSlate: svg(P.mic, SLATE, 20),
+  videoSlate: svg(P.video, SLATE, 20),
+  imageSlate: svg(P.image, SLATE, 20),
 }

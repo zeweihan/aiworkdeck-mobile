@@ -8,7 +8,21 @@
   <view class="list" wx:else>
     <view class="item" wx:for="{{items}}" wx:key="clientMediaId">
       <view class="item__row">
-        <view class="item__dot {{item.dotClass}}"></view>
+        <!-- 真实缩略图（照片原图 / 录像帧图）；audio 或无图时回落色块底 + 图标 -->
+        <view class="item__thumb">
+          <image
+            wx:if="{{item.thumb}}"
+            class="item__thumb-img"
+            src="{{item.thumb}}"
+            mode="aspectFill"
+            data-id="{{item.clientMediaId}}"
+            binderror="onThumbError"
+          />
+          <view wx:else class="item__thumb-ph item__thumb-ph--{{item.kind}}">
+            <image class="item__thumb-icon" src="{{item.kindIcon}}" mode="aspectFit" />
+          </view>
+          <view class="item__dot {{item.dotClass}}"></view>
+        </view>
         <view class="item__body">
           <view class="item__name">{{item.fileName}}</view>
           <view class="item__meta">{{item.time}} · {{item.projectName}}</view>

@@ -1,5 +1,6 @@
 {
-  "usingComponents": { "nav-bar": "/components/nav-bar/nav-bar" },
   "navigationStyle": "custom",
-  "disableScroll": false
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0A0B0D",
+  "disableScroll": true
 }

@@ -11,6 +11,12 @@
     "navigationStyle": "custom",
     "navigationBarTextStyle": "black"
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在拍摄界面显示现场坐标水印"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"],
   "requiredBackgroundModes": ["audio"],
   "style": "v2",
   "sitemapLocation": "sitemap.json",
