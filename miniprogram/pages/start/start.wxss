@@ -1,0 +1,154 @@
+/* 引流落地页。视觉语汇照抄 login/index：纯白底、发丝线分区、字级跨度做层级、
+ * 无卡片阴影。唯一的原生 button 是 getPhoneNumber（open-type 必须用 button），
+ * 样式向 login 的 .submit 看齐并抹掉 button 默认外观。 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+
+.hero {
+  margin-top: var(--s10);
+}
+
+.hero__title {
+  font-size: var(--t-title);
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.hero__sub {
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+/* ---- 授权按钮：原生 button，抹默认样式后与 login 的 .submit 同貌 ---------- */
+button.submit {
+  width: 100%;
+  margin-top: var(--s8);
+  padding: 0;
+  height: 96rpx;
+  border-radius: var(--s2);
+  background: var(--accent);
+  line-height: inherit;
+}
+
+button.submit::after {
+  border: none;
+}
+
+.submit--disabled {
+  background: var(--rule-strong);
+}
+
+.submit__text {
+  color: #FFFFFF;
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.error {
+  margin-top: var(--s3);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+.alt {
+  margin-top: var(--s4);
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+  line-height: 1.6;
+}
+
+/* ---- 换号成功后的「回电脑」指引 ------------------------------------------ */
+.next {
+  margin-top: var(--s6);
+}
+
+.next__label {
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+}
+
+.next__url {
+  margin-top: var(--s2);
+  font-size: var(--t-title);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.next__hint {
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+.copy-btn {
+  margin-top: var(--s4);
+  width: fit-content;
+  padding: 0 var(--s5);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.copy-btn__text {
+  font-size: var(--t-small);
+  font-weight: 500;
+}
+
+/* ---- 伴侣功能介绍（留存钩子） -------------------------------------------- */
+.sect-rule {
+  margin-top: var(--s8);
+}
+
+.features {
+  margin-top: var(--s6);
+  padding-bottom: var(--s8);
+}
+
+.features__title {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.feature {
+  margin-top: var(--s4);
+}
+
+.feature__name {
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.feature__desc {
+  margin-top: 4rpx;
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+.enter-btn {
+  margin-top: var(--s6);
+  width: fit-content;
+  padding: 0 var(--s5);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.enter-btn__text {
+  font-size: var(--t-small);
+  font-weight: 500;
+}
