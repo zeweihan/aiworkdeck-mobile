@@ -9,6 +9,9 @@
 
 export const BASE_URL = 'https://addin.aiworkdeck.com'
 
+/** 官网（Next.js 站点）。引流页换号走这里，与插件云后端不是一个服务。 */
+export const WEB_BASE_URL = 'https://aiworkdeck.com'
+
 /** 统一错误：code 是信封里的业务 code；网络层/HTTP 层失败固定为 -1。 */
 export class ApiError extends Error {
   code: number
@@ -172,6 +175,64 @@ export function logout(): void {
   setSession(null)
   setUser(null)
   setSelectedProject(null)
+}
+
+// ---------- 引流页：一键手机号建号（dev-board#305） ----------
+
+export interface WxStartResult {
+  username: string
+  displayName: string
+  isNewUser: boolean
+  /** 一次性登录票据（10 分钟有效），官网 /api/auth/wx-ticket 可换会话；手机号明文不回传 */
+  ticket: string
+}
+
+/**
+ * 把 button open-type="getPhoneNumber" 的 code 交给官网换号建号。
+ *
+ * 打的是官网（WEB_BASE_URL）不是插件云后端：响应是官网风格的裸 JSON
+ * （成功含 user，失败含 error），不走 readEnvelope 那套信封判读。
+ */
+export function wxPhoneStart(code: string, ref: string): Promise<WxStartResult> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: WEB_BASE_URL + '/api/auth/wx-phone',
+      method: 'POST',
+      data: { code, ref },
+      header: { 'Content-Type': 'application/json' },
+      success: (res) => {
+        const body = (res.data ?? {}) as {
+          user?: { username: string; displayName: string }
+          isNewUser?: boolean
+          ticket?: string
+          error?: string
+          message?: string
+        }
+        if (res.statusCode >= 200 && res.statusCode < 300 && body.user) {
+          resolve({
+            username: body.user.username,
+            displayName: body.user.displayName,
+            isNewUser: body.isNewUser === true,
+            ticket: body.ticket || '',
+          })
+          return
+        }
+        // 官网端错误码翻译成用户能行动的话（文案红线：不出现「登录/未授权/请先」）
+        const msg =
+          body.error === 'invalid_wx_code'
+            ? '授权凭证已失效，重新点一次按钮即可'
+            : body.error === 'unsupported_region'
+              ? body.message || '目前仅支持中国大陆手机号'
+              : body.error === 'rate_limited'
+                ? '操作太频繁，稍等一分钟再试'
+                : '服务暂时不可用，稍后再试'
+        reject(new ApiError(-1, msg))
+      },
+      fail: () => {
+        reject(new ApiError(-1, '连不上服务器，检查网络后重试'))
+      },
+    })
+  })
 }
 
 // ---------- 项目与上传 ----------

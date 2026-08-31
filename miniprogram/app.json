@@ -3,7 +3,8 @@
     "pages/index/index",
     "pages/login/login",
     "pages/project/project",
-    "pages/queue/queue"
+    "pages/queue/queue",
+    "pages/start/start"
   ],
   "window": {
     "backgroundTextStyle": "dark",
