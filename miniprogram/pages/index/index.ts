@@ -23,6 +23,10 @@ interface AppGlobal {
 /** 队列轮询节奏：5 秒一次，见实施契约 §3 */
 const POLL_INTERVAL = 5000
 
+/** 「拍摄件同时存入系统相册」开关（dev-board#311，对齐 iOS 端 Prefs.saveToAlbum）。
+ *  默认关：尽调影像进相册是要用户知情选择的事，与 iOS 端同一权衡。 */
+const KEY_SAVE_ALBUM = 'awd.saveToAlbum'
+
 type CaptureMode = 'photo' | 'video' | 'audio'
 
 /** D6：能力边界明示，不能默默降级 */
@@ -89,6 +93,7 @@ Page({
     recordSegment: 1,
     wmTime: '',
     wmCoords: '',
+    saveToAlbum: false,
   },
 
   unsubscribe: null as (() => void) | null,
@@ -106,7 +111,10 @@ Page({
 
   onLoad() {
     const app = getApp<AppGlobal>()
-    this.setData({ metrics: app.globalData.metrics })
+    this.setData({
+      metrics: app.globalData.metrics,
+      saveToAlbum: wx.getStorageSync(KEY_SAVE_ALBUM) === true,
+    })
   },
 
   onShow() {
@@ -304,13 +312,78 @@ Page({
     }
   },
 
+  // ---------- 存相册开关（dev-board#311，对齐 iOS 设置页开关） ----------
+
+  onToggleAlbum() {
+    if (!this.data.saveToAlbum) {
+      // 开：先把授权拿到手。之前拒过的话 authorize 不会再弹，只能引导去设置页。
+      wx.getSetting({
+        success: (s) => {
+          const granted = s.authSetting['scope.writePhotosAlbum']
+          if (granted) {
+            this.setAlbumEnabled(true)
+          } else if (granted === false) {
+            wx.openSetting({
+              success: (s2) => {
+                if (s2.authSetting['scope.writePhotosAlbum']) this.setAlbumEnabled(true)
+              },
+            })
+          } else {
+            wx.authorize({
+              scope: 'scope.writePhotosAlbum',
+              success: () => this.setAlbumEnabled(true),
+              fail: () => {
+                wx.showToast({ title: '没有相册权限，影像仍只留在应用内', icon: 'none' })
+              },
+            })
+          }
+        },
+      })
+    } else {
+      this.setAlbumEnabled(false)
+    }
+  },
+
+  setAlbumEnabled(on: boolean) {
+    wx.setStorageSync(KEY_SAVE_ALBUM, on)
+    this.setData({ saveToAlbum: on })
+  },
+
+  /**
+   * 开关开着就先存相册、再交给 done 入队。
+   *
+   * **顺序是被迫的**：enqueueCapture 里的 saveFile 会把临时文件挪进本地存储，
+   * 挪完临时路径即失效——并发调 saveXxxToPhotosAlbum 是在跟它赛跑。
+   * 相册写失败不打断入队（与 iOS saveToAlbumIfEnabled 同口径：两条链彼此独立）。
+   */
+  saveToAlbumIfEnabled(tempFilePath: string, kind: 'image' | 'video'): Promise<void> {
+    if (!this.data.saveToAlbum) return Promise.resolve()
+    return new Promise((resolve) => {
+      const opts = {
+        filePath: tempFilePath,
+        fail: (e: { errMsg?: string }) => {
+          const denied = (e.errMsg || '').includes('auth')
+          wx.showToast({ title: denied ? '没能存入相册：点「存相册」重新授权' : '没能存入相册', icon: 'none' })
+        },
+        complete: () => resolve(),
+      }
+      if (kind === 'image') {
+        wx.saveImageToPhotosAlbum(opts)
+      } else {
+        wx.saveVideoToPhotosAlbum(opts)
+      }
+    })
+  },
+
   // ---------- 照片 ----------
 
   takePhoto(project: RelayProject) {
     this.camera().takePhoto({
       quality: 'high',
       success: (res) => {
-        enqueueCapture(res.tempImagePath, 'image', project)
+        this.saveToAlbumIfEnabled(res.tempImagePath, 'image').then(() => {
+          enqueueCapture(res.tempImagePath, 'image', project)
+        })
       },
       fail: () => {
         wx.showToast({ title: '拍摄失败', icon: 'none' })
@@ -361,8 +434,14 @@ Page({
 
     const project = getSelectedProject()
     if (project && res.tempVideoPath) {
-      const item = enqueueCapture(res.tempVideoPath, 'video', project, this.data.recordSegment)
-      if (res.tempThumbPath) setVideoThumb(item.clientMediaId, res.tempThumbPath)
+      // 段号先抓下来：续录分支马上就会把 recordSegment 加一
+      const videoPath = res.tempVideoPath
+      const thumbPath = res.tempThumbPath
+      const segment = this.data.recordSegment
+      this.saveToAlbumIfEnabled(videoPath, 'video').then(() => {
+        const item = enqueueCapture(videoPath, 'video', project, segment)
+        if (thumbPath) setVideoThumb(item.clientMediaId, thumbPath)
+      })
     }
 
     if (timedOut && !this.manualStopping) {
@@ -432,10 +511,12 @@ Page({
     if (!media) return
 
     if (media.type === 'video') {
+      await this.saveToAlbumIfEnabled(media.tempFilePath, 'video')
       const item = enqueueCapture(media.tempFilePath, 'video', project, 1)
       if (media.thumbTempFilePath) setVideoThumb(item.clientMediaId, media.thumbTempFilePath)
       await this.recordMoreSegments(project, 1)
     } else {
+      await this.saveToAlbumIfEnabled(media.tempFilePath, 'image')
       enqueueCapture(media.tempFilePath, 'image', project)
     }
   },
@@ -452,6 +533,7 @@ Page({
     if (!media) return
 
     const next = segmentIndex + 1
+    await this.saveToAlbumIfEnabled(media.tempFilePath, 'video')
     const item = enqueueCapture(media.tempFilePath, 'video', project, next)
     if (media.thumbTempFilePath) setVideoThumb(item.clientMediaId, media.thumbTempFilePath)
     await this.recordMoreSegments(project, next)

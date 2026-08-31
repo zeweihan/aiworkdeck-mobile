@@ -128,8 +128,15 @@
         <view class="shutter__core {{mode === 'photo' ? 'shutter__core--photo' : (recording ? 'shutter__core--stop' : 'shutter__core--rec')}}"></view>
       </view>
 
-      <!-- 右侧占位，保持快门居中 -->
-      <view class="ctrl__spacer"></view>
+      <!-- 存相册开关（对齐 iOS 设置页「同时存入系统相册」，默认关，知情选择） -->
+      <view
+        class="ctrl__album tappable {{saveToAlbum ? 'ctrl__album--on' : ''}}"
+        bindtap="onToggleAlbum"
+        aria-label="拍摄件同时存入系统相册，当前{{saveToAlbum ? '开启' : '关闭'}}"
+      >
+        <text class="ctrl__album-text">存相册</text>
+        <text class="ctrl__album-state">{{saveToAlbum ? '开' : '关'}}</text>
+      </view>
     </view>
   </view>
 </view>

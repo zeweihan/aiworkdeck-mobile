@@ -386,7 +386,29 @@ page {
   background: var(--st-failed);
 }
 
-.ctrl__spacer {
+/* 存相册开关：与左侧缩略图入口同宽，保持快门居中；开态提亮，关态压暗 */
+.ctrl__album {
   width: 104rpx;
   flex-shrink: 0;
+  flex-direction: column;
+  gap: 2rpx;
+  border-radius: var(--s2);
+  border: 1rpx solid var(--dk-rule);
+  transition: opacity var(--d-fast) var(--e-out), border-color var(--d-fast) var(--e-out);
+  opacity: 0.55;
+}
+
+.ctrl__album--on {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.ctrl__album-text {
+  font-size: var(--t-micro);
+  color: var(--dk-fg);
+}
+
+.ctrl__album-state {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
 }
