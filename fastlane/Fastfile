@@ -287,3 +287,85 @@ platform :ios do
                "  .venv/bin/python scripts/asc-listing.py status cn")
   end
 end
+
+# ---------------- CI 打包（GitHub Actions，发行版 macOS runner）----------------
+# 为什么存在：打包机跑 macOS beta 时，包里的 BuildMachineOSBuild 记录的是 beta
+# 系统号，提审一律被 ITMS-90111 打回——Xcode 与 SDK 都是正式版也救不回来
+# （2026-09-01 国际版 build 15/17、大陆版 build 5 三连实测；Apple 邮件文案只提
+# Xcode/SDK，不提打包机系统，别被它带偏）。正式包因此挪到 GitHub 的发行版
+# macOS runner 上打。签名材料由工作流从 secrets 落到 $RUNNER_TEMP（先例：
+# 桌面仓的 CSC_LINK 同样是 p12 进 secrets，见 EXTERNAL_SERVICES.md §6.4）。
+#
+# 环境契约（.github/workflows/appstore-build.yml 负责准备）：
+#   ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH          国际版 ASC API Key
+#   ASC_CN_KEY_ID / ASC_CN_ISSUER_ID / ASC_CN_KEY_PATH 大陆版 ASC API Key
+#   APPLE_TEAM_ID                                       X9B97KVA84
+#   DIST_P12_PATH / DIST_P12_PASSWORD                   一份 p12，含两个团队的
+#                                                       Distribution 身份（本机
+#                                                       fastlane_build keychain 导出）
+#   CN_PROFILE_PATH                                     AI WorkDeck CN AppStore 描述文件
+#   FLAVOR                                              intl / cn / both（默认 both）
+platform :ios do
+  desc "CI：发行版 macOS 上打正式包并上传（intl + cn）"
+  lane :ci_appstore do
+    flavor = (ENV["FLAVOR"] || "both").strip
+    setup_ci   # 建临时 keychain 并设为默认（fastlane_tmp_keychain，空口令）
+
+    import_certificate(
+      certificate_path: ENV.fetch("DIST_P12_PATH"),
+      certificate_password: ENV.fetch("DIST_P12_PASSWORD"),
+      keychain_name: "fastlane_tmp_keychain",
+      keychain_password: ""
+    )
+
+    # CN 的描述文件不走 sigh（私钥不是 fastlane 生成的），直接装进扫描目录。
+    # Xcode 16 起换了位置，两处都放，不赌 runner 上的版本。
+    ["~/Library/MobileDevice/Provisioning Profiles",
+     "~/Library/Developer/Xcode/UserData/Provisioning Profiles"].each do |d|
+      dir = File.expand_path(d)
+      FileUtils.mkdir_p(dir)
+      FileUtils.cp(ENV.fetch("CN_PROFILE_PATH"),
+                   File.join(dir, "aiworkdeck-cn-appstore.mobileprovision"))
+    end
+
+    sh("cd .. && xcodegen generate --spec ios/project.yml --project ios")
+
+    if %w[intl both].include?(flavor)
+      key = asc_key
+      build = latest_testflight_build_number(
+        api_key: key, app_identifier: "com.aiworkdeck.mobile", initial_build_number: 0) + 1
+      UI.message("CI 国际版 #{marketing_version} (#{build})")
+      sigh(api_key: key, app_identifier: "com.aiworkdeck.mobile",
+           platform: "ios", output_path: "fastlane/profiles")
+      build_app(
+        project: "ios/Workdeck.xcodeproj", scheme: "Workdeck", configuration: "Release",
+        export_method: "app-store", output_directory: "ios/build",
+        xcargs: "CURRENT_PROJECT_VERSION=#{build}",
+        export_options: {
+          signingStyle: "manual", teamID: ENV.fetch("APPLE_TEAM_ID"),
+          provisioningProfiles: { "com.aiworkdeck.mobile" => lane_context[SharedValues::SIGH_NAME] }
+        })
+      upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true,
+                           changelog: ENV["CHANGELOG"] || "CI 构建（发行版 macOS）。")
+    end
+
+    if %w[cn both].include?(flavor)
+      key = asc_key_cn
+      build = latest_testflight_build_number(
+        api_key: key, app_identifier: "com.aiworkdeck.mobile.cn", initial_build_number: 0) + 1
+      UI.message("CI 大陆版 #{marketing_version} (#{build})")
+      build_app(
+        project: "ios/Workdeck.xcodeproj", scheme: "WorkdeckCN", configuration: "Release",
+        export_method: "app-store", output_directory: "ios/build", output_name: "WorkdeckCN.ipa",
+        xcargs: "CURRENT_PROJECT_VERSION=#{build}",
+        skip_profile_detection: true,   # 理由同 release_cn：防国际版 profile 映射混进来
+        export_options: {
+          signingStyle: "manual", teamID: "8WKHZVR2W8",
+          provisioningProfiles: { "com.aiworkdeck.mobile.cn" => "AI WorkDeck CN AppStore" }
+        })
+      upload_to_testflight(api_key: key, app_identifier: "com.aiworkdeck.mobile.cn",
+                           skip_waiting_for_build_processing: true,
+                           changelog: ENV["CHANGELOG"] || "CI 构建（发行版 macOS）。")
+    end
+  end
+end
