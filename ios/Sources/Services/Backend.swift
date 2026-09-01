@@ -86,9 +86,12 @@ private struct Envelope<T: Decodable>: Decodable {
 
 private struct Empty: Decodable {}
 
+/// 两条登录路径共用一个结果形状。手机号那条回 `isNewUser`（号码没见过就建号），
+/// 邮箱那条回 `mustBindPhone` 而没有 `isNewUser`——都做成可选，别为差一个字段拆两个类型。
 struct LoginResult: Decodable {
     let sessionId: String
-    let isNewUser: Bool
+    let isNewUser: Bool?
+    let mustBindPhone: Bool?
     let user: AccountUser
 }
 
@@ -137,6 +140,22 @@ actor API {
     func verifyLoginCode(phone: String, code: String) async throws -> LoginResult {
         let r = try await post("/api/auth/sms-login/verify",
                                body: ["phone": phone, "code": code], as: LoginResult.self)
+        guard let r else { throw APIError(message: "登录响应缺少数据") }
+        SessionStore.current = r.sessionId
+        return r
+    }
+
+    /// 邮箱验证码登录发码。**只对已注册且已验证邮箱的账号发信**——后端对未注册地址
+    /// 同样返回成功（不发信），免得这个匿名端点变成账号枚举器。所以「点了没收到」
+    /// 既可能是没注册，也可能是投递慢，界面上不能替后端断言是哪一种。
+    func sendMailLoginCode(email: String) async throws {
+        _ = try await post("/api/auth/mail-login/send-code",
+                           body: ["email": email], as: Empty.self)
+    }
+
+    func verifyMailLoginCode(email: String, code: String) async throws -> LoginResult {
+        let r = try await post("/api/auth/mail-login/verify",
+                               body: ["email": email, "code": code], as: LoginResult.self)
         guard let r else { throw APIError(message: "登录响应缺少数据") }
         SessionStore.current = r.sessionId
         return r

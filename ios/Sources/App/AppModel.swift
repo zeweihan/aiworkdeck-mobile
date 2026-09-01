@@ -112,7 +112,31 @@ final class AppModel {
         }
     }
 
+#if DEBUG
+    /// 只给截图流程用：跳过登录与网络，直接摆出 DemoData 的画面。
+    private func seedForScreenshots() {
+        account = AccountUser(id: 1, username: "demo", displayName: "演示账号",
+                              avatarUrl: "", role: "USER")
+        let p = RelayProject(deviceId: "demo-mac", deviceName: "MacBook Pro",
+                             key: "p-1", name: DemoData.project.name)
+        selectedProject = p
+        project = DemoData.project
+        items = DemoData.recent
+        tally = DemoData.tally
+        link = DemoData.link
+        didRestore = true
+    }
+#endif
+
     func bootstrap() async {
+#if DEBUG
+        // 上架截图用的假状态。**只编进 Debug**——截图本来就不需要 Release 包，
+        // 而把演示数据留在发行二进制里，早晚会有人在真机上撞进这条分支。
+        if ProcessInfo.processInfo.arguments.contains("-AWDScreenshotMode") {
+            seedForScreenshots()
+            return
+        }
+#endif
         // Keychain 里有会话就直接进主界面。这里只做「有没有」的判断，
         // 会话是否还有效由第一次真实请求的 401 来发现——启动时多打一次
         // 网络请求会让离线开 App 卡在转圈，而离线拍照恰恰是这个 App 的主场景。
