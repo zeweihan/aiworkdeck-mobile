@@ -6,6 +6,7 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
 
   setversion    版本号对齐 ios/project.yml，并把发布方式设成手动
   text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
+  category      主/次类目（读 metadata/<flavor>/*_category.txt）
   attach <build> 把已上传的构建挂到版本上（构建号，如 13）
   submit        提交审核。对外动作，要再打一次 --yes 才真发
   rating        年龄分级问卷（全部答「无」）
@@ -351,6 +352,29 @@ def cmd_submit(tok, app_id, flavor, confirmed):
     print(f"已提交审核：{flavor} {v['attributes']['versionString']}")
 
 
+def cmd_category(tok, app_id, flavor):
+    """主/次类目。是提审必填项，且**建 App 时不会自动带**——国际版就是这么空着的。
+
+    类目是 appInfo 上的关系，不是本地化字段，所以不在 text 那条路里。
+    """
+    info_id = app_info_id(tok, app_id)
+    root = os.path.join("fastlane", "metadata", flavor)
+    # 走 appInfo 本体的 PATCH。/relationships/primaryCategory 那条子路径是只读的
+    # （403 FORBIDDEN_ERROR，只给 GET），别照别的关系的写法套。
+    rels = {}
+    for fn, rel in (("primary_category.txt", "primaryCategory"),
+                    ("secondary_category.txt", "secondaryCategory")):
+        path = os.path.join(root, fn)
+        if os.path.exists(path):
+            rels[rel] = {"data": {"type": "appCategories", "id": open(path).read().strip()}}
+    if not rels:
+        print("没有 *_category.txt，跳过")
+        return
+    body = {"data": {"type": "appInfos", "id": info_id, "relationships": rels}}
+    die_on_error(call(tok, "PATCH", f"/appInfos/{info_id}", body), "设置类目")
+    print(", ".join(f"{k} = {v['data']['id']}" for k, v in rels.items()))
+
+
 def cmd_availability(tok, app_id, flavor):
     """上架区域。
 
@@ -409,6 +433,11 @@ def cmd_status(tok, app_id, flavor):
           f"  发布方式 {v['attributes'].get('releaseType')}")
     print(f"内容版权声明    {a.get('contentRightsDeclaration') or '未填'}")
     print(f"年龄分级        {ia.get('appStoreAgeRating') or '未填'}")
+    cats = []
+    for rel in ("primaryCategory", "secondaryCategory"):
+        c = call(tok, "GET", f"/appInfos/{info['data'][0]['id']}/{rel}")
+        cats.append((c.get("data") or {}).get("id", "未设") if "ERROR" not in c else "未设")
+    print(f"类目            主 {cats[0]} / 次 {cats[1]}")
     # 只看问卷本身：ageRatingOverride 这类字段建记录时就有值，拿它判断会永远显示「已答」
     answered = sum(1 for f in RATING_FIELDS if ra.get(f) is not None)
     print(f"分级问卷        {answered}/{len(RATING_FIELDS)} 项已答")
@@ -452,6 +481,8 @@ def main():
         cmd_attach(tok, app_id, sys.argv[3])
     elif cmd == "submit":
         cmd_submit(tok, app_id, flavor, "--yes" in sys.argv)
+    elif cmd == "category":
+        cmd_category(tok, app_id, flavor)
     elif cmd == "text":
         cmd_text(tok, app_id, flavor)
     elif cmd == "rating":

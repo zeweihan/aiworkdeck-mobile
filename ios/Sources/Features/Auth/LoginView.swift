@@ -15,7 +15,17 @@ struct LoginView: View {
     private enum Method { case phone, email }
     private enum Step { case identity, code }
 
-    @State private var method: Method = .phone
+    /// 进门先看见哪一种。
+    ///
+    /// 短信通道只有阿里云的大陆签名，**发不到境外号码**，所以国际版默认邮箱：
+    /// 让海外用户一进门就对着一个填不了的手机号框，是在浪费他一次尝试。
+    /// 手机号那条对国际版仍然留着——带 +86 号码的人在境外照样收得到码，
+    /// 那是国际版的主要人群之一，砍掉等于把他们挡在门外。
+    private static var defaultMethod: Method {
+        Bundle.main.bundleIdentifier == "com.aiworkdeck.mobile.cn" ? .phone : .email
+    }
+
+    @State private var method: Method = LoginView.defaultMethod
     @State private var step: Step = .identity
     @State private var phone = ""
     @State private var email = ""
@@ -118,7 +128,7 @@ struct LoginView: View {
         switch step {
         case .identity:
             if method == .phone {
-                TextField("", text: $phone, prompt: Text("11 位手机号").foregroundStyle(T.L.fgFaint))
+                TextField("", text: $phone, prompt: Text("中国大陆手机号").foregroundStyle(T.L.fgFaint))
                     .keyboardType(.numberPad)
                     .textContentType(.telephoneNumber)
                     .font(T.F.mono(28, .light))
