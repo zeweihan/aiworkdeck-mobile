@@ -4,7 +4,7 @@
 fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这些它要么没有
 对应参数、要么参数形状跟不上 Apple 2026 年改版后的问卷，只能直接打 API：
 
-  setversion    版本号对齐 ios/project.yml，并把发布方式设成手动
+  setversion    版本号对齐 ios/project.yml；加 auto 改成过审自动上架
   text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
   category      主/次类目（读 metadata/<flavor>/*_category.txt）
   review        审核联系信息与演示账号（读 metadata/<flavor>/review_information/）
@@ -272,20 +272,30 @@ def marketing_version():
     return m.group(1)
 
 
-def cmd_setversion(tok, app_id):
-    """版本号对齐 project.yml，顺带把发布方式钉成手动。
+def cmd_setversion(tok, app_id, auto_release=False, flavor=None):
+    """版本号对齐 project.yml，并设定发布方式。
 
-    ASC 建版本记录时默认 releaseType=AFTER_APPROVAL，意思是**过审即自动上架**。
-    三个端（国际版 / 大陆版 / 小程序）要凑同一天放出去，就不能让谁先过审谁
-    先上。改成 MANUAL，过审后由人点发布。
+    ASC 建版本记录时默认 releaseType=AFTER_APPROVAL（过审即自动上架）。
+    要几个端凑同一天放出去就得用 MANUAL，过审后由人点发布；不在乎先后、
+    过审即上架就用 auto。
     """
     want = marketing_version()
     v = version(tok, app_id)
     attrs = {}
     if v["attributes"]["versionString"] != want:
         attrs["versionString"] = want
-    if v["attributes"].get("releaseType") != "MANUAL":
-        attrs["releaseType"] = "MANUAL"
+    target = "AFTER_APPROVAL" if auto_release else "MANUAL"
+    if v["attributes"].get("releaseType") != target:
+        attrs["releaseType"] = target
+    # copyright 是版本级属性，不在 appStoreVersionLocalizations 里，所以 text 那条
+    # 路带不到它。缺了它提审会被 409 挡下（错误藏在 meta.associatedErrors 里，
+    # 顶层只说「this resource cannot be reviewed」，不点开看不出来是缺哪一项）。
+    if flavor:
+        cp = os.path.join("fastlane", "metadata", flavor, "copyright.txt")
+        if os.path.exists(cp):
+            want_cp = open(cp).read().strip()
+            if v["attributes"].get("copyright") != want_cp:
+                attrs["copyright"] = want_cp
     if not attrs:
         print(f"版本 {want}、手动发布，已经是这样")
         return
@@ -593,7 +603,7 @@ def main():
     tok = token_for(flavor)
     app_id = APPS[flavor]["app_id"]
     if cmd == "setversion":
-        cmd_setversion(tok, app_id)
+        cmd_setversion(tok, app_id, auto_release="auto" in sys.argv, flavor=flavor)
     elif cmd == "attach":
         if len(sys.argv) < 4:
             sys.exit("用法：asc-listing.py attach <flavor> <构建号>")
