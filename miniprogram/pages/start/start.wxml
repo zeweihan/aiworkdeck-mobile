@@ -36,6 +36,8 @@
         <text class="copy-btn__text">复制地址</text>
       </view>
     </view>
+
+    <view class="next__hint">下面的「进去看看」也要用这个手机号验证码登录一次小程序，不是出错。</view>
   </block>
 
   <view class="rule sect-rule"></view>
