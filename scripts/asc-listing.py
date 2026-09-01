@@ -7,6 +7,7 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
   setversion    版本号对齐 ios/project.yml，并把发布方式设成手动
   text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
   category      主/次类目（读 metadata/<flavor>/*_category.txt）
+  review        审核联系信息与演示账号（读 metadata/<flavor>/review_information/）
   attach <build> 把已上传的构建挂到版本上（构建号，如 13）
   submit        提交审核。对外动作，要再打一次 --yes 才真发
   rating        年龄分级问卷（全部答「无」）
@@ -375,6 +376,50 @@ def cmd_category(tok, app_id, flavor):
     print(", ".join(f"{k} = {v['data']['id']}" for k, v in rels.items()))
 
 
+# deliver 的 review_information 目录约定。这些文件是个人信息与凭据，
+# 仓库里只留 .example，实文件 gitignore。
+REVIEW_FIELDS = {
+    "first_name.txt": "contactFirstName",
+    "last_name.txt": "contactLastName",
+    "phone_number.txt": "contactPhone",
+    "email_address.txt": "contactEmail",
+    "demo_user.txt": "demoAccountName",
+    "demo_password.txt": "demoAccountPassword",
+    "notes.txt": "notes",
+}
+
+
+def cmd_review(tok, app_id, flavor):
+    d = os.path.join("fastlane", "metadata", flavor, "review_information")
+    if not os.path.isdir(d):
+        sys.exit(f"找不到 {d}")
+    attrs = {}
+    for fn, api in REVIEW_FIELDS.items():
+        path = os.path.join(d, fn)
+        if os.path.exists(path):
+            v = open(path).read().strip()
+            if v:
+                attrs[api] = v
+    missing = [fn for fn in REVIEW_FIELDS if not os.path.exists(os.path.join(d, fn))]
+    # 有演示账号就得把 demoAccountRequired 打开，否则 ASC 里那两栏是灰的、填了也不显示
+    attrs["demoAccountRequired"] = bool(attrs.get("demoAccountName"))
+
+    v = version(tok, app_id)
+    existing = call(tok, "GET", f"/appStoreVersions/{v['id']}/appStoreReviewDetail")
+    node = existing.get("data") if "ERROR" not in existing else None
+    if node:
+        body = {"data": {"type": "appStoreReviewDetails", "id": node["id"], "attributes": attrs}}
+        die_on_error(call(tok, "PATCH", f"/appStoreReviewDetails/{node['id']}", body), "更新审核信息")
+    else:
+        body = {"data": {"type": "appStoreReviewDetails", "attributes": attrs,
+                         "relationships": {"appStoreVersion": {
+                             "data": {"type": "appStoreVersions", "id": v["id"]}}}}}
+        die_on_error(call(tok, "POST", "/appStoreReviewDetails", body), "创建审核信息")
+    print(f"审核信息已写入：{', '.join(sorted(attrs))}")
+    if missing:
+        print(f"缺（ASC 提审时是必填）：{', '.join(sorted(missing))}")
+
+
 def cmd_availability(tok, app_id, flavor):
     """上架区域。
 
@@ -481,6 +526,8 @@ def main():
         cmd_attach(tok, app_id, sys.argv[3])
     elif cmd == "submit":
         cmd_submit(tok, app_id, flavor, "--yes" in sys.argv)
+    elif cmd == "review":
+        cmd_review(tok, app_id, flavor)
     elif cmd == "category":
         cmd_category(tok, app_id, flavor)
     elif cmd == "text":
