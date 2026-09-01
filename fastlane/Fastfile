@@ -172,12 +172,16 @@ platform :ios do
 end
 
 # ---------------- 正式上架（App Store，不是 TestFlight） ----------------
-# 与 beta / beta_cn 的关系：签名、构建号、导出选项三处完全一致，差别只在
-# 最后一步是 upload_to_app_store 而不是 upload_to_testflight。
+# 与 beta / beta_cn 的关系：这两条只多做一件事——把构建号与 MARKETING_VERSION
+# 对齐到正式版。**上传通道刻意与 beta 相同**：ASC 里 TestFlight 与 App Store
+# 共用同一批构建，选哪个发布是版本记录那边的事，不取决于用哪条通道传上去。
 #
-# **默认不提审**。lane 跑完只是把二进制、文案、截图推上去，版本停在
-# 「准备提交」，最后那一下由人在网页上按，或显式 SUBMIT_FOR_REVIEW=1 再跑。
-# 提审是对外动作、撤回代价高（撤回后重排队），不该是跑错一条命令的后果。
+# 一度改用 upload_to_app_store（deliver）一把梭，2.235.0 上它在 spaceship
+# 解析回包时抛 "No data"（上游已知问题），而升 fastlane 会动到现役的
+# beta / beta_cn。文案、分级、定价、区域、挂构建、提审因此全部收在
+# scripts/asc-listing.py，那边是直接打 REST API，不受 fastlane 版本影响。
+#
+# **lane 不提审**。提审是对外动作、撤回要重新排队，那一下由人显式去做。
 
 # 版本号只有一个来源：ios/project.yml 的 MARKETING_VERSION。
 # 在这儿再写一遍死值，早晚会出现「构建是 1.0.1、ASC 上传到 1.0.0」。
@@ -188,22 +192,8 @@ def marketing_version
   m
 end
 
-def submit_for_review?
-  ENV["SUBMIT_FOR_REVIEW"].to_s == "1"
-end
-
-# 三条声明与 build 的实际情况必须一致：
-# - 不接广告标识符（工程没链 AdSupport）
-# - ITSAppUsesNonExemptEncryption=false 已写在 Info.plist，这里是同一件事的申报面
-# - 应用内没有第三方版权内容
-SUBMISSION_INFO = {
-  add_id_info_uses_idfa: false,
-  export_compliance_uses_encryption: false,
-  content_rights_contains_third_party_content: false
-}.freeze
-
 platform :ios do
-  desc "国际版打包并上架 App Store（SUBMIT_FOR_REVIEW=1 才提审）"
+  desc "国际版打正式版包并上传（App Store 侧用 scripts/asc-listing.py 收尾）"
   lane :release do
     key = asc_key
 
@@ -238,26 +228,20 @@ platform :ios do
       }
     )
 
-    upload_to_app_store(
+    upload_to_testflight(
       api_key: key,
-      app_identifier: "com.aiworkdeck.mobile",
-      app_version: marketing_version,
-      metadata_path: "fastlane/metadata/intl",
-      screenshots_path: "fastlane/screenshots/intl",
-      submission_information: SUBMISSION_INFO,
-      submit_for_review: submit_for_review?,
-      automatic_release: false,          # 过审后由人点发布，不自动上架
-      force: true,                       # 不弹 HTML 预览（非交互环境会卡死）
-      precheck_include_in_app_purchases: false,
-      run_precheck_before_submit: true
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "正式版候选。"
     )
 
-    UI.success(submit_for_review? ? "已提交审核" : "已上传，版本停在「准备提交」——提审请到 ASC 网页，或带 SUBMIT_FOR_REVIEW=1 重跑")
+    UI.success("国际版 #{marketing_version} (#{build}) 已上传。接着跑：\n" \
+               "  .venv/bin/python scripts/asc-listing.py attach intl #{build}\n" \
+               "  .venv/bin/python scripts/asc-listing.py status intl")
   end
 end
 
 platform :ios do
-  desc "大陆版打包并上架 App Store（SUBMIT_FOR_REVIEW=1 才提审）"
+  desc "大陆版打正式版包并上传（App Store 侧用 scripts/asc-listing.py 收尾）"
   lane :release_cn do
     key = asc_key_cn
 
@@ -288,23 +272,18 @@ platform :ios do
       }
     )
 
-    upload_to_app_store(
+    upload_to_testflight(
       api_key: key,
       app_identifier: "com.aiworkdeck.mobile.cn",
-      app_version: marketing_version,
-      metadata_path: "fastlane/metadata/cn",
-      screenshots_path: "fastlane/screenshots/cn",
-      submission_information: SUBMISSION_INFO,
-      submit_for_review: submit_for_review?,
-      automatic_release: false,
-      force: true,
-      precheck_include_in_app_purchases: false,
-      run_precheck_before_submit: true
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "正式版候选。"
     )
 
     # ICP 备案号（京ICP备2024096997号-13A）ASC 没开放 API，只能在网页
     # 「App 信息 → 中国大陆 ICP 备案号」填。没填就提审会被直接挡下。
     UI.important("提审前确认 ASC 网页已填 ICP 备案号，且 App 名称与备案表逐字一致")
-    UI.success(submit_for_review? ? "已提交审核" : "已上传，版本停在「准备提交」")
+    UI.success("大陆版 #{marketing_version} (#{build}) 已上传。接着跑：\n" \
+               "  .venv/bin/python scripts/asc-listing.py attach cn #{build}\n" \
+               "  .venv/bin/python scripts/asc-listing.py status cn")
   end
 end

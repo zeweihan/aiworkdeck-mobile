@@ -4,6 +4,10 @@
 fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这些它要么没有
 对应参数、要么参数形状跟不上 Apple 2026 年改版后的问卷，只能直接打 API：
 
+  setversion    版本号对齐 ios/project.yml，并把发布方式设成手动
+  text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
+  attach <build> 把已上传的构建挂到版本上（构建号，如 13）
+  submit        提交审核。对外动作，要再打一次 --yes 才真发
   rating        年龄分级问卷（全部答「无」）
   contentrights 内容版权声明（不含第三方内容）
   price         价格表设为免费
@@ -177,6 +181,176 @@ def cmd_price(tok, app_id):
     print("价格已设为免费")
 
 
+# fastlane 的 deliver 本来该管文案，但 2.235.0 上 spaceship 解析回包会抛
+# "No data"（上游已知问题），而升 fastlane 会连带动到现役的 beta / beta_cn。
+# 文案这几个字段就是几条 PATCH，自己打反而稳，构建与上传仍旧交给 fastlane。
+#
+# 分两处存放，别搞混：随版本走的（描述、关键词、更新说明）在
+# appStoreVersionLocalizations，跨版本的（名称、副标题、隐私政策）在
+# appInfoLocalizations。
+VERSION_FIELDS = {
+    "description.txt": "description",
+    "keywords.txt": "keywords",
+    "marketing_url.txt": "marketingUrl",
+    "promotional_text.txt": "promotionalText",
+    "support_url.txt": "supportUrl",
+    "release_notes.txt": "whatsNew",
+}
+INFO_FIELDS = {
+    "name.txt": "name",
+    "subtitle.txt": "subtitle",
+    "privacy_url.txt": "privacyPolicyUrl",
+}
+
+
+def read_locale_dir(flavor):
+    """metadata/<flavor>/ 下每个语言目录读成 {locale: {文件名: 内容}}。"""
+    root = os.path.join("fastlane", "metadata", flavor)
+    if not os.path.isdir(root):
+        sys.exit(f"找不到 {root}——在仓库根目录跑")
+    out = {}
+    for locale in sorted(os.listdir(root)):
+        d = os.path.join(root, locale)
+        if not os.path.isdir(d) or locale == "review_information":
+            continue
+        out[locale] = {fn: open(os.path.join(d, fn)).read().strip()
+                       for fn in os.listdir(d) if fn.endswith(".txt")}
+    return out
+
+
+def upsert(tok, kind, parent_path, parent_rel, parent_id, locale, attrs, strict=True):
+    """按 locale 找现有本地化记录，有就 PATCH，没有就 POST。
+
+    strict=False 时把失败的回包原样交给调用方处理，不当场退出——给需要看
+    错误内容再决定怎么办的调用点用。
+    """
+    existing = call(tok, "GET", f"{parent_path}/{parent_id}/{kind}?limit=50")
+    die_on_error(existing, f"读取 {kind}")
+    match = next((x for x in existing["data"] if x["attributes"]["locale"] == locale), None)
+    if match:
+        body = {"data": {"type": kind, "id": match["id"], "attributes": attrs}}
+        resp = call(tok, "PATCH", f"/{kind}/{match['id']}", body)
+    else:
+        body = {"data": {"type": kind, "attributes": dict(attrs, locale=locale),
+                         "relationships": {parent_rel: {"data": {"type": parent_path.strip("/"),
+                                                                 "id": parent_id}}}}}
+        resp = call(tok, "POST", f"/{kind}", body)
+    return die_on_error(resp, f"写入 {kind} {locale}") if strict else resp
+
+
+def cmd_text(tok, app_id, flavor):
+    v = version(tok, app_id)
+    info_id = app_info_id(tok, app_id)
+    for locale, files in read_locale_dir(flavor).items():
+        vattrs = {api: files[fn] for fn, api in VERSION_FIELDS.items() if fn in files}
+        iattrs = {api: files[fn] for fn, api in INFO_FIELDS.items() if fn in files}
+        if vattrs:
+            # 首个版本没有「更新说明」这一栏（没有上一版可对照），带上 whatsNew
+            # 会被 409 STATE_ERROR 挡下。这里不预判是不是首版——问 ASC 更准，
+            # 被挡下就把这一项摘掉重来，release_notes.txt 留着给 1.0.1 用。
+            resp = upsert(tok, "appStoreVersionLocalizations", "/appStoreVersions",
+                          "appStoreVersion", v["id"], locale, vattrs, strict=False)
+            if any("whatsNew" in e.get("detail", "") for e in errors_of(resp)):
+                vattrs.pop("whatsNew", None)
+                print(f"{locale}: 首个版本没有更新说明这一栏，已跳过 whatsNew")
+                upsert(tok, "appStoreVersionLocalizations", "/appStoreVersions",
+                       "appStoreVersion", v["id"], locale, vattrs)
+        if iattrs:
+            upsert(tok, "appInfoLocalizations", "/appInfos", "appInfo", info_id, locale, iattrs)
+        print(f"{locale}: 版本文案 {len(vattrs)} 项、应用信息 {len(iattrs)} 项已写入")
+
+
+def marketing_version():
+    """版本号只有一个来源：ios/project.yml。Fastfile 里也是读的同一处。"""
+    spec = open(os.path.join("ios", "project.yml")).read()
+    m = re.search(r'^\s*MARKETING_VERSION:\s*"([^"]+)"', spec, re.M)
+    if not m:
+        sys.exit("ios/project.yml 里读不到 MARKETING_VERSION")
+    return m.group(1)
+
+
+def cmd_setversion(tok, app_id):
+    """版本号对齐 project.yml，顺带把发布方式钉成手动。
+
+    ASC 建版本记录时默认 releaseType=AFTER_APPROVAL，意思是**过审即自动上架**。
+    三个端（国际版 / 大陆版 / 小程序）要凑同一天放出去，就不能让谁先过审谁
+    先上。改成 MANUAL，过审后由人点发布。
+    """
+    want = marketing_version()
+    v = version(tok, app_id)
+    attrs = {}
+    if v["attributes"]["versionString"] != want:
+        attrs["versionString"] = want
+    if v["attributes"].get("releaseType") != "MANUAL":
+        attrs["releaseType"] = "MANUAL"
+    if not attrs:
+        print(f"版本 {want}、手动发布，已经是这样")
+        return
+    body = {"data": {"type": "appStoreVersions", "id": v["id"], "attributes": attrs}}
+    die_on_error(call(tok, "PATCH", f"/appStoreVersions/{v['id']}", body), "更新版本记录")
+    print(f"版本记录已更新：{', '.join(f'{k}={x}' for k, x in attrs.items())}")
+
+
+def cmd_attach(tok, app_id, build_number):
+    """把构建挂到版本上。
+
+    构建要处理完（processingState=VALID）才挂得上；刚传完通常要等几分钟，
+    这期间 ASC 上是 PROCESSING，挂上去会被拒。
+    """
+    r = call(tok, "GET", f"/apps/{app_id}/builds?limit=200")
+    die_on_error(r, "读取构建列表")
+    match = [b for b in r["data"] if b["attributes"]["version"] == str(build_number)]
+    if not match:
+        have = ", ".join(sorted({b["attributes"]["version"] for b in r["data"]}, key=len)[-8:])
+        sys.exit(f"没找到构建 {build_number}（现有：{have}）")
+    b = match[0]
+    state = b["attributes"]["processingState"]
+    if state != "VALID":
+        sys.exit(f"构建 {build_number} 还在 {state}，等它变 VALID 再挂")
+    v = version(tok, app_id)
+    body = {"data": {"type": "builds", "id": b["id"]}}
+    die_on_error(call(tok, "PATCH", f"/appStoreVersions/{v['id']}/relationships/build", body),
+                 "挂载构建")
+    print(f"构建 {build_number} 已挂到版本 {v['attributes']['versionString']}")
+
+
+def cmd_submit(tok, app_id, flavor, confirmed):
+    """提交审核。
+
+    这是本脚本里唯一一个对外的动作：过审即上架（除非版本设了手动发布），
+    撤回要重新排队。所以默认只做体检并把要提交的东西打印出来，加 --yes
+    才真的建提交单。
+    """
+    v = version(tok, app_id)
+    if not confirmed:
+        print(f"将提交 {flavor} 版本 {v['attributes']['versionString']} 进入 Apple 审核。")
+        print("先跑 status 确认必填项齐了，确认后加 --yes 重跑。")
+        return
+    r = call(tok, "POST", "/reviewSubmissions",
+             {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"},
+                       "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})
+    # 已经有一份未提交的草稿单就复用，别攒出一堆空提交单
+    if "ERROR" in r:
+        existing = call(tok, "GET", f"/apps/{app_id}/reviewSubmissions?filter[state]=READY_FOR_REVIEW&limit=1")
+        if "ERROR" in existing or not existing.get("data"):
+            die_on_error(r, "创建提交单")
+        sub_id = existing["data"][0]["id"]
+    else:
+        sub_id = r["data"]["id"]
+
+    die_on_error(call(tok, "POST", "/reviewSubmissionItems",
+                      {"data": {"type": "reviewSubmissionItems",
+                                "relationships": {
+                                    "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": sub_id}},
+                                    "appStoreVersion": {"data": {"type": "appStoreVersions", "id": v["id"]}}}}}),
+                 "把版本加进提交单")
+    die_on_error(call(tok, "PATCH", f"/reviewSubmissions/{sub_id}",
+                      {"data": {"type": "reviewSubmissions", "id": sub_id,
+                                "attributes": {"submitted": True}}}),
+                 "提交审核")
+    print(f"已提交审核：{flavor} {v['attributes']['versionString']}")
+
+
 def cmd_availability(tok, app_id, flavor):
     """上架区域。
 
@@ -231,7 +405,8 @@ def cmd_status(tok, app_id, flavor):
     ra = rating.get("data", {}).get("attributes", {})
 
     print(f"== {flavor} / {a['name']} / {a['bundleId']} ==")
-    print(f"版本            {v['attributes']['versionString']}  {v['attributes']['appStoreState']}")
+    print(f"版本            {v['attributes']['versionString']}  {v['attributes']['appStoreState']}"
+          f"  发布方式 {v['attributes'].get('releaseType')}")
     print(f"内容版权声明    {a.get('contentRightsDeclaration') or '未填'}")
     print(f"年龄分级        {ia.get('appStoreAgeRating') or '未填'}")
     # 只看问卷本身：ageRatingOverride 这类字段建记录时就有值，拿它判断会永远显示「已答」
@@ -269,7 +444,17 @@ def main():
     cmd, flavor = sys.argv[1], sys.argv[2]
     tok = token_for(flavor)
     app_id = APPS[flavor]["app_id"]
-    if cmd == "rating":
+    if cmd == "setversion":
+        cmd_setversion(tok, app_id)
+    elif cmd == "attach":
+        if len(sys.argv) < 4:
+            sys.exit("用法：asc-listing.py attach <flavor> <构建号>")
+        cmd_attach(tok, app_id, sys.argv[3])
+    elif cmd == "submit":
+        cmd_submit(tok, app_id, flavor, "--yes" in sys.argv)
+    elif cmd == "text":
+        cmd_text(tok, app_id, flavor)
+    elif cmd == "rating":
         cmd_rating(tok, app_id)
     elif cmd == "contentrights":
         cmd_contentrights(tok, app_id)

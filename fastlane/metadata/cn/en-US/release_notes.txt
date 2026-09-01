@@ -1,1 +1,0 @@
-First public release. Capture photo, video and audio on site; each file is hashed with SHA-256 on device, stamped with time and location, queued, and filed into the matching project folder on your desktop.
