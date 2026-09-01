@@ -4,9 +4,9 @@ import SwiftUI
 ///
 /// 两条路径**语义不同**，界面上必须说清，别做成同一句话换个输入框：
 /// - 手机号：注册与登录合一，号码没见过后端就建号。只走中国大陆短信通道。
-/// - 邮箱：**只登录，不建号**。后端 mail-login 对未注册地址照样回成功但不发信
-///   （防账号枚举），所以「没收到」既可能是没注册也可能是投递慢，我们不能替
-///   后端断言是哪一种——只能在页脚把注册入口摆出来。
+/// - 邮箱：同样是注册登录合一（后端 findOrCreateByEmail），未注册的地址也会收到码，
+///   验过就建号。两条路在「填标识 → 收码 → 进去」这件事上没有差别，界面上也就
+///   不该再区别对待。
 ///
 /// 邮箱这条是国际版能用的前提：境外收不到中国短信，只有手机号那条等于门是锁死的。
 struct LoginView: View {
@@ -235,18 +235,10 @@ struct LoginView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: T.Sp.s1) {
             Hairline()
-            // 邮箱这条只登录不建号，所以必须给出注册在哪——否则新用户填了邮箱、
-            // 等不到信，也不知道下一步该去哪。
-            if method == .email {
-                Text("邮箱登录用于已有 AI WorkDeck 账号。还没有账号请先到 aiworkdeck.com 注册。")
-                    .font(T.F.nano())
-                    .foregroundStyle(T.L.fgFaint)
-                    .padding(.top, T.Sp.s3)
-            }
             Text("收不到验证码？发邮件到 hi@aiworkdeck.com")
                 .font(T.F.nano())
                 .foregroundStyle(T.L.fgFaint)
-                .padding(.top, method == .email ? T.Sp.s1 : T.Sp.s3)
+                .padding(.top, T.Sp.s3)
         }
         .padding(.bottom, T.Sp.s6)
     }
