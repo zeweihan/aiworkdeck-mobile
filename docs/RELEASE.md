@@ -95,9 +95,14 @@ ASC → App 信息 →「App Store 法规和许可 / 中国大陆 ICP 备案号�
 我们的邮箱。内核仓已经加了固定验证码旁路（`config/ReviewAccountGate`，
 aiworkdeck#680），服务器上按下面三步启用：
 
-1. 注册一个审核专用账号（邮箱或手机号），**里面不要放真实数据**——那 6 位码
-   是写在 ASC 审核备注里给外部人看的。邮箱那条只登录不建号，所以审核账号必须
-   事先在官网注册好并验过邮箱。
+1. 选一个审核专用标识（邮箱或手机号）。**不要用真人账号的邮箱/手机号**——那 6 位码
+   是写在 ASC 审核备注里给外部人看的，绑到真人账号上就等于把真账号的钥匙给出去。
+   不需要事先注册：旁路命中时会给这个标识建一个专用空账号
+   （`UserService#findOrCreateReviewAccount`，displayName `App Review`）。
+
+   > 早先一版要求「事先注册好并验过邮箱」，那条路走不通：`verified_email` 全仓
+   > 只有登录后绑定一处写入，等于必须绑到真人账号上。已改成建号（aiworkdeck#682）。
+
 2. 在 `/opt/aiworkdeck/cloud/env` 追加两行，然后重启：
 
    ```
@@ -105,8 +110,13 @@ aiworkdeck#680），服务器上按下面三步启用：
    AUTH_REVIEW_ACCOUNT_CODE=246813
    ```
 
-3. 把这个账号与固定码写进 `review_information/demo_user.txt`、
+3. 把这个标识与固定码写进 `review_information/demo_user.txt`、
    `demo_password.txt`。
+
+**审核员登录之后还会撞一堵墙**：项目列表来自桌面端推的目录镜像，新账号是空的，
+项目选择页的空状态写着「在电脑上用同一手机号登录并保持运行」——审核员没有桌面端，
+到不了取景页。真实新用户第一次打开撞的是同一堵墙。上线前必须解掉，两条路见
+dev-board#345 的讨论（给审核账号种一个项目 / App 支持无项目先拍）。
 
 审核结束后清空 `AUTH_REVIEW_ACCOUNT_IDENTITY` 即可关掉旁路。
 
