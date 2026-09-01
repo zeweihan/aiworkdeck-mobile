@@ -2,7 +2,7 @@
  * 主界面 —— 取景器优先（与 iOS 端同期重构对齐，取证拍摄流程两端逐像素一致）。
  *
  * 顶部信息（项目名 / 待传·传输中·已上传 / 切换项目）、中部 <camera> 实时取景 +
- * 左下角淡水印（时间到秒、项目名、经纬度），底部「照片/录像/录音」三档显式切换 +
+ * 左下角淡水印（时间到秒、项目名），底部「照片/录像/录音」三档显式切换 +
  * 居中大快门 + 左侧最近缩略图入口。
  *
  * 水印只是界面叠加，不烧录进照片——烧录会破坏取证哈希链（刻意决策，别改）。
@@ -92,7 +92,6 @@ Page({
     recordElapsed: '00:00',
     recordSegment: 1,
     wmTime: '',
-    wmCoords: '',
     saveToAlbum: false,
   },
 
@@ -106,8 +105,6 @@ Page({
   segmentHandled: true,
   /** 手动停止意图：timeoutCallback 恰好赶上时不再续下一段 */
   manualStopping: false,
-  /** 定位拿不到（被拒/失败）后本次运行不再重试，避免反复弹权限 */
-  locationFailed: false,
 
   onLoad() {
     const app = getApp<AppGlobal>()
@@ -215,7 +212,6 @@ Page({
     this.wmTimer = setInterval(() => {
       this.setData({ wmTime: watermarkTime() })
     }, 1000)
-    this.fetchLocation()
   },
 
   stopWatermark() {
@@ -223,24 +219,6 @@ Page({
       clearInterval(this.wmTimer)
       this.wmTimer = null
     }
-  },
-
-  /** 定位是水印的加分项不是硬依赖：拿不到就不显示坐标行，不打断拍摄 */
-  fetchLocation() {
-    if (this.locationFailed || this.data.wmCoords) return
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        const acc = res.accuracy ? ` ±${Math.round(res.accuracy)}m` : ''
-        this.setData({
-          wmCoords: `${res.latitude.toFixed(6)}, ${res.longitude.toFixed(6)}${acc}`,
-        })
-      },
-      fail: () => {
-        this.locationFailed = true
-        this.setData({ wmCoords: '' })
-      },
-    })
   },
 
   // ---------- 相机状态 ----------
