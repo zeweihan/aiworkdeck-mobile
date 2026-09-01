@@ -112,8 +112,12 @@ aiworkdeck#680），服务器上按下面三步启用：
 
 ### 3.3.1 顺带：邮箱登录开关
 
-邮箱登录是国际版唯一能用的登录方式，但服务端默认关着（实测两站都回
-「邮箱登录未启用」）。同一个 env 文件里：
+**已开（2026-09-01）**：北京 ECS `/opt/aiworkdeck/cloud/env` 里已加
+`MAIL_PASSWORDLESS_LOGIN_ENABLED=true` 并重启，实测未注册地址回 `code 0`，
+短信那条不受影响。原 env 备份在同目录 `env.bak-20260901-mailpwdless`。
+下面留作重装机器时的参考。
+
+邮箱登录是国际版唯一能用的登录方式，服务端默认关着。同一个 env 文件里：
 
 ```
 MAIL_PASSWORDLESS_LOGIN_ENABLED=true
