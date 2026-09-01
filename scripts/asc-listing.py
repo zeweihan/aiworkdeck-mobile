@@ -8,6 +8,7 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
   text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
   category      主/次类目（读 metadata/<flavor>/*_category.txt）
   review        审核联系信息与演示账号（读 metadata/<flavor>/review_information/）
+  screenshots   上传截图（读 fastlane/screenshots/<flavor>/<locale>/，6.9 吋 1320x2868）
   attach <build> 把已上传的构建挂到版本上（构建号，如 13）
   submit        提交审核。对外动作，要再打一次 --yes 才真发
   rating        年龄分级问卷（全部答「无」）
@@ -420,6 +421,79 @@ def cmd_review(tok, app_id, flavor):
         print(f"缺（ASC 提审时是必填）：{', '.join(sorted(missing))}")
 
 
+# 6.9 吋（iPhone 17/16 Pro Max，1320x2868）在 ASC 里的枚举名仍是 IPHONE_67。
+SCREENSHOT_DISPLAY_TYPE = "APP_IPHONE_67"
+
+
+def cmd_screenshots(tok, app_id, flavor):
+    """把 fastlane/screenshots/<flavor>/<locale>/ 下的图传到对应语言的截图组。
+
+    ASC 传文件是三段式：先 POST 预留一条记录拿 uploadOperations，再按它给的
+    分片把字节 PUT 上去，最后 PATCH uploaded=true 并附 md5。少最后一步的话
+    记录会一直挂在「上传中」，网页上看得见但提审用不了。
+    """
+    import hashlib
+    root = os.path.join("fastlane", "screenshots", flavor)
+    if not os.path.isdir(root):
+        sys.exit(f"找不到 {root}")
+    v = version(tok, app_id)
+    locs = call(tok, "GET", f"/appStoreVersions/{v['id']}/appStoreVersionLocalizations?limit=20")
+    die_on_error(locs, "读取版本本地化")
+
+    for loc in locs["data"]:
+        locale = loc["attributes"]["locale"]
+        d = os.path.join(root, locale)
+        if not os.path.isdir(d):
+            print(f"{locale}: 没有对应目录，跳过")
+            continue
+        files = sorted(f for f in os.listdir(d) if f.lower().endswith((".png", ".jpg", ".jpeg")))
+        if not files:
+            print(f"{locale}: 目录是空的，跳过")
+            continue
+
+        sets = call(tok, "GET", f"/appStoreVersionLocalizations/{loc['id']}/appScreenshotSets?limit=20")
+        die_on_error(sets, "读取截图组")
+        node = next((x for x in sets["data"]
+                     if x["attributes"]["screenshotDisplayType"] == SCREENSHOT_DISPLAY_TYPE), None)
+        if node:
+            set_id = node["id"]
+            # 重传前清空，否则会在已有图后面追加，顺序和数量都不受控
+            existing = call(tok, "GET", f"/appScreenshotSets/{set_id}/appScreenshots?limit=20")
+            for old in existing.get("data", []):
+                call(tok, "DELETE", f"/appScreenshots/{old['id']}")
+        else:
+            r = call(tok, "POST", "/appScreenshotSets",
+                     {"data": {"type": "appScreenshotSets",
+                               "attributes": {"screenshotDisplayType": SCREENSHOT_DISPLAY_TYPE},
+                               "relationships": {"appStoreVersionLocalization": {"data": {
+                                   "type": "appStoreVersionLocalizations", "id": loc["id"]}}}}})
+            die_on_error(r, "创建截图组")
+            set_id = r["data"]["id"]
+
+        for fn in files:
+            path = os.path.join(d, fn)
+            blob = open(path, "rb").read()
+            r = call(tok, "POST", "/appScreenshots",
+                     {"data": {"type": "appScreenshots",
+                               "attributes": {"fileSize": len(blob), "fileName": fn},
+                               "relationships": {"appScreenshotSet": {"data": {
+                                   "type": "appScreenshotSets", "id": set_id}}}}})
+            die_on_error(r, f"预留 {fn}")
+            shot_id = r["data"]["id"]
+            for op in r["data"]["attributes"]["uploadOperations"]:
+                chunk = blob[op["offset"]:op["offset"] + op["length"]]
+                req = urllib.request.Request(op["url"], method=op["method"], data=chunk)
+                for h in op["requestHeaders"]:
+                    req.add_header(h["name"], h["value"])
+                urllib.request.urlopen(req)
+            die_on_error(call(tok, "PATCH", f"/appScreenshots/{shot_id}",
+                              {"data": {"type": "appScreenshots", "id": shot_id,
+                                        "attributes": {"uploaded": True,
+                                                       "sourceFileChecksum": hashlib.md5(blob).hexdigest()}}}),
+                         f"确认 {fn}")
+            print(f"  {locale}  {fn}  已上传")
+
+
 def cmd_availability(tok, app_id, flavor):
     """上架区域。
 
@@ -526,6 +600,8 @@ def main():
         cmd_attach(tok, app_id, sys.argv[3])
     elif cmd == "submit":
         cmd_submit(tok, app_id, flavor, "--yes" in sys.argv)
+    elif cmd == "screenshots":
+        cmd_screenshots(tok, app_id, flavor)
     elif cmd == "review":
         cmd_review(tok, app_id, flavor)
     elif cmd == "category":
