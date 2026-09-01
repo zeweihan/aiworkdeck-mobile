@@ -91,14 +91,51 @@ ASC → App 信息 →「App Store 法规和许可 / 中国大陆 ICP 备案号�
 `fastlane/metadata/<flavor>/review_information/` 下有三个 `.example`，
 复制成同名 `.txt` 填写（实文件已 gitignore，公开仓不收个人信息与凭据）。
 
-**这一项是当前最硬的卡点**，两个 App 都卡在这里：登录只有验证码一条路，
-而审核员既收不到中国短信，也打不开我们的邮箱。两条出路，二选一：
+两个 App 都需要：登录只有验证码一条路，而审核员既收不到中国短信，也打不开
+我们的邮箱。内核仓已经加了固定验证码旁路（`config/ReviewAccountGate`，
+aiworkdeck#680），服务器上按下面三步启用：
 
-1. **后端给审核账号配固定验证码**（推荐）。在 `checkba_cloud` 后端
-   `MailAuthService` / `SmsAuthService` 加一个配置项：命中指定标识时不发信、
-   直接认一个固定 6 位码。审核备注里写「账号 X，验证码 YYYYYY」即可。
-2. **给审核员一个他自己打得开的收件箱**：注册一个专用邮箱，把 webmail 地址
-   与口令写进 `demo_password.txt`。省事，但等于把一份凭据交给外部。
+1. 注册一个审核专用账号（邮箱或手机号），**里面不要放真实数据**——那 6 位码
+   是写在 ASC 审核备注里给外部人看的。邮箱那条只登录不建号，所以审核账号必须
+   事先在官网注册好并验过邮箱。
+2. 在 `/opt/aiworkdeck/cloud/env` 追加两行，然后重启：
+
+   ```
+   AUTH_REVIEW_ACCOUNT_IDENTITY=appreview@example.com
+   AUTH_REVIEW_ACCOUNT_CODE=246813
+   ```
+
+3. 把这个账号与固定码写进 `review_information/demo_user.txt`、
+   `demo_password.txt`。
+
+审核结束后清空 `AUTH_REVIEW_ACCOUNT_IDENTITY` 即可关掉旁路。
+
+### 3.3.1 顺带：邮箱登录开关
+
+邮箱登录是国际版唯一能用的登录方式，但服务端默认关着（实测两站都回
+「邮箱登录未启用」）。同一个 env 文件里：
+
+```
+MAIL_PASSWORDLESS_LOGIN_ENABLED=true
+```
+
+`mail.passwordless-login-enabled` 只是**其中一个**条件，还要至少一条发信通道是
+开的（`MAIL_DOMESTIC_ENABLED` 走阿里云、`MAIL_GLOBAL_ENABLED` 走 Resend）——
+两者缺一，`passwordlessActive()` 都是 false，报的还是同一句「邮箱登录未启用」，
+从报错分不出是哪一个。审核员的邮箱多半是境外域名，所以 `MAIL_GLOBAL_ENABLED`
+这条尤其要确认。
+
+改完重启并验证：
+
+```bash
+sudo systemctl restart aiworkdeck-cloud
+journalctl -u aiworkdeck-cloud -n 50 --no-pager
+# 拿一个**没注册过**的地址探开关：回 code 0 说明开关已开（未注册地址后端
+# 静默不发信但照常回成功，这是防账号枚举，不是发信成功）
+curl -s -X POST https://addin.aiworkdeck.com/api/auth/mail-login/send-code \
+  -H 'Content-Type: application/json' -d '{"email":"nobody@example.com"}'
+# 再拿一个**已注册并验过邮箱**的地址试，确认真能收到信
+```
 
 ### 3.4 截图
 
