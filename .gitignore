@@ -38,3 +38,6 @@ fastlane/metadata/*/review_information/*
 !fastlane/metadata/*/review_information/*.example
 # 截图是二进制大文件，且要从真机重拍，不入库
 fastlane/screenshots/
+
+# 会话交接文件，含凭据类内容，公开仓绝不能收
+.remember/
