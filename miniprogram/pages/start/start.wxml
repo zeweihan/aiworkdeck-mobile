@@ -46,7 +46,7 @@
     <view class="features__title">这个小程序还是你的现场伴侣</view>
     <view class="feature">
       <view class="feature__name">现场拍摄</view>
-      <view class="feature__desc">取景器直拍，带时间与坐标水印，弱网自动重传</view>
+      <view class="feature__desc">取景器直拍，带时间水印，弱网自动重传</view>
     </view>
     <view class="feature">
       <view class="feature__name">现场录音</view>

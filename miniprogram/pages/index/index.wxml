@@ -64,7 +64,6 @@
     <view wx:if="{{mode !== 'audio' && cameraState === 'ready'}}" class="wm">
       <text class="wm__line mono">{{wmTime}}</text>
       <text class="wm__line wm__line--name">{{project.name}}</text>
-      <text wx:if="{{wmCoords}}" class="wm__line mono">{{wmCoords}}</text>
     </view>
 
     <!-- 录制中状态条（录像/录音共用） -->

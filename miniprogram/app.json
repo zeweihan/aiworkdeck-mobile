@@ -13,14 +13,10 @@
     "navigationBarTextStyle": "black"
   },
   "permission": {
-    "scope.userLocation": {
-      "desc": "用于在拍摄界面显示现场坐标水印"
-    },
     "scope.writePhotosAlbum": {
       "desc": "开启「存相册」后，将拍摄的照片和录像同时保存一份到系统相册"
     }
   },
-  "requiredPrivateInfos": ["getLocation"],
   "requiredBackgroundModes": ["audio"],
   "style": "v2",
   "sitemapLocation": "sitemap.json",
