@@ -39,6 +39,8 @@ export interface QueueItem {
   segmentIndex?: number
   /** Date.now()，列表排序与显示 HH:mm 用 */
   createdAt: number
+  /** 已失败的次数，超过 MAX_AUTO_RETRIES 后不再自动重试，只留手动 retry() */
+  attempts?: number
 }
 
 // ---------- 持久化 + 订阅通知 ----------
@@ -174,6 +176,22 @@ export function enqueueCapture(
 
 let uploading = false
 
+/** 退避间隔（毫秒），按第几次失败取值；用完这些档位还失败就落到终态 failed。 */
+const RETRY_DELAYS_MS = [5000, 15000, 45000]
+/** 自动重试的次数上限；超过后落到终态 failed，只留手动 retry() 入口。 */
+const MAX_AUTO_RETRIES = RETRY_DELAYS_MS.length
+
+/** 失败后延迟回拨成 waiting 再续队列；不是忙循环。 */
+function scheduleRetry(clientMediaId: string, attempts: number): void {
+  const delay = RETRY_DELAYS_MS[attempts - 1]
+  setTimeout(() => {
+    updateItem(clientMediaId, (it) => {
+      if (it.state === 'failed') it.state = 'waiting'
+    })
+    processQueue()
+  }, delay)
+}
+
 /**
  * 启动恢复（app.onLaunch 调一次）：单飞锁只在内存里，上次运行在上传途中被杀的话
  * 条目会永远卡在 uploading 态——回拨成 waiting 接着传。未登录时不动队列，
@@ -184,6 +202,9 @@ export function recoverOnLaunch(): void {
   let changed = false
   for (const it of items) {
     if (it.state === 'uploading') {
+      it.state = 'waiting'
+      changed = true
+    } else if (it.state === 'failed' && (it.attempts ?? 0) <= MAX_AUTO_RETRIES) {
       it.state = 'waiting'
       changed = true
     }
@@ -227,10 +248,15 @@ export function processQueue(): void {
         // 不重复弹窗、不继续处理队列（登录后由页面重新触发）。
         return
       }
+      const attempts = (next.attempts ?? 0) + 1
       updateItem(next.clientMediaId, (it) => {
         it.state = 'failed'
         it.errorMessage = e instanceof Error ? e.message : '上传失败'
+        it.attempts = attempts
       })
+      if (attempts <= MAX_AUTO_RETRIES) {
+        scheduleRetry(next.clientMediaId, attempts)
+      }
       processQueue()
     })
 }
@@ -240,6 +266,7 @@ export function retry(clientMediaId: string): void {
     if (it.state === 'failed') {
       it.state = 'waiting'
       it.errorMessage = undefined
+      it.attempts = 0
     }
   })
   processQueue()

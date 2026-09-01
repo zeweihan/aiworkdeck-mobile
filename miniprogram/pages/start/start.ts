@@ -1,4 +1,4 @@
-import { wxPhoneStart } from '../../utils/api'
+import { getSession, wxPhoneStart } from '../../utils/api'
 import type { ApiError } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
 
@@ -72,7 +72,13 @@ Page({
   },
 
   onEnterApp() {
-    // index 的 onShow 守门会按会话/选中项目把用户送到该去的页面
+    // 官网换号用的 ticket 不建小程序会话，这里没有会话是正常状态，
+    // 直接去登录页（免得先弹一下 index 又被它的守门弹回来）。
+    if (!getSession()) {
+      wx.reLaunch({ url: '/pages/login/login' })
+      return
+    }
+    // 有会话（比如之前登录过）：index 的 onShow 守门会按选中项目把用户送到该去的页面
     wx.reLaunch({ url: '/pages/index/index' })
   },
 })
