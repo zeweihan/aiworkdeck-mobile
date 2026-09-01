@@ -32,10 +32,18 @@ set -a; . fastlane/.env; set +a
 
 ## 2. 命令序列
 
+**先看打包机的系统**：`sw_vers` 显示 beta（BuildVersion 形如 `26A5421a`，
+数字长、小写字母结尾）就**不要在本机打正式包**——包里的 `BuildMachineOSBuild`
+会带 beta 系统号，提审必被 ITMS-90111 打回，Xcode/SDK 是正式版也救不回来
+（2026-09-01 三个包实测；Apple 邮件只提 Xcode/SDK，别被带偏）。本机是 beta 时
+走 CI：push 一个 commit message 含 `[appstore]` 的提交，GitHub Actions 会在
+发行版 macOS 上打包上传（`.github/workflows/appstore-build.yml`，签名材料在
+repo secrets，lane 是 `ci_appstore`）。
+
 ```bash
 set -a; . fastlane/.env; set +a
 
-# 打包并上传（构建号自动取线上最大值 +1）
+# 打包并上传（构建号自动取线上最大值 +1）——仅当本机是发行版 macOS
 fastlane ios release        # 或 release_cn
 
 # 等构建处理完（几分钟，ASC 上从 PROCESSING 变 VALID），然后挂版本
