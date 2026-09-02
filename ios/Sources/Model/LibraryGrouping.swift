@@ -43,14 +43,17 @@ enum LibraryGrouping {
         }
     }
 
-    /// 删除确认文案，按所选里最坏的阶段说话。
-    static func deleteWarning(for items: [CaptureItem]) -> String {
-        let uploading = items.filter { $0.state.phase == .uploading }.count
-        if uploading > 0 { return "其中 \(uploading) 件还没送出去。删了就没了，无法找回。" }
-        let staged = items.filter { $0.state.phase == .staged }.count
-        if staged > 0 {
-            return "其中 \(staged) 件电脑还没取回。中转区 7 天后清理，电脑若未及时接收，这些影像将无法找回。"
+    /// 删除确认等级：按所选里最坏的桶说话。n = 该桶件数；landed 时 n = 总数。
+    static func deleteWarningLevel(_ states: [TransferState]) -> (level: String, n: Int) {
+        for phase in ContractStates.deleteWarnOrder where phase != "landed" {
+            let n = states.filter { $0.phase.rawValue == phase }.count
+            if n > 0 { return (ContractStates.deleteWarnLevel[phase]!, n) }
         }
-        return "删除 \(items.count) 件本地原图？电脑上已有副本。"
+        return ("landed", states.count)
+    }
+
+    static func deleteWarning(for items: [CaptureItem]) -> String {
+        let (level, n) = deleteWarningLevel(items.map(\.state))
+        return tr(ContractStates.deleteWarnKey[level]!, ["n": String(n)])
     }
 }

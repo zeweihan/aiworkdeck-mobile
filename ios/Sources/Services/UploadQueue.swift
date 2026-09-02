@@ -36,9 +36,9 @@ actor UploadQueue {
         // 走到这里时没有任何在途上传，所以此刻所有 moving 都是尸体——复位回 waiting
         // 重传，幂等键（clientMediaId）保证服务端不产生重复件。dev-board#241。
         let stale = (try? await EvidenceStore.shared.loadAll())?
-            .filter { $0.state == .moving } ?? []
+            .filter { $0.state == .uploading } ?? []
         for s in stale {
-            try? await EvidenceStore.shared.updateState(s.id, to: .waiting, progress: 0)
+            try? await EvidenceStore.shared.updateState(s.id, to: s.state.recovered(), progress: 0)
         }
         if !stale.isEmpty { await onChange?() }
 
@@ -56,7 +56,7 @@ actor UploadQueue {
             }
 
             do {
-                try await EvidenceStore.shared.updateState(item.id, to: .moving, progress: 0)
+                try await EvidenceStore.shared.updateState(item.id, to: .uploading, progress: 0)
                 await onChange?()
 
                 try await API.shared.upload(
@@ -90,7 +90,7 @@ actor UploadQueue {
         guard !running else { return }
         let items = (try? await EvidenceStore.shared.loadAll()) ?? []
         let hasFailed = items.contains { $0.state == .failed }
-        let hasWork = items.contains { $0.state == .waiting || $0.state == .moving }
+        let hasWork = items.contains { $0.state == .waiting || $0.state == .uploading }
         if hasFailed {
             let waited = lastFailedRoundAt.map { Date().timeIntervalSince($0) } ?? .infinity
             if waited >= autoRetryBackoff {

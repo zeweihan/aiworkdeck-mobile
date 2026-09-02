@@ -136,11 +136,11 @@ struct HomeView: View {
 
     private var tallyLine: some View {
         HStack(spacing: 0) {
-            count(model.tally.uploading, "上传中", T.S.waitingOnDark, failed: model.tally.failed)
+            count(model.tally.uploading, TransferPhase.uploading.caption, T.S.waitingOnDark, failed: model.tally.failed)
             divider
-            count(model.tally.staged, "已暂存", T.S.movingOnDark)
+            count(model.tally.staged, TransferPhase.staged.caption, T.S.movingOnDark)
             divider
-            count(model.tally.landed, "已落盘", T.S.arrivedOnDark)
+            count(model.tally.landed, TransferPhase.landed.caption, T.S.arrivedOnDark)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: 28)
@@ -154,8 +154,8 @@ struct HomeView: View {
 
     private var tallyA11y: String {
         let t = model.tally
-        let failed = t.failed > 0 ? "，其中 \(t.failed) 张失败" : ""
-        return "上传中 \(t.uploading) 张\(failed)，已暂存 \(t.staged) 张，已落盘 \(t.landed) 张"
+        let f = t.failed > 0 ? tr("tally.summary.failedPart", ["m": String(t.failed)]) : ""
+        return tr("tally.summary", ["u": String(t.uploading), "f": f, "s": String(t.staged), "l": String(t.landed)])
     }
 
     private func count(_ n: Int, _ label: String, _ color: Color, failed: Int = 0) -> some View {
@@ -169,7 +169,7 @@ struct HomeView: View {
                 .foregroundStyle(.white.opacity(0.45))
             if failed > 0 {
                 // 失败不单独成桶，但不能藏：云端满、会话过期这类不重试也不会好
-                Text("含 \(failed) 失败")
+                Text(tr("tally.failedSuffix", ["m": String(failed)]))
                     .font(T.F.nano())
                     .foregroundStyle(T.S.failed)
             }

@@ -10,7 +10,7 @@ struct QueueView: View {
 
     private var scoped: [CaptureItem] { model.currentItems }
     private var failed: [CaptureItem] { scoped.filter { $0.state == .failed } }
-    private var active: [CaptureItem] { scoped.filter { $0.state == .waiting || $0.state == .moving } }
+    private var active: [CaptureItem] { scoped.filter { $0.state == .waiting || $0.state == .uploading } }
     private var staged: [CaptureItem] { scoped.filter { $0.state == .uploaded } }
     private var landed: [CaptureItem] { scoped.filter { $0.state == .arrived } }
 
@@ -18,10 +18,10 @@ struct QueueView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if !failed.isEmpty { section("失败 · 需要处理", failed, tint: T.S.failed) }
-                    if !active.isEmpty { section("上传中", active, tint: T.S.waiting) }
-                    if !staged.isEmpty { section("已暂存 · 等电脑取回", staged, tint: T.S.moving) }
-                    if !landed.isEmpty { section("已落盘", landed, tint: T.S.arrived) }
+                    if !failed.isEmpty { section(tr("queue.section.failed"), failed, tint: T.S.failed) }
+                    if !active.isEmpty { section(tr("queue.section.uploading"), active, tint: T.S.waiting) }
+                    if !staged.isEmpty { section(tr("queue.section.staged"), staged, tint: T.S.moving) }
+                    if !landed.isEmpty { section(tr("queue.section.landed"), landed, tint: T.S.arrived) }
                     if scoped.isEmpty { empty }
                     if model.otherPendingCount > 0 { otherProjectsNote }
                 }
@@ -92,7 +92,7 @@ struct QueueView: View {
                         .foregroundStyle(T.L.fgFaint)
                 }
 
-                if item.state == .moving {
+                if item.state == .uploading {
                     ProgressView(value: max(item.progress, 0.05))
                         .tint(T.S.moving)
                         .padding(.top, 2)
