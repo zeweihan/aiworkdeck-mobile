@@ -75,6 +75,7 @@ Page({
     view: 'grid' as 'grid' | 'list',
     selecting: false,
     selectedCount: 0,
+    deleteLabel: '',
   },
 
   unsubscribe: null as (() => void) | null,
@@ -149,6 +150,7 @@ Page({
       failedSuffix: tally.failed > 0 ? t('tally.failedSuffix', { m: tally.failed }) : '',
       days: groupByDay(cells),
       selectedCount: this.selected.size,
+      deleteLabel: t('delete.title', { n: this.selected.size }),
     })
   },
 

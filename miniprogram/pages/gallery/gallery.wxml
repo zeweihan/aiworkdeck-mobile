@@ -114,6 +114,6 @@
 <view wx:if="{{selecting}}" class="dock" style="padding-bottom: {{metrics.bottomInset + 16}}px;">
   <text class="dock__text">{{selectedCount ? '已选 ' + selectedCount + ' 件' : '点选要删除的影像'}}</text>
   <view class="dock__delete tappable {{selectedCount ? '' : 'dock__delete--off'}}" bindtap="onDelete">
-    <text>删除 {{selectedCount}} 件</text>
+    <text>{{deleteLabel}}</text>
   </view>
 </view>
