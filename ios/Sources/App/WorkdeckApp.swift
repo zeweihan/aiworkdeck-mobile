@@ -62,14 +62,9 @@ private struct RootView: View {
                 SettingsView(onClose: { route = nil }).environment(model)
                     .preferredColorScheme(.light)
             case .library:
-                LibraryView(
-                    project: model.project,
-                    tally: model.tally,
-                    link: model.link,
-                    items: model.items,
-                    onClose: { route = nil }
-                )
-                .preferredColorScheme(.dark)
+                LibraryView(onClose: { route = nil })
+                    .environment(model)
+                    .preferredColorScheme(.dark)
             }
         }
     }

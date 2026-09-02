@@ -4,29 +4,83 @@ import SwiftUI
 ///
 /// 深色，影像铺满，玻璃条压在影像上。这是全局唯一真正用得上毛玻璃的地方：
 /// 玻璃需要下面有东西可透，压在纯色背景上等于白做。
+///
+/// 只看一个项目：默认当前项目，顶栏可切换看别的项目（只切看的对象，不切拍摄目标）。
+/// 项目内按自然日分段。列数、网格/列表、多选删除都在这一页。
 struct LibraryView: View {
-    let project: FieldProject
-    let tally: TransferTally
-    let link: DesktopLink
-    let items: [CaptureItem]
-
+    @Environment(AppModel.self) private var model
     var onClose: () -> Void
 
+    @State private var viewingID: String?
+    @AppStorage("libraryColumns") private var columns = 3
+    @AppStorage("libraryViewMode") private var viewMode = "grid"
+    @State private var selecting = false
+    @State private var selected: Set<UUID> = []
+    @State private var confirmDelete = false
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 1.5),
-        GridItem(.flexible(), spacing: 1.5),
-    ]
+    // MARK: - 派生
+
+    private var projects: [LibraryProject] {
+        LibraryGrouping.projects(in: model.items, current: model.selectedProject)
+    }
+    private var viewing: LibraryProject {
+        let id = viewingID ?? model.currentProjectID
+        return projects.first { $0.id == id } ?? projects.first ?? .unknown
+    }
+    private var items: [CaptureItem] { LibraryGrouping.items(model.items, in: viewing.id) }
+    private var days: [LibraryGrouping.DaySection] { LibraryGrouping.days(items) }
+    private var tally: TransferTally { TransferTally.of(items) }
+    private var selectedItems: [CaptureItem] { items.filter { selected.contains($0.id) } }
+    private var isGrid: Bool { viewMode == "grid" }
+
+    private var gridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 1.5), count: max(2, min(4, columns)))
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
             T.D.bg.ignoresSafeArea()
 
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 1.5) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                if items.isEmpty {
+                    emptyState
+                } else if isGrid {
+                    grid
+                } else {
+                    list
+                }
+            }
+            .scrollIndicators(.hidden)
+
+            topBar
+        }
+        .overlay(alignment: .bottom) {
+            if selecting { deleteDock } else { dock }
+        }
+        .onAppear { appeared = true }
+        .confirmationDialog(
+            LibraryGrouping.deleteWarning(for: selectedItems),
+            isPresented: $confirmDelete, titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                let ids = Array(selected)
+                selected = []
+                selecting = false
+                Task { await model.delete(ids: ids) }
+            }
+            Button("取消", role: .cancel) {}
+        }
+    }
+
+    // MARK: - 网格
+
+    private var grid: some View {
+        LazyVGrid(columns: gridColumns, spacing: 1.5, pinnedViews: [.sectionHeaders]) {
+            ForEach(days) { day in
+                Section {
+                    ForEach(Array(day.items.enumerated()), id: \.element.id) { index, item in
                         cell(item)
                             .opacity(appeared || reduceMotion ? 1 : 0)
                             .offset(y: appeared || reduceMotion ? 0 : 10)
@@ -35,23 +89,19 @@ struct LibraryView: View {
                                 value: appeared
                             )
                     }
+                } header: {
+                    dayHeader(day)
                 }
-                // 顶栏与底座都是浮层，内容要自己让开，否则首末两行永远被压住
-                .padding(.top, 96)
-                .padding(.bottom, 130)
             }
-            .scrollIndicators(.hidden)
-
-            topBar
         }
-        .overlay(alignment: .bottom) { dock }
-        .onAppear { appeared = true }
+        // 顶栏与底座都是浮层，内容要自己让开，否则首末两行永远被压住
+        .padding(.top, 96)
+        .padding(.bottom, 130)
     }
 
-    // MARK: - 单元格
-
     private func cell(_ item: CaptureItem) -> some View {
-        EvidenceThumb(item: item, onDark: true)
+        let checked = selected.contains(item.id)
+        return EvidenceThumb(item: item, onDark: true)
             .aspectRatio(1, contentMode: .fill)
             .overlay(alignment: .topTrailing) {
                 StatusDot(state: item.state, onDark: true)
@@ -75,10 +125,110 @@ struct LibraryView: View {
                     .frame(height: 2)
                 }
             }
+            .overlay { if selecting { selectionMark(checked) } }
+            .contentShape(Rectangle())
+            .onTapGesture { if selecting { toggle(item.id) } }
             .accessibilityElement()
             .accessibilityLabel(
                 "\(kindLabel(item.kind))，\(RelativeTime.clock(item.capturedAt))，\(item.state.caption)"
             )
+            .accessibilityAddTraits(selecting && checked ? [.isButton, .isSelected] : selecting ? .isButton : [])
+    }
+
+    private func selectionMark(_ checked: Bool) -> some View {
+        ZStack(alignment: .topLeading) {
+            Color.black.opacity(checked ? 0.35 : 0)
+            Image(systemName: checked ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(checked ? T.S.movingOnDark : .white.opacity(0.8))
+                .padding(8)
+        }
+    }
+
+    private func dayHeader(_ day: LibraryGrouping.DaySection) -> some View {
+        HStack {
+            Eyebrow(text: day.title, color: .white.opacity(0.6))
+            Spacer()
+        }
+        .padding(.horizontal, T.Sp.gutter)
+        .padding(.vertical, T.Sp.s2)
+        .background(T.D.bg.opacity(0.92))
+    }
+
+    // MARK: - 列表
+
+    private var list: some View {
+        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+            ForEach(days) { day in
+                Section {
+                    ForEach(day.items) { item in
+                        row(item)
+                        Hairline(color: T.D.rule)
+                    }
+                } header: {
+                    dayHeader(day)
+                }
+            }
+        }
+        .padding(.top, 96)
+        .padding(.bottom, 130)
+    }
+
+    private func row(_ item: CaptureItem) -> some View {
+        let checked = selected.contains(item.id)
+        return HStack(alignment: .top, spacing: T.Sp.s3) {
+            if selecting {
+                Image(systemName: checked ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(checked ? T.S.movingOnDark : .white.opacity(0.5))
+                    .frame(width: 24, height: 44)
+            }
+            EvidenceThumb(item: item, onDark: true)
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: T.Sp.s1) {
+                    StatusDot(state: item.state, size: 5, onDark: true)
+                    Text(item.state.caption)
+                        .font(T.F.small())
+                        .foregroundStyle(T.D.fg)
+                    Text(RelativeTime.clock(item.capturedAt))
+                        .font(T.F.mono(11))
+                        .foregroundStyle(T.D.fgMuted)
+                }
+                if let err = item.lastError, item.state == .failed {
+                    Text(err)
+                        .font(T.F.nano())
+                        .foregroundStyle(T.S.failed)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(item.manifest.sha256.prefix(12))
+                    .font(T.F.mono(10))
+                    .foregroundStyle(T.D.fgMuted)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, T.Sp.gutter)
+        .padding(.vertical, T.Sp.s3)
+        .contentShape(Rectangle())
+        .onTapGesture { if selecting { toggle(item.id) } }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: T.Sp.s2) {
+            Text("这个项目还没有影像")
+                .font(T.F.body())
+                .foregroundStyle(T.D.fg)
+            Text("拍摄后会归入当前项目。")
+                .font(T.F.micro())
+                .foregroundStyle(T.D.fgMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, T.Sp.gutter)
+        .padding(.top, 96 + T.Sp.s10)
+    }
+
+    private func toggle(_ id: UUID) {
+        if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
     }
 
     private func kindLabel(_ kind: MediaKind) -> String {
@@ -92,31 +242,26 @@ struct LibraryView: View {
     // MARK: - 顶栏（玻璃压在影像上）
 
     private var topBar: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: T.Sp.s3) {
-                Button(action: onClose) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(T.D.fg)
-                        .frame(width: T.touchMin, height: T.touchMin)
-                }
-                .accessibilityLabel("返回")
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(project.name)
-                        .font(T.F.heading())
-                        .kerning(-0.2)
-                        .foregroundStyle(T.D.fg)
-                        .lineLimit(1)
-                    tallyRow
-                }
-                Spacer(minLength: 0)
+        HStack(spacing: T.Sp.s3) {
+            Button(action: onClose) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(T.D.fg)
+                    .frame(width: T.touchMin, height: T.touchMin)
             }
-            .padding(.leading, T.Sp.s2)
-            .padding(.trailing, T.Sp.gutter)
+            .accessibilityLabel("返回")
+
+            VStack(alignment: .leading, spacing: 2) {
+                projectMenu
+                tallyRow
+            }
+            Spacer(minLength: 0)
+            tools
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, T.Sp.s2)
+        .padding(.trailing, T.Sp.s3)
         .padding(.bottom, T.Sp.s2)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -126,11 +271,47 @@ struct LibraryView: View {
         }
     }
 
+    /// 项目名就是切换入口。只切看的对象，不动拍摄目标。
+    private var projectMenu: some View {
+        Menu {
+            ForEach(projects) { p in
+                Button {
+                    viewingID = p.id
+                    selected = []
+                } label: {
+                    if p.id == viewing.id {
+                        Label(p.name, systemImage: "checkmark")
+                    } else {
+                        Text(p.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(viewing.name)
+                    .font(T.F.heading())
+                    .kerning(-0.2)
+                    .foregroundStyle(T.D.fg)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(T.D.fgMuted)
+            }
+        }
+        .accessibilityLabel("正在看 \(viewing.name)，切换项目")
+    }
+
     private var tallyRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
-            pill(tally.waiting, "待传", T.S.waitingOnDark)
-            pill(tally.moving, "传输中", T.S.movingOnDark)
-            pill(tally.arrived, "已上传", T.S.arrivedOnDark)
+            pill(tally.uploading, "上传中", T.S.waitingOnDark)
+            if tally.failed > 0 {
+                Text("含 \(tally.failed) 失败")
+                    .font(T.F.nano())
+                    .foregroundStyle(T.S.failed)
+                    .padding(.trailing, T.Sp.s2)
+            }
+            pill(tally.staged, "已暂存", T.S.movingOnDark)
+            pill(tally.landed, "已落盘", T.S.arrivedOnDark)
         }
         .accessibilityElement(children: .combine)
     }
@@ -148,13 +329,51 @@ struct LibraryView: View {
         .padding(.trailing, T.Sp.s2)
     }
 
+    /// 列数 → 视图 → 选择。三个小按钮，不做工具栏。
+    private var tools: some View {
+        HStack(spacing: 0) {
+            if isGrid && !selecting {
+                toolButton(
+                    columns == 2 ? "square.grid.2x2" : columns == 3 ? "square.grid.3x3" : "square.grid.4x3.fill",
+                    label: "\(columns) 列，切换列数"
+                ) {
+                    columns = columns >= 4 ? 2 : columns + 1
+                }
+            }
+            if !selecting {
+                toolButton(isGrid ? "list.bullet" : "square.grid.2x2",
+                           label: isGrid ? "切换到列表" : "切换到网格") {
+                    viewMode = isGrid ? "list" : "grid"
+                }
+            }
+            Button(selecting ? "取消" : "选择") {
+                selecting.toggle()
+                selected = []
+            }
+            .font(T.F.small())
+            .foregroundStyle(T.D.fg)
+            .frame(minWidth: T.touchMin, minHeight: T.touchMin)
+            .disabled(items.isEmpty)
+        }
+    }
+
+    private func toolButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(T.D.fg)
+                .frame(width: T.touchMin, height: T.touchMin)
+        }
+        .accessibilityLabel(label)
+    }
+
     // MARK: - 底座与快门
 
     private var dock: some View {
         HStack {
             HStack(spacing: T.Sp.s1) {
-                BreathingDot(isOn: link.isOnline, color: T.S.arrivedOnDark)
-                Text(link.isOnline ? "桌面端在线" : "桌面端离线")
+                BreathingDot(isOn: model.link.isOnline, color: T.S.arrivedOnDark)
+                Text(model.link.isOnline ? "桌面端在线" : "桌面端离线")
                     .font(T.F.nano())
                     .tracking(0.6)
                     .foregroundStyle(T.D.fgMuted)
@@ -164,7 +383,7 @@ struct LibraryView: View {
             // 首页现在就是取景器：这里的快门收回浏览页即回到镜头
             ShutterButton(action: onClose)
 
-            Text(project.archivePath)
+            Text(model.project.archivePath)
                 .font(T.F.nano())
                 .tracking(0.6)
                 .foregroundStyle(T.D.fgMuted)
@@ -174,15 +393,42 @@ struct LibraryView: View {
         .padding(.horizontal, T.Sp.gutter)
         .padding(.top, T.Sp.s3)
         .padding(.bottom, T.Sp.s2)
-        .background {
-            LinearGradient(
-                colors: [T.D.bg.opacity(0), T.D.bg.opacity(0.94)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .background(.ultraThinMaterial.opacity(0.6))
-            .environment(\.colorScheme, .dark)
-            .ignoresSafeArea(edges: .bottom)
+        .background { dockBackground }
+    }
+
+    private var deleteDock: some View {
+        HStack {
+            Text(selected.isEmpty ? "点选要删除的影像" : "已选 \(selected.count) 件")
+                .font(T.F.small())
+                .foregroundStyle(T.D.fgMuted)
+            Spacer()
+            Button {
+                confirmDelete = true
+            } label: {
+                Text("删除 \(selected.count) 件")
+                    .font(T.F.small())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, T.Sp.s4)
+                    .frame(minHeight: T.touchMin)
+                    .background(T.S.failed, in: RoundedRectangle(cornerRadius: 2, style: .continuous))
+            }
+            .disabled(selected.isEmpty)
+            .opacity(selected.isEmpty ? 0.4 : 1)
         }
+        .padding(.horizontal, T.Sp.gutter)
+        .padding(.top, T.Sp.s3)
+        .padding(.bottom, T.Sp.s2)
+        .background { dockBackground }
+    }
+
+    private var dockBackground: some View {
+        LinearGradient(
+            colors: [T.D.bg.opacity(0), T.D.bg.opacity(0.94)],
+            startPoint: .top, endPoint: .bottom
+        )
+        .background(.ultraThinMaterial.opacity(0.6))
+        .environment(\.colorScheme, .dark)
+        .ignoresSafeArea(edges: .bottom)
     }
 }
 
@@ -214,11 +460,6 @@ private struct ShutterButton: View {
 }
 
 #Preview {
-    LibraryView(
-        project: DemoData.project,
-        tally: DemoData.tally,
-        link: DemoData.link,
-        items: DemoData.recent,
-        onClose: {}
-    )
+    LibraryView(onClose: {})
+        .environment(AppModel())
 }
