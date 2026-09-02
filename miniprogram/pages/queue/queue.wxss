@@ -136,3 +136,29 @@
   font-weight: 500;
   color: var(--accent);
 }
+
+/* ---- 分区（失败 / 上传中 / 已暂存 / 已落盘） ------------------------------ */
+.section { padding-top: var(--s5); }
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: var(--s1);
+}
+
+.section__count {
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+}
+
+/* 队列只看当前项目，别的项目的未落盘件至少提一句 */
+.other {
+  padding: var(--s6) 0 var(--s4);
+}
+
+.other__text {
+  font-size: var(--t-micro);
+  color: var(--fg-faint);
+  line-height: 1.5;
+}

@@ -1,46 +1,57 @@
-<nav-bar title="上传队列" show-back="{{true}}" scroll-top="{{scrollTop}}" />
+<nav-bar title="上传队列" subtitle="{{projectName}}" show-back="{{true}}" scroll-top="{{scrollTop}}" />
 
 <view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
-  <view class="status" wx:if="{{!items.length}}">
-    <text class="status__text">还没有拍摄记录</text>
+  <view class="status" wx:if="{{!sections.length}}">
+    <text class="status__text">这个项目还没有拍摄记录</text>
   </view>
 
   <view class="list" wx:else>
-    <view class="item" wx:for="{{items}}" wx:key="clientMediaId">
-      <view class="item__row">
-        <!-- 真实缩略图（照片原图 / 录像帧图）；audio 或无图时回落色块底 + 图标 -->
-        <view class="item__thumb">
-          <image
-            wx:if="{{item.thumb}}"
-            class="item__thumb-img"
-            src="{{item.thumb}}"
-            mode="aspectFill"
-            data-id="{{item.clientMediaId}}"
-            binderror="onThumbError"
-          />
-          <view wx:else class="item__thumb-ph item__thumb-ph--{{item.kind}}">
-            <image class="item__thumb-icon" src="{{item.kindIcon}}" mode="aspectFit" />
-          </view>
-          <view class="item__dot {{item.dotClass}}"></view>
-        </view>
-        <view class="item__body">
-          <view class="item__name">{{item.fileName}}</view>
-          <view class="item__meta">{{item.time}} · {{item.projectName}}</view>
-          <view class="item__status">{{item.statusText}}</view>
-          <view class="item__error" wx:if="{{item.errorText}}">{{item.errorText}}</view>
-          <view class="item__waiting" wx:if="{{item.waitingText}}">{{item.waitingText}}</view>
-          <view class="item__expires" wx:if="{{item.expiresText}}">{{item.expiresText}}</view>
-        </view>
-        <view
-          class="item__retry tappable"
-          wx:if="{{item.canRetry}}"
-          data-id="{{item.clientMediaId}}"
-          bindtap="onRetry"
-        >
-          <text>重试</text>
-        </view>
+    <view class="section" wx:for="{{sections}}" wx:for-item="section" wx:key="title">
+      <view class="section__head">
+        <text class="label">{{section.title}}</text>
+        <text class="section__count mono">{{section.items.length}}</text>
       </view>
-      <view class="rule"></view>
+      <view class="item" wx:for="{{section.items}}" wx:key="clientMediaId">
+        <view class="item__row">
+          <!-- 真实缩略图（照片原图 / 录像帧图）；audio 或无图时回落色块底 + 图标 -->
+          <view class="item__thumb">
+            <image
+              wx:if="{{item.thumb}}"
+              class="item__thumb-img"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              data-id="{{item.clientMediaId}}"
+              binderror="onThumbError"
+            />
+            <view wx:else class="item__thumb-ph item__thumb-ph--{{item.kind}}">
+              <image class="item__thumb-icon" src="{{item.kindIcon}}" mode="aspectFit" />
+            </view>
+            <view class="item__dot {{item.dotClass}}"></view>
+          </view>
+          <view class="item__body">
+            <view class="item__name">{{item.fileName}}</view>
+            <view class="item__meta">{{item.time}}</view>
+            <view class="item__status">{{item.statusText}}</view>
+            <view class="item__error" wx:if="{{item.errorText}}">{{item.errorText}}</view>
+            <view class="item__waiting" wx:if="{{item.waitingText}}">{{item.waitingText}}</view>
+            <view class="item__expires" wx:if="{{item.expiresText}}">{{item.expiresText}}</view>
+          </view>
+          <view
+            class="item__retry tappable"
+            wx:if="{{item.canRetry}}"
+            data-id="{{item.clientMediaId}}"
+            bindtap="onRetry"
+          >
+            <text>重试</text>
+          </view>
+        </view>
+        <view class="rule"></view>
+      </view>
     </view>
+  </view>
+
+  <!-- 队列只看当前项目，别的项目的未落盘件至少提一句 -->
+  <view class="other" wx:if="{{otherPending > 0}}">
+    <text class="other__text">其他项目还有 {{otherPending}} 件未落盘，切换项目后可见。</text>
   </view>
 </view>

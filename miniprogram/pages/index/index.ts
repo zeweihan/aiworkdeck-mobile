@@ -12,7 +12,8 @@
 import { Icon } from '../../utils/icons'
 import type { Metrics } from '../../utils/layout'
 import { getSession, getSelectedProject, type RelayProject } from '../../utils/api'
-import { listItems, counts, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
+import { listItems, tallyFor, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
+import { dotClass, projectId, tallyTotal, type Tally } from '../../utils/phase'
 import { startRecording, stopRecording, isRecording } from '../../utils/recorder'
 import { thumbFor, setVideoThumb, markThumbBroken } from '../../utils/thumbs'
 
@@ -42,14 +43,8 @@ interface RecentDisplay {
   /** 可渲染的缩略图路径；空串走占位图标 */
   thumb: string
   icon: string
-  state: 'waiting' | 'moving' | 'arrived'
-}
-
-/** 队列的五态收窄成状态点的三态：waiting/failed 都算「还没走」 */
-function toDisplayState(state: QueueItem['state']): RecentDisplay['state'] {
-  if (state === 'waiting' || state === 'failed') return 'waiting'
-  if (state === 'arrived') return 'arrived'
-  return 'moving'
+  /** 状态点样式类，见 phase.dotClass */
+  dotClass: string
 }
 
 function placeholderIcon(mediaType: QueueItem['mediaType']): string {
@@ -82,7 +77,8 @@ Page({
     Icon,
     metrics: {} as Metrics,
     project: { name: '', archivePath: '' },
-    counts: { waiting: 0, moving: 0, arrived: 0 },
+    tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
+    total: 0,
     recent: null as RecentDisplay | null,
     mode: 'photo' as CaptureMode,
     modeNote: MODE_NOTES.photo,
@@ -192,16 +188,21 @@ Page({
   },
 
   refresh() {
-    const latest = listItems()[0]
+    // 只看当前项目：最近缩略图与三段计数都跟着项目走
+    const project = getSelectedProject()
+    if (!project) return
+    const pid = projectId({ deviceId: project.deviceId, projectKey: project.key })
+    const latest = listItems(pid)[0]
     const recent: RecentDisplay | null = latest
       ? {
           id: latest.clientMediaId,
           thumb: thumbFor(latest),
           icon: placeholderIcon(latest.mediaType),
-          state: toDisplayState(latest.state),
+          dotClass: dotClass(latest.state),
         }
       : null
-    this.setData({ counts: counts(), recent })
+    const tally = tallyFor(pid)
+    this.setData({ tally, total: tallyTotal(tally), recent })
   },
 
   // ---------- 水印（仅界面叠加，不写入影像文件） ----------
@@ -553,6 +554,10 @@ Page({
 
   onOpenQueue() {
     wx.navigateTo({ url: '/pages/queue/queue' })
+  },
+
+  onOpenGallery() {
+    wx.navigateTo({ url: '/pages/gallery/gallery' })
   },
 
   onSwitchProject() {

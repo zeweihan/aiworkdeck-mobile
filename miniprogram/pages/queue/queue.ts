@@ -1,6 +1,8 @@
 import { Icon } from '../../utils/icons'
 import type { Metrics } from '../../utils/layout'
-import { listItems, subscribe, pollStatus, retry, type QueueItem, type QueueState } from '../../utils/queue'
+import { getSelectedProject } from '../../utils/api'
+import { listItems, otherPendingCount, subscribe, pollStatus, retry, type QueueItem } from '../../utils/queue'
+import { dotClass, phaseOf, projectId, stateText } from '../../utils/phase'
 import { thumbFor, markThumbBroken } from '../../utils/thumbs'
 
 interface AppGlobal {
@@ -20,7 +22,6 @@ interface DisplayItem {
   kindIcon: string
   fileName: string
   time: string
-  projectName: string
   statusText: string
   waitingText: string
   /** failed 态的服务端/网络层可读错误原文（如「云端空间已满」），空串不渲染 */
@@ -31,26 +32,16 @@ interface DisplayItem {
   canRetry: boolean
 }
 
+interface Section {
+  title: string
+  items: DisplayItem[]
+}
+
 function formatTime(ts: number): string {
   const d = new Date(ts)
   const hh = `${d.getHours()}`.padStart(2, '0')
   const mm = `${d.getMinutes()}`.padStart(2, '0')
   return `${hh}:${mm}`
-}
-
-function statusText(state: QueueState): string {
-  switch (state) {
-    case 'waiting':
-      return '待上传'
-    case 'uploading':
-      return '上传中'
-    case 'failed':
-      return '上传失败'
-    case 'uploaded':
-      return '已上传 · 等待桌面端接收'
-    case 'arrived':
-      return '已抵达'
-  }
 }
 
 /** 桌面端离线不可隐瞒：uploaded 态等待超过 60 秒要明说等了多久 */
@@ -78,13 +69,6 @@ function expiresText(item: QueueItem): string {
   return `云端保存至 ${d.getMonth() + 1}月${d.getDate()}日，请尽快在桌面端接收`
 }
 
-function dotClass(state: QueueState): string {
-  if (state === 'failed') return 'dot--failed'
-  if (state === 'waiting') return 'dot--waiting'
-  if (state === 'arrived') return 'dot--arrived'
-  return 'dot--moving'
-}
-
 function kindOf(mediaType: QueueItem['mediaType']): DisplayItem['kind'] {
   if (mediaType === 'video') return 'scene'
   if (mediaType === 'audio') return 'audio'
@@ -105,8 +89,7 @@ function toDisplayItem(item: QueueItem): DisplayItem {
     kindIcon: kindIcon(item.mediaType),
     fileName: item.fileName,
     time: formatTime(item.createdAt),
-    projectName: item.projectName,
-    statusText: statusText(item.state),
+    statusText: stateText(item.state),
     waitingText: waitingText(item),
     errorText: item.state === 'failed' ? item.errorMessage || '' : '',
     expiresText: expiresText(item),
@@ -119,7 +102,9 @@ Page({
   data: {
     metrics: {} as Metrics,
     scrollTop: 0,
-    items: [] as DisplayItem[],
+    projectName: '',
+    sections: [] as Section[],
+    otherPending: 0,
   },
 
   unsubscribe: null as (() => void) | null,
@@ -164,8 +149,20 @@ Page({
     }
   },
 
+  /** 只列当前项目，分四区；别的项目的未落盘件在末尾提一句，不完全藏起来 */
   refresh() {
-    this.setData({ items: listItems().map(toDisplayItem) })
+    const project = getSelectedProject()
+    if (!project) return
+    const pid = projectId({ deviceId: project.deviceId, projectKey: project.key })
+    const all = listItems(pid)
+    const pick = (f: (it: QueueItem) => boolean) => all.filter(f).map(toDisplayItem)
+    const sections: Section[] = [
+      { title: '失败 · 需要处理', items: pick((it) => it.state === 'failed') },
+      { title: '上传中', items: pick((it) => it.state === 'waiting' || it.state === 'uploading') },
+      { title: '已暂存 · 等电脑取回', items: pick((it) => phaseOf(it.state) === 'staged') },
+      { title: '已落盘', items: pick((it) => phaseOf(it.state) === 'landed') },
+    ].filter((s) => s.items.length > 0)
+    this.setData({ sections, projectName: project.name, otherPending: otherPendingCount(pid) })
   },
 
   onPageScroll(e: { scrollTop: number }) {

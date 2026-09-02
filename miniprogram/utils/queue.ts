@@ -10,10 +10,11 @@
  */
 
 import { ApiError, getSession, mediaStatus, uploadMedia, uuid, type RelayProject } from './api'
+import { projectId, tallyOf, type QueueState, type Tally } from './phase'
+
+export type { QueueState } from './phase'
 
 const STORAGE_KEY = 'awd.queue'
-
-export type QueueState = 'waiting' | 'uploading' | 'uploaded' | 'arrived' | 'failed'
 
 export interface QueueItem {
   /** uuid()，幂等键，重传不产生重复件 */
@@ -79,23 +80,31 @@ function updateItem(clientMediaId: string, mutate: (item: QueueItem) => void): v
 
 // ---------- 查询 ----------
 
-/** 新 → 旧。 */
-export function listItems(): QueueItem[] {
+/** 新 → 旧。给 projectId 则只要该项目的。 */
+export function listItems(projectIdFilter?: string): QueueItem[] {
   return readItems()
-    .slice()
+    .filter((it) => !projectIdFilter || projectId(it) === projectIdFilter)
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
-export function counts(): { waiting: number; moving: number; arrived: number } {
-  let waiting = 0
-  let moving = 0
-  let arrived = 0
-  for (const it of readItems()) {
-    if (it.state === 'waiting' || it.state === 'failed') waiting++
-    else if (it.state === 'uploading' || it.state === 'uploaded') moving++
-    else if (it.state === 'arrived') arrived++
+/** 三段计数，只数一个项目——进度跟着项目走。 */
+export function tallyFor(projectIdFilter: string): Tally {
+  return tallyOf(listItems(projectIdFilter))
+}
+
+/** 别的项目里还没落盘的件数。队列页末尾提一句，免得它们被完全藏起来。 */
+export function otherPendingCount(projectIdFilter: string): number {
+  return readItems().filter((it) => projectId(it) !== projectIdFilter && it.state !== 'arrived').length
+}
+
+/** 用户主动删除：原图（留底文件）与记录一起删。记录留着而图没了，图集里会出现永远打不开的空格。 */
+export function removeItems(ids: string[]): void {
+  const set = new Set(ids)
+  const items = readItems()
+  for (const it of items) {
+    if (set.has(it.clientMediaId) && it.saved) removeSavedFile(it.filePath)
   }
-  return { waiting, moving, arrived }
+  writeItems(items.filter((it) => !set.has(it.clientMediaId)))
 }
 
 // ---------- 文件名 ----------
@@ -289,7 +298,8 @@ function removeSavedFile(filePath: string): void {
 
 /**
  * 只对 state === 'uploaded' 的项查状态；没有这类项直接 resolve(false)，不发请求。
- * delivered → arrived + 删本地留底文件；未 delivered → 回填 waitingSeconds。
+ * delivered → arrived（本地留底**不自动删**——现场不可复现，与 iOS 同一口径，
+ * 删除只由用户在图集里主动做）；未 delivered → 回填 waitingSeconds。
  * 返回值：这批查询里是否还有项未抵达（供页面判断要不要继续等）。
  */
 export function pollStatus(): Promise<boolean> {
@@ -307,7 +317,6 @@ export function pollStatus(): Promise<boolean> {
         updateItem(it.clientMediaId, (x) => {
           x.state = 'arrived'
         })
-        if (it.saved) removeSavedFile(it.filePath)
       } else {
         updateItem(it.clientMediaId, (x) => {
           x.waitingSeconds = status.waitingSeconds
