@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, mkdtempSync, cpSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, mkdtempSync, cpSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { loadContract, sha256, DATA_FILES, outputs } from '../contract/tools/lib.mjs'
@@ -177,4 +177,18 @@ test('check：注释里的词典文案不算内联', () => {
   writeFileSync(p, readFileSync(p, 'utf8') + '\n// 这里本该显示 "已落盘"\n/* 删除 3 件 */\n')
   const r = runChecks(dir, { quick: false })
   assert.deepEqual(r.problems.filter((m) => m.includes('Baz.swift')), [])
+})
+
+test('check：Android Kotlin 内联文案要红', () => {
+  const dir = tempCopy()
+  for (const rel of outputs(loadContract(ROOT)).keys()) {
+    const src = join(ROOT, rel)
+    if (existsSync(src)) cpSync(src, join(dir, rel))
+  }
+  cpSync(join(ROOT, 'contract', 'tools', 'wxss-footer.css'), join(dir, 'contract', 'tools', 'wxss-footer.css'))
+  mkdirSync(join(dir, 'android', 'app', 'src', 'main', 'kotlin'), { recursive: true })
+  const p = join(dir, 'android', 'app', 'src', 'main', 'kotlin', 'Foo.kt')
+  writeFileSync(p, 'val x = "已落盘"\n')
+  const r = runChecks(dir, { quick: false })
+  assert.ok(r.problems.some((m) => m.includes('Foo.kt') && m.includes('内联')), r.problems.join('\n'))
 })

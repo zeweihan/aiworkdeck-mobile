@@ -10,7 +10,7 @@ final class AppModel {
     var project = FieldProject(
         id: "local",
         name: "未选择项目",
-        archivePath: "现场影像 / \(AppModel.today)"
+        archivePath: tr("archive.path", ["date": AppModel.today])
     )
     var items: [CaptureItem] = []
 
@@ -62,7 +62,7 @@ final class AppModel {
     func selectProject(_ p: RelayProject) async {
         selectedProject = p
         project = FieldProject(id: p.id, name: p.name,
-                               archivePath: "现场影像 / \(AppModel.today)")
+                               archivePath: tr("archive.path", ["date": AppModel.today]))
         await UploadQueue.shared.configure(project: p) { [weak self] in
             await self?.refresh()
         }
@@ -170,7 +170,7 @@ final class AppModel {
            let saved = try? JSONDecoder().decode(RelayProject.self, from: data) {
             selectedProject = saved
             project = FieldProject(id: saved.id, name: saved.name,
-                                   archivePath: "现场影像 / \(AppModel.today)")
+                                   archivePath: tr("archive.path", ["date": AppModel.today]))
             await UploadQueue.shared.configure(project: saved) { [weak self] in
                 await self?.refresh()
             }

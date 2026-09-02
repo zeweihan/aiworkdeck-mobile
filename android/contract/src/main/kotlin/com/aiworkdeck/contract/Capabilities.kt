@@ -7,7 +7,7 @@ object ContractCapabilities {
     val maxVideoSeconds: Int? = null
     const val continuousSegments: Boolean = false
     /** "true" / "false" / "runtime" */
-    const val glassBlur: String = "runtime"
+    const val glassBlur: String = "false"
     const val deviceAttestation: Boolean = false
     val degradedNotice: Map<String, String> = mapOf("backgroundUpload" to "cap.noBackgroundUpload", "continuousSegments" to "cap.segmentedRecording")
 }

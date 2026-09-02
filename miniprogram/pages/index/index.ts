@@ -60,7 +60,7 @@ function todayArchivePath(): string {
   const y = d.getFullYear()
   const m = `${d.getMonth() + 1}`.padStart(2, '0')
   const day = `${d.getDate()}`.padStart(2, '0')
-  return `现场影像 / ${y}-${m}-${day}`
+  return t('archive.path', { date: `${y}-${m}-${day}` })
 }
 
 /** 水印时间：到秒 */
@@ -79,6 +79,16 @@ Page({
     phaseLabel: PHASE_LABEL,
     metrics: {} as Metrics,
     project: { name: '', archivePath: '' },
+    archiveTo: '',
+    /** 三档模式与快门的可读标签走词典（与 iOS / 安卓同键） */
+    labels: {
+      photo: t('home.mode.photo'),
+      video: t('home.mode.video'),
+      audio: t('home.mode.audio'),
+      shoot: t('home.shutter.photo'),
+      on: t('common.on'),
+      off: t('common.off'),
+    },
     tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
     failedSuffix: '',
     total: 0,
@@ -127,6 +137,7 @@ Page({
 
     this.setData({
       project: { name: project.name, archivePath: todayArchivePath() },
+      archiveTo: t('home.archiveTo', { path: todayArchivePath() }),
     })
 
     // 录音态与真实 recorder 对齐：页面被 reLaunch 重建等场景下不残留假录制中

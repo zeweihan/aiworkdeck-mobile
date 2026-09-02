@@ -34,11 +34,11 @@ struct ProjectPickerView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Eyebrow(text: "归档到")
-            Text("选择项目")
+            Eyebrow(text: tr("project.eyebrow"))
+            Text(tr("project.title"))
                 .font(T.F.display())
                 .foregroundStyle(T.L.fg)
-            Text("现场拍的影像会归入该项目的「现场影像 / \(AppModel.today)」。")
+            Text(tr("project.hint", ["date": AppModel.today]))
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
                 .padding(.top, T.Sp.s1)
@@ -84,7 +84,7 @@ struct ProjectPickerView: View {
     private var loadingRow: some View {
         HStack(spacing: T.Sp.s2) {
             ProgressView().controlSize(.small)
-            Text("正在读取项目").font(T.F.small()).foregroundStyle(T.L.fgMuted)
+            Text(tr("project.loading")).font(T.F.small()).foregroundStyle(T.L.fgMuted)
         }
         .frame(minHeight: T.touchMin)
     }
@@ -92,7 +92,7 @@ struct ProjectPickerView: View {
     private func errorBlock(_ msg: String) -> some View {
         VStack(alignment: .leading, spacing: T.Sp.s3) {
             Text(msg).font(T.F.small()).foregroundStyle(T.S.failed)
-            Button("重试") { Task { await load() } }
+            Button(tr("project.retry")) { Task { await load() } }
                 .font(T.F.small())
                 .foregroundStyle(T.L.accent)
         }
@@ -101,7 +101,7 @@ struct ProjectPickerView: View {
 
     private var emptyBlock: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Text("还没同步到项目")
+            Text(tr("project.emptyTitle"))
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
             // 说实话：列表来自桌面端的自动同步，前提是桌面端开着且登录同一手机号。
@@ -109,7 +109,7 @@ struct ProjectPickerView: View {
             Text("在电脑上用同一手机号登录 AI WorkDeck 并保持运行，项目会在一分钟内出现在这里。")
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
-            Button("重新读取") { Task { await load() } }
+            Button(tr("project.reload")) { Task { await load() } }
                 .font(T.F.small())
                 .foregroundStyle(T.L.accent)
                 .padding(.top, T.Sp.s2)
@@ -120,7 +120,7 @@ struct ProjectPickerView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 0) {
             Hairline()
-            Button("退出登录") { model.signOut() }
+            Button(tr("common.signOut")) { model.signOut() }
                 .font(T.F.small())
                 .foregroundStyle(T.L.fgMuted)
                 .frame(minHeight: T.touchMin)

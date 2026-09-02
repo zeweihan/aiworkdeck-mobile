@@ -43,3 +43,8 @@ fastlane/screenshots/
 .remember/
 
 .claude/worktrees/
+
+android/local.properties
+android/.gradle/
+android/**/build/
+android/.kotlin/

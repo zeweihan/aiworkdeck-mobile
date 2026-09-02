@@ -162,6 +162,7 @@ function checkInline(c, problems) {
     ...walk(join(c.root, 'miniprogram', 'pages'), ['.ts', '.wxml'], []),
     ...walk(join(c.root, 'miniprogram', 'components'), ['.ts', '.wxml'], []),
     ...walk(join(c.root, 'miniprogram', 'utils'), ['.ts'], ['/utils/contract/']),
+    ...walk(join(c.root, 'android', 'app', 'src', 'main'), ['.kt'], []),
   ]
   const appTs = join(c.root, 'miniprogram', 'app.ts')
   if (existsSync(appTs)) files.push(appTs)

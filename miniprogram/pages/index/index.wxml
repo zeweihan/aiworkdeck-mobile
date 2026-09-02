@@ -10,7 +10,7 @@
         <text class="top__name">{{project.name}}</text>
         <image class="top__chevron" src="{{Icon.chevronWhite}}" mode="aspectFit" />
       </view>
-      <text class="top__path">归档至 {{project.archivePath}}</text>
+      <text class="top__path">{{archiveTo}}</text>
     </view>
     <view class="top__stats tappable" bindtap="onOpenQueue">
       <view class="top__stat">
@@ -88,17 +88,17 @@
         class="ctrl__mode tappable {{mode === 'photo' ? 'ctrl__mode--on' : ''}}"
         data-mode="photo"
         bindtap="onSwitchMode"
-      ><text>照片</text></view>
+      ><text>{{labels.photo}}</text></view>
       <view
         class="ctrl__mode tappable {{mode === 'video' ? 'ctrl__mode--on' : ''}}"
         data-mode="video"
         bindtap="onSwitchMode"
-      ><text>录像</text></view>
+      ><text>{{labels.video}}</text></view>
       <view
         class="ctrl__mode tappable {{mode === 'audio' ? 'ctrl__mode--on' : ''}}"
         data-mode="audio"
         bindtap="onSwitchMode"
-      ><text>录音</text></view>
+      ><text>{{labels.audio}}</text></view>
     </view>
 
     <view class="ctrl__row">
@@ -124,7 +124,7 @@
       <view
         class="shutter tappable"
         bindtap="onShutter"
-        aria-label="{{mode === 'photo' ? '拍照' : (recording ? '停止录制' : '开始录制')}}"
+        aria-label="{{mode === 'photo' ? labels.shoot : (recording ? '停止录制' : '开始录制')}}"
       >
         <view class="shutter__core {{mode === 'photo' ? 'shutter__core--photo' : (recording ? 'shutter__core--stop' : 'shutter__core--rec')}}"></view>
       </view>
@@ -133,7 +133,7 @@
       <view
         class="ctrl__album tappable {{saveToAlbum ? 'ctrl__album--on' : ''}}"
         bindtap="onToggleAlbum"
-        aria-label="拍摄件同时存入系统相册，当前{{saveToAlbum ? '开启' : '关闭'}}"
+        aria-label="拍摄件同时存入系统相册，当前{{saveToAlbum ? labels.on : labels.off}}"
       >
         <text class="ctrl__album-text">存相册</text>
         <text class="ctrl__album-state">{{saveToAlbum ? '开' : '关'}}</text>

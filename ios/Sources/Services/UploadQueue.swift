@@ -163,9 +163,9 @@ actor UploadQueue {
         f.dateFormat = "yyyyMMdd-HHmmss"
         let stamp = f.string(from: item.capturedAt)
         let (prefix, ext) = switch item.kind {
-        case .photo: ("现场影像", "jpg")
-        case .video: ("现场影像", "mov")
-        case .audio: ("现场录音", "m4a")
+        case .photo: (tr("file.prefix.media"), "jpg")
+        case .video: (tr("file.prefix.media"), "mov")
+        case .audio: (tr("file.prefix.audio"), "m4a")
         }
         let short = item.id.uuidString.prefix(4)
         return "\(prefix)-\(stamp)-\(short).\(ext)"

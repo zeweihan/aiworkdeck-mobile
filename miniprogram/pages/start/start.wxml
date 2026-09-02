@@ -49,7 +49,7 @@
       <view class="feature__desc">取景器直拍，带时间水印，弱网自动重传</view>
     </view>
     <view class="feature">
-      <view class="feature__name">现场录音</view>
+      <view class="feature__name">{{featureAudioName}}</view>
       <view class="feature__desc">录下沟通与口述，回到电脑接着整理</view>
     </view>
     <view class="feature">

@@ -1,6 +1,7 @@
 import { getSession, wxPhoneStart } from '../../utils/api'
 import type { ApiError } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -28,6 +29,8 @@ Page({
     error: '',
     displayName: '',
     isNewUser: false,
+    // 与手机端上传时的文件名前缀共用同一份契约文案（dev-board#305 特性介绍卡片）
+    featureAudioName: t('file.prefix.audio'),
   },
 
   /** 官网 CTA 透传的来源标记（u-<username>），原样交给换号端点记转化流水 */

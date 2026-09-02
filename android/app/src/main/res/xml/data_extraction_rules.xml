@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <!-- session.xml 的密钥在本机 Keystore 里，跟着备份/换机拷过去解不开：留着只会让新机器
+         带一份永远打不开的密文（EncryptedSharedPreferences 会当场抛）。排除掉，换机重登一次。 -->
+    <cloud-backup>
+        <exclude domain="file" path="FieldEvidence/" />
+        <exclude domain="sharedpref" path="session.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="FieldEvidence/" />
+        <exclude domain="sharedpref" path="session.xml" />
+    </device-transfer>
+</data-extraction-rules>

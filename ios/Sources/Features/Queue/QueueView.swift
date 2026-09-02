@@ -40,16 +40,16 @@ struct QueueView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 1) {
-                        Text("上传队列").font(T.F.heading()).foregroundStyle(T.L.fg)
+                        Text(tr("queue.title")).font(T.F.heading()).foregroundStyle(T.L.fg)
                         Text(model.project.name).font(T.F.nano()).foregroundStyle(T.L.fgFaint).lineLimit(1)
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("关闭", action: onClose)
+                    Button(tr("common.close"), action: onClose)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if !failed.isEmpty {
-                        Button("全部重试") { model.retryFailedUploads() }
+                        Button(tr("queue.retryAll")) { model.retryFailedUploads() }
                             .font(T.F.small())
                     }
                 }
@@ -130,7 +130,7 @@ struct QueueView: View {
             Spacer(minLength: 0)
 
             if item.state == .failed {
-                Button("重试") { model.retry(item) }
+                Button(tr("project.retry")) { model.retry(item) }
                     .font(T.F.micro())
                     .foregroundStyle(T.L.accent)
             }
@@ -146,7 +146,7 @@ struct QueueView: View {
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Text("这个项目还没有拍摄的影像")
+            Text(tr("library.empty"))
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
             Text("拍摄后会自动排队上传到当前项目。")
@@ -159,7 +159,7 @@ struct QueueView: View {
 
     /// 队列只看当前项目，但别的项目的未落盘件不能完全藏起来——至少说一声有多少。
     private var otherProjectsNote: some View {
-        Text("其他项目还有 \(model.otherPendingCount) 件未落盘，切换项目后可见。")
+        Text(tr("library.otherPending", ["n": String(model.otherPendingCount)]))
             .font(T.F.nano())
             .foregroundStyle(T.L.fgFaint)
             .frame(maxWidth: .infinity, alignment: .leading)

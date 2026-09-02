@@ -88,7 +88,7 @@ struct HomeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: T.Sp.s1) {
             HStack {
-                Eyebrow(text: "当前项目", color: .white.opacity(0.45))
+                Eyebrow(text: tr("home.eyebrow"), color: .white.opacity(0.45))
                 Spacer()
                 locationChip
                 Button(action: onOpenSettings) {
@@ -98,7 +98,7 @@ struct HomeView: View {
                         .frame(width: T.touchMin, height: 28, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("设置")
+                .accessibilityLabel(tr("home.settings"))
             }
 
             Text(model.project.name)
@@ -107,7 +107,7 @@ struct HomeView: View {
                 .foregroundStyle(T.D.fg)
                 .lineLimit(1)
 
-            Text("归档至 \(model.project.archivePath)")
+            Text(tr("home.archiveTo", ["path": model.project.archivePath]))
                 .font(T.F.nano())
                 .tracking(0.4)
                 .foregroundStyle(.white.opacity(0.4))
@@ -127,7 +127,7 @@ struct HomeView: View {
             Circle()
                 .fill(stamper.last == nil ? Color.white.opacity(0.3) : T.S.arrivedOnDark)
                 .frame(width: 5, height: 5)
-            Text(stamper.last.map { "±\(Int($0.accuracy.rounded()))m" } ?? "定位中")
+            Text(stamper.last.map { tr("home.gps.accuracy", ["m": String(Int($0.accuracy.rounded()))]) } ?? tr("home.gps.none"))
                 .font(T.F.mono(10))
                 .foregroundStyle(.white.opacity(0.6))
         }
@@ -260,7 +260,7 @@ struct HomeView: View {
                                                        : recorder.recordingSeconds))
                         .font(T.F.mono(13, .medium))
                         .foregroundStyle(.white)
-                    Text(camera.isRecording ? "录像中" : "录音中")
+                    Text(camera.isRecording ? tr("home.recording.video") : tr("home.recording.audio"))
                         .font(T.F.nano())
                         .foregroundStyle(.white.opacity(0.55))
                 }
@@ -303,9 +303,9 @@ struct HomeView: View {
     /// 不做横滑模式条，也不做快门手势切换——手滑录错模式是取证事故。
     private var modeRow: some View {
         HStack(spacing: T.Sp.s8) {
-            modeButton("照片", .photo)
-            modeButton("录像", .video)
-            modeButton("录音", .audio)
+            modeButton(tr("home.mode.photo"), .photo)
+            modeButton(tr("home.mode.video"), .video)
+            modeButton(tr("home.mode.audio"), .audio)
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 28)
@@ -367,7 +367,7 @@ struct HomeView: View {
                 .font(T.F.mono(17, .medium))
                 .monospacedDigit()
                 .foregroundStyle(.white)
-            Text("本项目")
+            Text(tr("home.counter.project"))
                 .font(T.F.nano())
                 .foregroundStyle(.white.opacity(0.5))
         }
@@ -406,12 +406,12 @@ struct HomeView: View {
     }
 
     private var shutterLabel: String {
-        if camera.isRecording { return "停止录像" }
-        if recorder.isRecording { return "停止录音" }
+        if camera.isRecording { return tr("home.shutter.stopVideo") }
+        if recorder.isRecording { return tr("home.shutter.stopAudio") }
         switch mode {
-        case .photo: return "拍照"
-        case .video: return "开始录像"
-        case .audio: return "开始录音"
+        case .photo: return tr("home.shutter.photo")
+        case .video: return tr("home.shutter.startVideo")
+        case .audio: return tr("home.shutter.startAudio")
         }
     }
 
@@ -419,14 +419,14 @@ struct HomeView: View {
         guard model.link.isOnline else {
             // 离线时说清楚已经等了多久 —— 照片悬在中转区这件事不能藏
             if let t = model.link.lastSyncedAt {
-                return "桌面端离线 · 已等待 \(RelativeTime.short(t))"
+                return "\(tr("home.desktop.offline")) · 已等待 \(RelativeTime.short(t))"
             }
-            return "桌面端离线"
+            return tr("home.desktop.offline")
         }
         if let t = model.link.lastSyncedAt {
-            return "桌面端在线 · \(RelativeTime.short(t))"
+            return "\(tr("home.desktop.online")) · \(RelativeTime.short(t))"
         }
-        return "桌面端在线"
+        return tr("home.desktop.online")
     }
 
     private func flash() {
@@ -459,7 +459,7 @@ struct HomeView: View {
                         if recorder.isRecording {
                             Circle().fill(T.S.failed).frame(width: 7, height: 7)
                         }
-                        Eyebrow(text: recorder.isRecording ? "正在录音" : "按下开始录音",
+                        Eyebrow(text: recorder.isRecording ? "正在录音" : tr("home.audio.hint"),
                                 color: .white.opacity(0.55))
                     }
                 }
@@ -469,14 +469,14 @@ struct HomeView: View {
 
     private var micDenied: some View {
         permissionStage(
-            title: "没有麦克风权限",
+            title: tr("home.permission.mic"),
             hint: "去「设置 → Workdeck → 麦克风」打开后再回来。"
         )
     }
 
     private var denied: some View {
         permissionStage(
-            title: "没有相机权限",
+            title: tr("home.permission.camera"),
             hint: "去「设置 → Workdeck → 相机」打开后再回来。"
         )
     }
@@ -490,7 +490,7 @@ struct HomeView: View {
                 .font(T.F.small())
                 .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
-            Button("打开设置") {
+            Button(tr("home.permission.open")) {
                 if let u = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(u)
                 }

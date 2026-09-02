@@ -1,6 +1,7 @@
 import { sendLoginCode, verifyLoginCode } from '../../utils/api'
 import type { ApiError } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -16,7 +17,11 @@ Page({
     sendingCode: false,
     loggingIn: false,
     countdown: 0,
-    codeButtonText: '获取验证码',
+    navTitle: t('login.title'),
+    phoneLabel: t('login.phone'),
+    codeLabel: t('login.codeTitle'),
+    submitText: t('login.title'),
+    codeButtonText: t('login.sendCode'),
     sendDisabled: true,
     submitDisabled: true,
   },
@@ -44,7 +49,7 @@ Page({
         ? '发送中…'
         : countdown > 0
           ? `${countdown}s 后重新获取`
-          : '获取验证码',
+          : t('login.sendCode'),
     })
   },
 

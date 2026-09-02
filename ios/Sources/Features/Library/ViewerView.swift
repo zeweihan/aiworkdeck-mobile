@@ -44,7 +44,7 @@ struct ViewerView: View {
                     .foregroundStyle(.white)
                     .frame(width: T.touchMin, height: T.touchMin)
             }
-            .accessibilityLabel("关闭")
+            .accessibilityLabel(tr("common.close"))
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: T.Sp.s1) {

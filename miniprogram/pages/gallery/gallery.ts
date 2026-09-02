@@ -59,6 +59,10 @@ function readView(): 'grid' | 'list' {
   return wx.getStorageSync(KEY_VIEW) === 'list' ? 'list' : 'grid'
 }
 
+function viewLabelFor(view: 'grid' | 'list'): string {
+  return view === 'grid' ? t('library.viewList') : t('library.viewGrid')
+}
+
 Page({
   data: {
     Icon,
@@ -73,9 +77,14 @@ Page({
     days: [] as Array<{ key: string; title: string; items: Cell[] }>,
     cols: 3,
     view: 'grid' as 'grid' | 'list',
+    /** 按钮写的是切过去的那一档 */
+    viewLabel: t('library.viewList'),
     selecting: false,
     selectedCount: 0,
+    dockText: t('library.selectHint'),
     deleteLabel: '',
+    selectLabel: t('library.select'),
+    emptyText: t('library.empty'),
   },
 
   unsubscribe: null as (() => void) | null,
@@ -87,7 +96,8 @@ Page({
 
   onLoad() {
     const app = getApp<AppGlobal>()
-    this.setData({ metrics: app.globalData.metrics, cols: readCols(), view: readView() })
+    const view = readView()
+    this.setData({ metrics: app.globalData.metrics, cols: readCols(), view, viewLabel: viewLabelFor(view) })
   },
 
   onShow() {
@@ -150,7 +160,11 @@ Page({
       failedSuffix: tally.failed > 0 ? t('tally.failedSuffix', { m: tally.failed }) : '',
       days: groupByDay(cells),
       selectedCount: this.selected.size,
+      dockText: this.selected.size
+        ? t('library.selectedCount', { n: this.selected.size })
+        : t('library.selectHint'),
       deleteLabel: t('delete.title', { n: this.selected.size }),
+      selectLabel: this.data.selecting ? t('common.cancel') : t('library.select'),
     })
   },
 
@@ -181,7 +195,7 @@ Page({
   onToggleView() {
     const view = this.data.view === 'grid' ? 'list' : 'grid'
     wx.setStorageSync(KEY_VIEW, view)
-    this.setData({ view })
+    this.setData({ view, viewLabel: viewLabelFor(view) })
   },
 
   // ---------- 多选删除 ----------
@@ -277,7 +291,7 @@ Page({
     wx.showModal({
       title: t('delete.title', { n: ids.length }),
       content: deleteWarning(states),
-      confirmText: '删除',
+      confirmText: t('library.delete'),
       confirmColor: '#B91C1C',
       success: (res) => {
         if (!res.confirm) return
