@@ -5,7 +5,8 @@
   "description": "AI Workdeck 移动端：iOS 原生 + 微信小程序",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "shot": "node scripts/screenshot.js"
+    "shot": "node scripts/screenshot.js",
+    "test": "node --test \"tests/**/*.test.ts\""
   },
   "devDependencies": {
     "miniprogram-api-typings": "^4.0.4",
