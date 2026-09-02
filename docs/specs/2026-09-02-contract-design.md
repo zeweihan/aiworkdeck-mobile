@@ -172,8 +172,9 @@ grep 词典里已有的中文值，命中即红。平台化层（设置、导航
   （字段与 `CaptureManifest.swift` 一致，`tsaToken` nullable 预留）
 
 服务端 `MobileApiContractTest`：`swagger-request-validator-mockmvc` 校验每个端点的真实响应，
-Map 返回值不改也能被约束。桌面端调用的 `/api/mobile/inbox/*`、`/api/mobile/transfer/*`
-同样进 YAML，但本期只校验手机端调用的那组。
+Map 返回值不改也能被约束。桌面端调用的 `/api/mobile/inbox/*` 同样进 YAML，但本期只校验手机端调用的那组。
+`/api/mobile/transfer/*`（13 个端点）**本轮未进 YAML**，2026-09-02 服务端最终评审裁定延到下一轮补入。
+校验器默认 `additionalProperties: false`，YAML 是响应字段的穷举白名单，服务端新增响应字段须先改 YAML。
 
 移动仓 `contract/api/mobile-v1.yaml` 是副本；`PINNED.json` 记服务端 commit sha 与副本 sha256。
 `pull-api.mjs` 从本机 checkba_cloud 仓（默认 `/Users/zewei/Documents/2024-2044/5-Tech/1-2 checkba_cloud`，
