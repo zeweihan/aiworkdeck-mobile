@@ -4,15 +4,8 @@ import SwiftUI
 struct WorkdeckApp: App {
     @State private var model = AppModel()
 
-    init() {
-        // 大陆版 bundle id 以 .cn 结尾，永远中文；国际版跟随设备语言。
-        // WorkdeckTests 是 hosted 单测（宿主是本 App），跑测试时这段 init 真的会执行一遍——
-        // 测试要确定性，不能跟着模拟器当时的系统语言摇摆，所以测试进程里跳过设备语言探测。
-        let underTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        if !underTest, Bundle.main.bundleIdentifier?.hasSuffix(".cn") == false {
-            L10n.configureFromDevice()
-        }
-    }
+    // 词典眼下只覆盖传输状态一族，此刻切成 en 会出一半英文一半中文的界面，比全中文更糟。
+    // 等取证主流程（相机、队列、图集、归档确认）文案全部入键，再在这里调 L10n.configureFromDevice()。
 
     var body: some Scene {
         WindowGroup {
