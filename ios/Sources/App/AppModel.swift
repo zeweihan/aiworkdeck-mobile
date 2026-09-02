@@ -101,6 +101,16 @@ final class AppModel {
         // 现场是不可复现的，登出就删是灾难性的默认。
     }
 
+    /// 注销账号。删的是**云端**的账号与数据；手机本地的影像不动——理由同 signOut，
+    /// 现场不可复现，替用户销毁原图不是清理是毁证。界面上写明了这一点。
+    ///
+    /// App Store 审核指南 5.1.1(v) 要求支持注册的 App 必须在 App 内提供这个入口。
+    func deleteAccount() async throws {
+        try await API.shared.deleteAccount()
+        account = nil
+        selectedProject = nil
+    }
+
     func refresh() async {
         do {
             let all = try await EvidenceStore.shared.loadAll()

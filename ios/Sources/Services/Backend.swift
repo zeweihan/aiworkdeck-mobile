@@ -161,6 +161,16 @@ actor API {
         return r
     }
 
+    /// 注销账号：删掉云端这个账号及其全部数据。
+    ///
+    /// App Store 审核指南 5.1.1(v)：支持注册的 App 必须在 App 内提供删除账号。
+    /// **只删云端**——手机本地的原图不动。这是取证工具，现场不可复现，替用户
+    /// 把本地影像一并销毁不是清理是毁证；界面上会写明这一点。
+    func deleteAccount() async throws {
+        _ = try await post("/api/auth/account/delete", body: [:], as: Empty.self)
+        SessionStore.current = nil
+    }
+
     /// 清会话只碰 Keychain，不需要进 actor 排队——登出必须是立刻生效的同步操作，
     /// 排在别的网络请求后面等于「点了登出还在登录状态」。
     nonisolated func logout() {
