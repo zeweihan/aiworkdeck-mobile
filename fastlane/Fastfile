@@ -347,6 +347,16 @@ platform :ios do
         })
       upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true,
                            changelog: ENV["CHANGELOG"] || "CI 构建（发行版 macOS）。")
+
+      # 必须补这一步。skip_waiting_for_build_processing 省掉了等处理的 5-15 分钟，
+      # 代价是 fastlane 传完即退、**不做分组**；而国际版的内部组
+      # hasAccessToAllBuilds=false，构建不会自己进组——包在 ASC 里是 VALID 的，
+      # TestFlight 里却一个都看不到（2026-08-18 与 09-02 各踩一次）。
+      sh("cd .. && test -x .venv/bin/python || " \
+         "(python3 -m venv .venv && .venv/bin/pip install --quiet pyjwt cryptography)")
+      sh("cd .. && ASC_APP_ID=6802233845 ASC_KEY_ID=#{ENV.fetch('ASC_KEY_ID')} " \
+         "ASC_ISSUER_ID=#{ENV.fetch('ASC_ISSUER_ID')} ASC_KEY_PATH=#{ENV.fetch('ASC_KEY_PATH')} " \
+         ".venv/bin/python scripts/attach-build-to-group.py")
     end
 
     if %w[cn both].include?(flavor)
