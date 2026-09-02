@@ -5,7 +5,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
-import { loadContract, manifestFor, DATA_FILES } from './lib.mjs'
+import { loadContract, manifestFor, DATA_FILES, outputs } from './lib.mjs'
 
 const FIXTURES = ['tally', 'transitions', 'status-merge', 'restore', 'delete-warning']
 
@@ -53,12 +53,21 @@ function checkFixtures(c, problems) {
   }
 }
 
+function checkGenerated(c, problems) {
+  for (const [rel, content] of outputs(c)) {
+    const abs = join(c.root, rel)
+    if (!existsSync(abs)) { problems.push(`生成物缺失：${rel}（跑 node contract/tools/gen.mjs）`); continue }
+    if (readFileSync(abs, 'utf8') !== content) problems.push(`生成物过期或被手改：${rel}（跑 node contract/tools/gen.mjs）`)
+  }
+}
+
 export function runChecks(root, { quick = false } = {}) {
   const problems = []
   const c = loadContract(root)
   checkManifest(c, problems)
   checkFixtures(c, problems)
-  // ③ ④ ⑤ 在后续任务补入
+  checkGenerated(c, problems)
+  // ④ ⑤ 在后续任务补入
   return { ok: problems.length === 0, problems }
 }
 
