@@ -16,19 +16,19 @@
       <view class="top__stat">
         <view class="top__dot top__dot--waiting"></view>
         <text class="top__num mono">{{tally.uploading}}</text>
-        <text class="top__label">上传中</text>
+        <text class="top__label">{{phaseLabel.uploading}}</text>
         <!-- 失败不单独成桶，但不能藏：云端满、会话过期这类不重试也不会好 -->
         <text wx:if="{{tally.failed > 0}}" class="top__failed">含 {{tally.failed}} 失败</text>
       </view>
       <view class="top__stat">
         <view class="top__dot top__dot--moving"></view>
         <text class="top__num mono">{{tally.staged}}</text>
-        <text class="top__label">已暂存</text>
+        <text class="top__label">{{phaseLabel.staged}}</text>
       </view>
       <view class="top__stat">
         <view class="top__dot top__dot--arrived"></view>
         <text class="top__num mono">{{tally.landed}}</text>
-        <text class="top__label">已落盘</text>
+        <text class="top__label">{{phaseLabel.landed}}</text>
       </view>
     </view>
   </view>

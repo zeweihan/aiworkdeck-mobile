@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "shot": "node scripts/screenshot.js",
-    "test": "node --test \"tests/**/*.test.ts\"",
+    "test": "node --import ./scripts/node-ts-resolve.mjs --test \"tests/**/*.test.ts\"",
     "contract:gen": "node contract/tools/gen.mjs",
     "contract:check": "node contract/tools/check.mjs"
   },

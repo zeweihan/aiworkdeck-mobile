@@ -35,12 +35,12 @@
   <!-- 三段计数，只数正在看的项目 -->
   <view class="tally">
     <text class="tally__num mono tally__num--waiting">{{tally.uploading}}</text>
-    <text class="tally__label">上传中</text>
+    <text class="tally__label">{{phaseLabel.uploading}}</text>
     <text wx:if="{{tally.failed > 0}}" class="tally__failed">含 {{tally.failed}} 失败</text>
     <text class="tally__num mono tally__num--moving">{{tally.staged}}</text>
-    <text class="tally__label">已暂存</text>
+    <text class="tally__label">{{phaseLabel.staged}}</text>
     <text class="tally__num mono tally__num--arrived">{{tally.landed}}</text>
-    <text class="tally__label">已落盘</text>
+    <text class="tally__label">{{phaseLabel.landed}}</text>
   </view>
 
   <view class="status" wx:if="{{!days.length}}">

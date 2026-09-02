@@ -9,9 +9,10 @@ import type { Metrics } from '../../utils/layout'
 import { getSelectedProject } from '../../utils/api'
 import { listItems, removeItems, subscribe, pollStatus, type QueueItem } from '../../utils/queue'
 import {
-  deleteWarning, dotClass, groupByDay, projectsIn, stateText, tallyOf, type Tally,
+  deleteWarning, dotClass, groupByDay, projectsIn, stateText, tallyOf, PHASE_LABEL, type Tally,
 } from '../../utils/phase'
 import { thumbFor, markThumbBroken } from '../../utils/thumbs'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -61,6 +62,7 @@ function readView(): 'grid' | 'list' {
 Page({
   data: {
     Icon,
+    phaseLabel: PHASE_LABEL,
     metrics: {} as Metrics,
     scrollTop: 0,
     viewingId: '',
@@ -268,7 +270,7 @@ Page({
       .filter((it) => this.selected.has(it.clientMediaId))
       .map((it) => it.state)
     wx.showModal({
-      title: `删除 ${ids.length} 件`,
+      title: t('delete.title', { n: ids.length }),
       content: deleteWarning(states),
       confirmText: '删除',
       confirmColor: '#B91C1C',

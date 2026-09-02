@@ -1,65 +1,47 @@
 /**
- * 传输阶段的展示层 —— 纯函数，不碰 wx，两端文案一致（对齐 iOS TransferPhase）。
- *
- * 内部五态（QueueState）是状态机与存储契约，不改；界面上只说三段：
- * 上传中（在手机上，含排队/传输/失败）/ 已暂存（云端等电脑）/ 已落盘（已在电脑上）。
+ * 传输阶段的展示层 —— 纯函数，不碰 wx。名称与文案全部来自 contract/（生成物在 ./contract/）。
  */
+import {
+  PHASE_OF, PHASE_LABEL_KEY, PHASE_DOT, FAILED_DOT, STATE_TEXT_KEY, DELETE_WARN_ORDER, DELETE_WARN_LEVEL,
+  DELETE_WARN_KEY, type QueueState, type Phase,
+} from './contract/states'
+import { t } from './i18n'
 
-export type QueueState = 'waiting' | 'uploading' | 'uploaded' | 'arrived' | 'failed'
-export type Phase = 'uploading' | 'staged' | 'landed'
+export type { QueueState, Phase }
 
 export const PHASE_LABEL: Record<Phase, string> = {
-  uploading: '上传中',
-  staged: '已暂存',
-  landed: '已落盘',
+  uploading: t(PHASE_LABEL_KEY.uploading),
+  staged: t(PHASE_LABEL_KEY.staged),
+  landed: t(PHASE_LABEL_KEY.landed),
 }
 
 export function phaseOf(state: QueueState): Phase {
-  if (state === 'uploaded') return 'staged'
-  if (state === 'arrived') return 'landed'
-  return 'uploading'
+  return PHASE_OF[state]
 }
 
 export function stateText(state: QueueState): string {
-  switch (state) {
-    case 'waiting':
-    case 'uploading':
-      return '上传中'
-    case 'failed':
-      return '上传失败'
-    case 'uploaded':
-      return '已暂存 · 等待桌面端接收'
-    case 'arrived':
-      return '已落盘'
-  }
+  return t(STATE_TEXT_KEY[state])
 }
 
-/** 点色：排队与传输同色（都还在手机上）；已暂存用 moving 色；失败红。令牌名不改。 */
+/** 点色类名由契约的令牌名派生：S.waiting → dot--waiting */
 export function dotClass(state: QueueState): string {
-  if (state === 'failed') return 'dot--failed'
-  if (state === 'uploaded') return 'dot--moving'
-  if (state === 'arrived') return 'dot--arrived'
-  return 'dot--waiting'
+  const token = state === 'failed' ? FAILED_DOT : PHASE_DOT[phaseOf(state)]
+  return `dot--${token.split('.')[1]}`
 }
 
-export interface Tally {
-  uploading: number
-  failed: number
-  staged: number
-  landed: number
-}
+export interface Tally { uploading: number; failed: number; staged: number; landed: number }
 
 export function tallyOf(items: Array<{ state: QueueState }>): Tally {
-  const t: Tally = { uploading: 0, failed: 0, staged: 0, landed: 0 }
+  const tl: Tally = { uploading: 0, failed: 0, staged: 0, landed: 0 }
   for (const it of items) {
-    t[phaseOf(it.state)]++
-    if (it.state === 'failed') t.failed++
+    tl[phaseOf(it.state)]++
+    if (it.state === 'failed') tl.failed++
   }
-  return t
+  return tl
 }
 
-export function tallyTotal(t: Tally): number {
-  return t.uploading + t.staged + t.landed
+export function tallyTotal(tl: Tally): number {
+  return tl.uploading + tl.staged + tl.landed
 }
 
 /** 项目标识：key 是桌面机本地 id，跨机同号不同物，必须连 deviceId。与 iOS RelayProject.id 同构。 */
@@ -94,13 +76,19 @@ export function groupByDay<T extends { createdAt: number }>(items: T[]): DaySect
     })
 }
 
-/** 删除确认文案，按所选里最坏的阶段说话。 */
+/** 删除确认等级：按所选里最坏的桶说话。n = 该桶件数；landed 时 n = 总数。 */
+export function deleteWarningLevel(states: QueueState[]): { level: 'unsent' | 'staged' | 'landed'; n: number } {
+  for (const phase of DELETE_WARN_ORDER) {
+    if (phase === 'landed') break
+    const n = states.filter((s) => phaseOf(s) === phase).length
+    if (n > 0) return { level: DELETE_WARN_LEVEL[phase], n }
+  }
+  return { level: 'landed', n: states.length }
+}
+
 export function deleteWarning(states: QueueState[]): string {
-  const uploading = states.filter((s) => phaseOf(s) === 'uploading').length
-  if (uploading > 0) return `其中 ${uploading} 件还没送出去。删了就没了，无法找回。`
-  const staged = states.filter((s) => phaseOf(s) === 'staged').length
-  if (staged > 0) return `其中 ${staged} 件电脑还没取回。中转区 7 天后清理，电脑若未及时接收，这些影像将无法找回。`
-  return `删除 ${states.length} 件本地原图？电脑上已有副本。`
+  const { level, n } = deleteWarningLevel(states)
+  return t(DELETE_WARN_KEY[level], { n })
 }
 
 /** 可切换的项目：当前项目永远第一（哪怕还没拍），其余有记录的按名称排。 */
