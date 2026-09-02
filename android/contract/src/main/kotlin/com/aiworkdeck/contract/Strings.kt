@@ -20,6 +20,7 @@ object ContractStrings {
         "tally.summary" to mapOf("zh-Hans" to "上传中 {u} 张{f}，已暂存 {s} 张，已落盘 {l} 张", "en" to "{u} uploading{f}, {s} staged, {l} landed"),
         "tally.summary.failedPart" to mapOf("zh-Hans" to "（含 {m} 失败）", "en" to " ({m} failed)"),
         "queue.section.uploading" to mapOf("zh-Hans" to "上传中", "en" to "Uploading"),
+        "queue.section.failed" to mapOf("zh-Hans" to "失败 · 需要处理", "en" to "Failed · needs attention"),
         "queue.section.staged" to mapOf("zh-Hans" to "已暂存 · 等电脑取回", "en" to "Staged · waiting for your computer"),
         "queue.section.landed" to mapOf("zh-Hans" to "已落盘", "en" to "Landed"),
         "delete.title" to mapOf("zh-Hans" to "删除 {n} 件", "en" to "Delete {n} items"),

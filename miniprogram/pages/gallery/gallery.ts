@@ -69,6 +69,7 @@ Page({
     viewingName: '',
     projects: [] as Array<{ id: string; name: string }>,
     tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
+    failedSuffix: '',
     days: [] as Array<{ key: string; title: string; items: Cell[] }>,
     cols: 3,
     view: 'grid' as 'grid' | 'list',
@@ -139,11 +140,13 @@ Page({
       createdAt: it.createdAt,
       checked: this.selected.has(it.clientMediaId),
     }))
+    const tally = tallyOf(items)
     this.setData({
       projects,
       viewingId,
       viewingName,
-      tally: tallyOf(items),
+      tally,
+      failedSuffix: tally.failed > 0 ? t('tally.failedSuffix', { m: tally.failed }) : '',
       days: groupByDay(cells),
       selectedCount: this.selected.size,
     })

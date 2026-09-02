@@ -36,7 +36,7 @@
   <view class="tally">
     <text class="tally__num mono tally__num--waiting">{{tally.uploading}}</text>
     <text class="tally__label">{{phaseLabel.uploading}}</text>
-    <text wx:if="{{tally.failed > 0}}" class="tally__failed">含 {{tally.failed}} 失败</text>
+    <text wx:if="{{tally.failed > 0}}" class="tally__failed">{{failedSuffix}}</text>
     <text class="tally__num mono tally__num--moving">{{tally.staged}}</text>
     <text class="tally__label">{{phaseLabel.staged}}</text>
     <text class="tally__num mono tally__num--arrived">{{tally.landed}}</text>

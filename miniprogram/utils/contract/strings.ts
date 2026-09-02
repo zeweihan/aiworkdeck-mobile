@@ -68,6 +68,10 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "上传中",
     "en": "Uploading"
   },
+  "queue.section.failed": {
+    "zh-Hans": "失败 · 需要处理",
+    "en": "Failed · needs attention"
+  },
   "queue.section.staged": {
     "zh-Hans": "已暂存 · 等电脑取回",
     "en": "Staged · waiting for your computer"

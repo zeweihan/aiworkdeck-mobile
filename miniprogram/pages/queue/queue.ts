@@ -158,7 +158,7 @@ Page({
     const all = listItems(pid)
     const pick = (f: (it: QueueItem) => boolean) => all.filter(f).map(toDisplayItem)
     const sections: Section[] = [
-      { title: '失败 · 需要处理', items: pick((it) => it.state === 'failed') },
+      { title: t('queue.section.failed'), items: pick((it) => it.state === 'failed') },
       { title: t('queue.section.uploading'), items: pick((it) => it.state === 'waiting' || it.state === 'uploading') },
       { title: t('queue.section.staged'), items: pick((it) => phaseOf(it.state) === 'staged') },
       { title: t('queue.section.landed'), items: pick((it) => phaseOf(it.state) === 'landed') },

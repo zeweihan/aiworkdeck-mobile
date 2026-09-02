@@ -16,6 +16,7 @@
   "tally.summary":          { "zh-Hans": "上传中 {u} 张{f}，已暂存 {s} 张，已落盘 {l} 张", "en": "{u} uploading{f}, {s} staged, {l} landed" },
   "tally.summary.failedPart": { "zh-Hans": "（含 {m} 失败）", "en": " ({m} failed)" },
   "queue.section.uploading": { "zh-Hans": "上传中", "en": "Uploading" },
+  "queue.section.failed":    { "zh-Hans": "失败 · 需要处理", "en": "Failed · needs attention" },
   "queue.section.staged":   { "zh-Hans": "已暂存 · 等电脑取回", "en": "Staged · waiting for your computer" },
   "queue.section.landed":   { "zh-Hans": "已落盘", "en": "Landed" },
   "delete.title":           { "zh-Hans": "删除 {n} 件", "en": "Delete {n} items" },
