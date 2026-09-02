@@ -15,11 +15,20 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
 
     var caption: String {
         switch self {
-        case .waiting: "待传输"
-        case .moving: "传输中"
-        case .uploaded: "已上传"
-        case .arrived: "已抵达"
-        case .failed: "失败"
+        case .waiting, .moving: "上传中"
+        case .uploaded: "已暂存"
+        case .arrived: "已落盘"
+        case .failed: "上传失败"
+        }
+    }
+
+    /// 展示层三段。内部五态是状态机与存储契约，界面上只说三段：
+    /// 在手机上（含排队、传输、失败）/ 在云端等电脑 / 已在电脑上。
+    var phase: TransferPhase {
+        switch self {
+        case .waiting, .moving, .failed: .uploading
+        case .uploaded: .staged
+        case .arrived: .landed
         }
     }
 
@@ -33,6 +42,18 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
         case .uploaded: "在中转区，等电脑取回"
         case .arrived: "在你电脑上"
         case .failed: "需重试"
+        }
+    }
+}
+
+enum TransferPhase: String, CaseIterable, Sendable {
+    case uploading, staged, landed
+
+    var caption: String {
+        switch self {
+        case .uploading: "上传中"
+        case .staged: "已暂存"
+        case .landed: "已落盘"
         }
     }
 }
@@ -82,17 +103,50 @@ struct CaptureItem: Identifiable, Sendable {
     var lastError: String?
     /// 是否已存进系统相册（开关打开时）。避免重复写入相册。
     var savedToAlbum: Bool
+    /// 归档去向。拍摄那一刻的选中项目，之后切项目不影响它。
+    /// 旧记录没有这个字段（nil），上传时用当时的选中项目并写回。
+    let project: RelayProject?
 
     var capturedAt: Date { manifest.capturedAt }
+
+    /// 图集分组用的项目键。旧记录无项目 → "unknown"。
+    var projectID: String { project?.id ?? LibraryProject.unknownID }
 }
 
-/// 三个状态各有多少张。首页顶部那一行就是它。
-struct TransferTally: Sendable {
-    var waiting: Int
-    var moving: Int
-    var arrived: Int
+/// 三段各有多少件。failed 是 uploading 的子集，用来在桶上标「含 N 失败」。
+struct TransferTally: Sendable, Equatable {
+    var uploading: Int
+    var failed: Int
+    var staged: Int
+    var landed: Int
 
-    static let zero = TransferTally(waiting: 0, moving: 0, arrived: 0)
+    var total: Int { uploading + staged + landed }
+
+    static let zero = TransferTally(uploading: 0, failed: 0, staged: 0, landed: 0)
+
+    static func of(_ items: [CaptureItem]) -> TransferTally {
+        var t = TransferTally.zero
+        for i in items {
+            switch i.state.phase {
+            case .uploading: t.uploading += 1
+            case .staged: t.staged += 1
+            case .landed: t.landed += 1
+            }
+            if i.state == .failed { t.failed += 1 }
+        }
+        return t
+    }
+}
+
+/// 图集里的「一个项目」。与 RelayProject 的区别：多一个「未知项目」桶给旧记录。
+struct LibraryProject: Identifiable, Hashable, Sendable {
+    static let unknownID = "unknown"
+    let id: String
+    let name: String
+
+    static let unknown = LibraryProject(id: unknownID, name: "未知项目")
+    init(id: String, name: String) { self.id = id; self.name = name }
+    init(_ p: RelayProject) { self.init(id: p.id, name: p.name) }
 }
 
 struct FieldProject: Identifiable, Sendable {

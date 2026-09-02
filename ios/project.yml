@@ -92,6 +92,7 @@ targets:
     templates: [WorkdeckApp]
     scheme:
       configVariants: []
+      testTargets: [WorkdeckTests]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
@@ -116,3 +117,16 @@ targets:
       configs:
         Release:
           PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN AppStore"
+
+  # 纯逻辑单测（阶段映射、图集分组、删除文案）。不参与 fastlane 归档。
+  WorkdeckTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Workdeck
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
