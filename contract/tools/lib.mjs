@@ -178,7 +178,9 @@ function renderSwiftCaps(c) {
 }
 
 // ---- Kotlin ----
-const ktMap = (obj) => `mapOf(${Object.entries(obj).map(([k, v]) => `${q(k)} to ${q(v)}`).join(', ')})`
+/** Kotlin 字符串字面量里 $ 起模板引用，词典里真出现 $ 时必须转义 */
+const kq = (s) => JSON.stringify(s).replace(/\$/g, '\\$')
+const ktMap = (obj) => `mapOf(${Object.entries(obj).map(([k, v]) => `${kq(k)} to ${kq(v)}`).join(', ')})`
 function renderKtTokens(c) {
   const t = c.tokens
   const grp = (name, obj, fn) => `    object ${name} {\n${Object.entries(obj).map(([k, v]) => `        const val ${k}: Long = ${fn(v)}`).join('\n')}\n    }`
@@ -199,34 +201,34 @@ ${num('Ty', t.Ty)}
 `
 }
 function renderKtStrings(c) {
-  const rows = Object.entries(c.strings).map(([k, v]) => `        ${q(k)} to mapOf("zh-Hans" to ${q(v['zh-Hans'])}, "en" to ${q(v.en)}),`).join('\n')
+  const rows = Object.entries(c.strings).map(([k, v]) => `        ${kq(k)} to mapOf("zh-Hans" to ${kq(v['zh-Hans'])}, "en" to ${kq(v.en)}),`).join('\n')
   return H('//') + `package com.aiworkdeck.contract\n\nobject ContractStrings {\n    val table: Map<String, Map<String, String>> = mapOf(\n${rows}\n    )\n}\n`
 }
 function renderKtStates(c) {
   const s = c.state
-  const tr = s.transitions.map((t) => `        Transition(${q(t.from)}, ${q(t.event)}, ${q(t.to)}, ${t.guard ? q(t.guard) : 'null'}),`).join('\n')
+  const tr = s.transitions.map((t) => `        Transition(${kq(t.from)}, ${kq(t.event)}, ${kq(t.to)}, ${t.guard ? kq(t.guard) : 'null'}),`).join('\n')
   return H('//') + `package com.aiworkdeck.contract
 
 data class Transition(val from: String, val event: String, val to: String, val guard: String?)
 
 object ContractStates {
     const val version: Int = ${s.version}
-    val states: List<String> = listOf(${s.states.map(q).join(', ')})
+    val states: List<String> = listOf(${s.states.map(kq).join(', ')})
     val aliases: Map<String, String> = ${ktMap(s.aliases)}
     val phaseOf: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(s.phases).flatMap(([p, v]) => v.states.map((st) => [st, p]))))}
     val phaseLabelKey: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.label])))}
     val phaseDot: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.dot])))}
-    const val failedDot: String = ${q(s.failedDot)}
+    const val failedDot: String = ${kq(s.failedDot)}
     val stateTextKey: Map<String, String> = ${ktMap(s.stateText)}
     val stateDetailKey: Map<String, String> = ${ktMap(s.stateDetail)}
     val whereKey: Map<String, String> = ${ktMap(s.whereItIs)}
     val retryDelaysMs: List<Int> = listOf(${s.retryDelaysMs.join(', ')})
     const val maxAutoRetries: Int = ${s.maxAutoRetries}
-    val events: List<String> = listOf(${s.events.map(q).join(', ')})
+    val events: List<String> = listOf(${s.events.map(kq).join(', ')})
     val transitions: List<Transition> = listOf(
 ${tr}
     )
-    val deleteWarnOrder: List<String> = listOf(${s.deleteWarning.order.map(q).join(', ')})
+    val deleteWarnOrder: List<String> = listOf(${s.deleteWarning.order.map(kq).join(', ')})
     val deleteWarnLevel: Map<String, String> = ${ktMap(s.deleteWarning.levels)}
     val deleteWarnKey: Map<String, String> = ${ktMap(s.deleteWarning.keys)}
 }
@@ -234,7 +236,7 @@ ${tr}
 }
 function renderKtCaps(c) {
   const caps = c.caps.capabilities
-  const v = (x) => x === null ? 'null' : typeof x === 'string' ? q(x) : String(x)
+  const v = (x) => x === null ? 'null' : typeof x === 'string' ? kq(x) : String(x)
   return H('//') + `package com.aiworkdeck.contract
 
 object ContractCapabilities {
@@ -243,7 +245,7 @@ object ContractCapabilities {
     val maxVideoSeconds: Int? = ${v(caps.maxVideoSeconds.android)}
     const val continuousSegments: Boolean = ${caps.continuousSegments.android}
     /** "true" / "false" / "runtime" */
-    const val glassBlur: String = ${q(String(caps.glassBlur.android))}
+    const val glassBlur: String = ${kq(String(caps.glassBlur.android))}
     const val deviceAttestation: Boolean = ${caps.deviceAttestation.android}
     val degradedNotice: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }

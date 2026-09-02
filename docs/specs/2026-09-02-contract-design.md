@@ -55,6 +55,8 @@ contract/
     status-merge.json      status 轮询响应 → 状态与 waitingSeconds/expiresAt 回填
     restore.json           冷启动回拨
     delete-warning.json    所选状态 → 警告等级
+  schema/
+    *.schema.json          五个夹具各自的 JSON Schema，校验器用 ajv 逐个比对
   tools/
     gen.mjs                生成器
     check.mjs              校验器
@@ -134,8 +136,10 @@ backend/src/test/java/.../MobileApiContractTest.java  MockMvc 打每个端点，
 `tally`（计数标签，含 `{n}` `{m}` 占位）、`delete`（删除警告）、`cap`（能力降级提示）、
 `empty`（空态）。`en` 可空字符串，校验器只在 `--strict-en` 下要求非空。
 
-规则：取证主流程（相机、队列、图集、归档确认）界面文案**不许内联**，校验器对四端源码
-grep 词典里已有的中文值，命中即红。平台化层（设置、导航）不在此限。
+规则：取证主流程（相机、队列、图集、归档确认）界面文案中，**词典里已有的一律走键**
+（iOS `tr`、小程序 `t`，wxml 经 data 绑定）；**新增文案先进 `strings.json` 再用**。
+剩余未入词典的历史内联文案另卡迁移。校验器对四端源码 grep 词典里已有的中文值（带占位的
+按 `{x}` 切成片段查，注释不算），命中即红。平台化层（设置、导航）不在此限。
 
 ## 5. 设计令牌 `tokens.json`
 
@@ -223,7 +227,7 @@ CLAUDE.md 该节内容（定稿）：
 |---|---|---|
 | 小程序 | `miniprogram/styles/tokens.wxss` | 原地覆盖，头部标 GENERATED |
 | 小程序 | `miniprogram/utils/contract/{strings,states,capabilities}.ts` | `phase.ts` 改为 import 这些常量 |
-| iOS | `ios/Sources/Design/Tokens.swift` | 原地覆盖，保留 `T.L / T.D / T.S / T.Sp / T.Ty` 调用面 |
+| iOS | `ios/Sources/Contract/Tokens.swift` | 原地覆盖，保留 `T.L / T.D / T.S / T.Sp / T.Ty` 调用面；`T.F`（字体）与 `T.A`（动效）在 `Design/Typography.swift` 里以 extension 补齐 |
 | iOS | `ios/Sources/Contract/{Strings,States,Capabilities}.swift` | `TransferState` rawValue 与别名从此生成 |
 | 安卓 | `android/contract/src/main/kotlin/com/aiworkdeck/contract/*.kt` | 纯 Kotlin 模块，无 Android 依赖 |
 | 鸿蒙 | `harmony/contract/src/main/ets/*.ets` | |
@@ -231,7 +235,9 @@ CLAUDE.md 该节内容（定稿）：
 
 `check.mjs`：① 生成物与 JSON 一致（重新生成比对）；② 夹具合各自 JSON Schema；
 ③ `contract.json` 的 sha 清单与文件一致；④ `api/PINNED` 的 sha 与副本一致；
-⑤ 四端源码不内联词典中的中文值（`--quick` 跳过⑤）。任一失败非零退出并列出差异。
+⑤ 四端源码不内联词典中的中文值（`--quick` 跳过⑤）；⑥ 引用闭合：别名 / 桶成员 / 文案键 /
+点色令牌 / 迁移的起终态与事件 / `maxAutoRetries` 与 `retryDelaysMs` 长度全部对得上。
+任一失败非零退出并列出差异。
 
 ## 10. 夹具与适配
 

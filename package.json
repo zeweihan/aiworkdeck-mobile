@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI Workdeck 移动端：iOS 原生 + 微信小程序",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs",
     "typecheck": "tsc --noEmit",

@@ -9,8 +9,9 @@
    不要在 Swift / TS / Kotlin / ArkTS 里直接改这些值。
 2. 改动顺序：先改 `contract/*.json` 与 `contract/fixtures/`，跑 `node contract/tools/gen.mjs`，
    再改各端行为代码；生成物（文件头带 GENERATED）进仓提交，不要手改生成物。
-3. 取证主流程（相机、队列、图集、归档确认）的界面文案不许内联，一律走 `strings.json` 的键：
-   iOS `tr("key")`、小程序 `t('key')`。`check.mjs` 会扫出内联。
+3. 取证主流程（相机、队列、图集、归档确认）界面文案中，**词典里已有的一律走键**
+   （iOS `tr`、小程序 `t`，wxml 经 data 绑定）；**新增文案先进 `strings.json` 再用**。
+   剩余未入词典的历史内联文案另卡迁移。`check.mjs` 扫的就是第一条：手抄词典里已有的值即红。
 4. 提交前 `node contract/tools/check.mjs` 必须绿（pre-commit 与 CI 都会再跑）。
 5. API 变更先改服务端仓 `backend/src/main/resources/openapi/mobile-v1.yaml` 并过
    `MobileApiContractTest`，再在本仓 `node contract/tools/pull-api.mjs` 刷新副本。
