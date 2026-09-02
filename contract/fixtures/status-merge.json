@@ -1,0 +1,17 @@
+{ "cases": [
+  { "name": "delivered clears waiting fields", "state": "uploaded",
+    "status": { "delivered": true, "waitingSeconds": 0 },
+    "expect": { "state": "arrived", "waitingSeconds": null, "expiresAt": null } },
+  { "name": "pending backfills", "state": "uploaded",
+    "status": { "delivered": false, "waitingSeconds": 120, "expiresAt": "2026-09-09T10:00:00" },
+    "expect": { "state": "uploaded", "waitingSeconds": 120, "expiresAt": "2026-09-09T10:00:00" } },
+  { "name": "pending without expiresAt", "state": "uploaded",
+    "status": { "delivered": false, "waitingSeconds": 5 },
+    "expect": { "state": "uploaded", "waitingSeconds": 5, "expiresAt": null } },
+  { "name": "non-uploaded ignores status", "state": "waiting",
+    "status": { "delivered": true, "waitingSeconds": 0 },
+    "expect": { "state": "waiting", "waitingSeconds": null, "expiresAt": null } },
+  { "name": "arrived stays arrived", "state": "arrived",
+    "status": { "delivered": false, "waitingSeconds": 30 },
+    "expect": { "state": "arrived", "waitingSeconds": null, "expiresAt": null } }
+] }

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "required": ["cases"], "additionalProperties": false,
+  "properties": { "cases": { "type": "array", "minItems": 1, "items": {
+    "type": "object", "required": ["name", "state", "status", "expect"], "additionalProperties": false,
+    "properties": {
+      "name": { "type": "string" },
+      "state": { "$ref": "#/$defs/state" },
+      "status": { "type": "object", "required": ["delivered", "waitingSeconds"], "additionalProperties": false,
+        "properties": { "delivered": { "type": "boolean" }, "waitingSeconds": { "type": "integer" }, "expiresAt": { "type": "string" } } },
+      "expect": { "type": "object", "required": ["state", "waitingSeconds", "expiresAt"], "additionalProperties": false,
+        "properties": { "state": { "$ref": "#/$defs/state" },
+                        "waitingSeconds": { "type": ["integer", "null"] }, "expiresAt": { "type": ["string", "null"] } } }
+    } } } },
+  "$defs": { "state": { "enum": ["waiting", "uploading", "uploaded", "arrived", "failed"] } }
+}

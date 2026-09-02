@@ -1,0 +1,9 @@
+{ "cases": [
+  { "state": "uploading", "attempts": 0, "expect": "waiting" },
+  { "state": "failed",    "attempts": 2, "expect": "waiting" },
+  { "state": "failed",    "attempts": 3, "expect": "waiting" },
+  { "state": "failed",    "attempts": 4, "expect": "failed" },
+  { "state": "uploaded",  "attempts": 0, "expect": "uploaded" },
+  { "state": "waiting",   "attempts": 0, "expect": "waiting" },
+  { "state": "arrived",   "attempts": 0, "expect": "arrived" }
+] }
