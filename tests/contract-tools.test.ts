@@ -148,3 +148,16 @@ test('check：内联词典文案要红', () => {
   const r = runChecks(dir, { quick: false })
   assert.ok(r.problems.some((m) => m.includes('Foo.swift') && m.includes('内联')), r.problems.join('\n'))
 })
+
+test('check：API 副本 sha 与 PINNED 不一致要红', () => {
+  const dir = tempCopy()
+  for (const rel of outputs(loadContract(ROOT)).keys()) {
+    const src = join(ROOT, rel)
+    if (existsSync(src)) cpSync(src, join(dir, rel))
+  }
+  cpSync(join(ROOT, 'contract', 'tools', 'wxss-footer.css'), join(dir, 'contract', 'tools', 'wxss-footer.css'))
+  const y = join(dir, 'contract', 'api', 'mobile-v1.yaml')
+  writeFileSync(y, readFileSync(y, 'utf8') + '\n# tampered\n')
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('mobile-v1.yaml') && m.includes('PINNED')), r.problems.join('\n'))
+})

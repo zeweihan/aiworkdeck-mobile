@@ -5,7 +5,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
-import { loadContract, manifestFor, DATA_FILES, outputs } from './lib.mjs'
+import { loadContract, manifestFor, DATA_FILES, outputs, sha256 } from './lib.mjs'
 
 const FIXTURES = ['tally', 'transitions', 'status-merge', 'restore', 'delete-warning']
 
@@ -61,6 +61,14 @@ function checkGenerated(c, problems) {
   }
 }
 
+function checkApiPin(c, problems) {
+  const y = join(c.root, 'contract', 'api', 'mobile-v1.yaml')
+  const p = join(c.root, 'contract', 'api', 'PINNED.json')
+  if (!existsSync(y) || !existsSync(p)) { console.warn('⚠ contract/api 尚无副本，跳过 ④（服务端计划完成后跑 pull-api.mjs）'); return }
+  const pinned = JSON.parse(readFileSync(p, 'utf8'))
+  if (sha256(readFileSync(y, 'utf8')) !== pinned.sha256) problems.push('contract/api/mobile-v1.yaml 的 sha 与 PINNED.json 不一致：副本被手改，重跑 pull-api.mjs')
+}
+
 function walk(dir, exts, skip, out = []) {
   if (!existsSync(dir)) return out
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -95,8 +103,8 @@ export function runChecks(root, { quick = false } = {}) {
   checkManifest(c, problems)
   checkFixtures(c, problems)
   checkGenerated(c, problems)
+  checkApiPin(c, problems)
   if (!quick) checkInline(c, problems)
-  // ④ 在后续任务补入
   return { ok: problems.length === 0, problems }
 }
 
