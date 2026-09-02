@@ -48,7 +48,8 @@ actor EvidenceStore {
         kind: MediaKind,
         capturedAt: Date,
         location: (lat: Double, lon: Double, accuracy: Double)?,
-        device: DeviceFacts
+        device: DeviceFacts,
+        project: RelayProject?
     ) throws -> CaptureItem {
         try ensureDirs()
 
@@ -82,10 +83,29 @@ actor EvidenceStore {
         let item = CaptureItem(
             id: id, kind: kind, state: .waiting,
             manifest: manifest, localURL: url, progress: 0,
-            lastError: nil, savedToAlbum: false
+            lastError: nil, savedToAlbum: false, project: project
         )
         try writeManifest(item)
         return item
+    }
+
+    /// 旧记录上传时补记实际去向。只在 project 为 nil 时写，不覆盖已有归属。
+    func setProject(_ id: UUID, _ project: RelayProject) throws {
+        guard let item = try? loadOne(id), item.project == nil else { return }
+        let updated = CaptureItem(
+            id: item.id, kind: item.kind, state: item.state, manifest: item.manifest,
+            localURL: item.localURL, progress: item.progress, lastError: item.lastError,
+            savedToAlbum: item.savedToAlbum, project: project)
+        try writeManifest(updated)
+    }
+
+    /// 用户主动删除：原图与记录一起删。记录留着而图没了，图集里会出现永远打不开的空格。
+    func delete(ids: [UUID]) {
+        for id in ids {
+            guard let item = try? loadOne(id) else { continue }
+            try? fm.removeItem(at: item.localURL)
+            try? fm.removeItem(at: manifestDir.appendingPathComponent("\(id.uuidString).json"))
+        }
     }
 
     func updateState(_ id: UUID, to state: TransferState, progress: Double = 0,
@@ -121,16 +141,6 @@ actor EvidenceStore {
         return items.sorted { $0.capturedAt > $1.capturedAt }
     }
 
-    func tally() throws -> TransferTally {
-        let all = try loadAll()
-        return TransferTally(
-            waiting: all.filter { $0.state == .waiting || $0.state == .failed }.count,
-            // uploaded 计入「在路上」：进了中转区但还没到电脑
-            moving: all.filter { $0.state == .moving || $0.state == .uploaded }.count,
-            arrived: all.filter { $0.state == .arrived }.count
-        )
-    }
-
     /// 清理孤儿原图：有文件没 manifest，说明上次写到一半崩了。
     /// 这类文件没有哈希与采集环境，作为证据不成立，留着只会误导。
     func sweepOrphans() throws {
@@ -161,14 +171,15 @@ actor EvidenceStore {
             localURL: mediaDir.appendingPathComponent("\(row.manifest.clientMediaId.uuidString).\(ext)"),
             progress: row.progress,
             lastError: row.lastError,
-            savedToAlbum: row.savedToAlbum ?? false
+            savedToAlbum: row.savedToAlbum ?? false,
+            project: row.project
         )
     }
 
     private func writeManifest(_ item: CaptureItem) throws {
         let row = StoredRow(kind: item.kind, state: item.state, progress: item.progress,
                             manifest: item.manifest, lastError: item.lastError,
-                            savedToAlbum: item.savedToAlbum)
+                            savedToAlbum: item.savedToAlbum, project: item.project)
         let u = manifestDir.appendingPathComponent("\(item.id.uuidString).json")
         try JSONEncoder.iso.encode(row).write(to: u, options: .atomic)
     }
@@ -202,6 +213,8 @@ private struct StoredRow: Codable {
     // 后加的两个字段用可选 + 默认值：老记录没有它们，解码不能因此整条失败
     var lastError: String?
     var savedToAlbum: Bool?
+    /// 归档去向。老记录没有——上传时补记（见 setProject）。
+    var project: RelayProject?
 }
 
 struct DeviceFacts: Sendable {

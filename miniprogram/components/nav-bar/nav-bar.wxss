@@ -75,3 +75,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- 深色变体（图集等影像浏览页，D7） ------------------------------------ */
+.nav--dark {
+  background: rgba(10, 11, 13, 0.72);
+}
+
+.nav--dark.glass--solid {
+  background: var(--dk-surface);
+}
+
+.nav--dark.nav--scrolled {
+  border-bottom-color: var(--dk-rule);
+}
+
+.nav--dark .nav__back-glyph {
+  border-color: var(--dk-fg);
+}
+
+.nav--dark .nav__title {
+  color: var(--dk-fg);
+}
+
+.nav--dark .nav__subtitle {
+  color: var(--dk-fg-muted);
+}

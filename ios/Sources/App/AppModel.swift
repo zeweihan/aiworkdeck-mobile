@@ -13,7 +13,16 @@ final class AppModel {
         archivePath: "现场影像 / \(AppModel.today)"
     )
     var items: [CaptureItem] = []
-    var tally: TransferTally = .zero
+
+    /// 当前项目的键。图集与计数只看它。
+    var currentProjectID: String { selectedProject?.id ?? LibraryProject.unknownID }
+    var currentItems: [CaptureItem] { LibraryGrouping.items(items, in: currentProjectID) }
+    /// 三段计数，只数当前项目——进度跟着项目走。
+    var tally: TransferTally { TransferTally.of(currentItems) }
+    /// 别的项目里还没落盘的件数。队列页末尾提一句，免得它们被完全藏起来。
+    var otherPendingCount: Int {
+        items.filter { $0.projectID != currentProjectID && $0.state != .arrived }.count
+    }
     /// 桌面端连接。还没做配对，先恒定离线——**不要为了界面好看假装在线**，
     /// 那会让人以为照片已经在往电脑走。
     var link = DesktopLink(isOnline: false, lastSyncedAt: nil, deviceName: nil)
@@ -78,9 +87,15 @@ final class AppModel {
         }
     }
 
-    /// 切项目：清掉选择回到选择页。不动已拍的影像，它们仍属于原项目的队列。
+    /// 切项目：清掉选择回到选择页。已拍的影像各自记着自己的项目，切项目不改变它们的去向。
     func clearProjectSelection() {
         selectedProject = nil
+    }
+
+    /// 用户在图集里多选删除：原图与记录一起删。
+    func delete(ids: [UUID]) async {
+        await EvidenceStore.shared.delete(ids: ids)
+        await refresh()
     }
 
     /// 未投递件的中转区到期时刻（键 clientMediaId 小写）。队列页做到期提醒用。
@@ -103,10 +118,7 @@ final class AppModel {
 
     func refresh() async {
         do {
-            let all = try await EvidenceStore.shared.loadAll()
-            let t = try await EvidenceStore.shared.tally()
-            items = all
-            tally = t
+            items = try await EvidenceStore.shared.loadAll()
         } catch {
             // 读不出来不该清空界面——宁可显示上一次的状态，也不要让用户以为照片没了
         }
@@ -153,7 +165,7 @@ final class AppModel {
         do {
             _ = try await EvidenceStore.shared.save(
                 data: data, kind: kind, capturedAt: at,
-                location: location, device: Device.facts
+                location: location, device: Device.facts, project: selectedProject
             )
             await refresh()
             kickUpload()

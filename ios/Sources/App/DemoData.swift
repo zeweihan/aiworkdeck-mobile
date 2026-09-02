@@ -8,7 +8,10 @@ enum DemoData {
         archivePath: "现场影像 / 2026-08-17"
     )
 
-    static let tally = TransferTally(waiting: 12, moving: 3, arrived: 148)
+    static let tally = TransferTally(uploading: 12, failed: 1, staged: 3, landed: 148)
+
+    static let relay = RelayProject(deviceId: "dev-1", deviceName: "MacBook Pro",
+                                    key: "p-1", name: "华创科技 A 轮尽调")
 
     static let link = DesktopLink(
         isOnline: true,
@@ -53,7 +56,8 @@ enum DemoData {
                 localURL: URL(fileURLWithPath: "/dev/null"),
                 progress: progress,
                 lastError: state == .failed ? "连不上服务器，检查网络后重试" : nil,
-                savedToAlbum: false
+                savedToAlbum: false,
+                project: DemoData.relay
             )
         }
     }()

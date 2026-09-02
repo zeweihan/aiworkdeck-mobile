@@ -79,6 +79,12 @@ page {
   border-radius: 50%;
 }
 
+/* 失败不单独成桶，但不能藏：云端满、会话过期这类不重试也不会好 */
+.top__failed {
+  font-size: var(--t-nano);
+  color: var(--st-failed);
+}
+
 .top__dot--waiting { background: var(--st-waiting); }
 .top__dot--moving  { background: var(--st-moving); }
 .top__dot--arrived { background: var(--st-arrived); }
@@ -340,9 +346,10 @@ page {
   border: 2rpx solid rgba(0, 0, 0, 0.6);
 }
 
-.ctrl__recent-dot--waiting { background: var(--st-waiting); }
-.ctrl__recent-dot--moving  { background: var(--st-moving); }
-.ctrl__recent-dot--arrived { background: var(--st-arrived); }
+.ctrl__recent-dot.dot--waiting { background: var(--st-waiting); }
+.ctrl__recent-dot.dot--moving  { background: var(--st-moving); }
+.ctrl__recent-dot.dot--arrived { background: var(--st-arrived); }
+.ctrl__recent-dot.dot--failed  { background: var(--st-failed); }
 
 .ctrl__recent-empty {
   width: 100%;

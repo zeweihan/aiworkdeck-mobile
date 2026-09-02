@@ -136,25 +136,29 @@ struct HomeView: View {
 
     private var tallyLine: some View {
         HStack(spacing: 0) {
-            count(model.tally.waiting, "待传", T.S.waitingOnDark)
+            count(model.tally.uploading, "上传中", T.S.waitingOnDark, failed: model.tally.failed)
             divider
-            count(model.tally.moving, "传输中", T.S.movingOnDark)
+            count(model.tally.staged, "已暂存", T.S.movingOnDark)
             divider
-            count(model.tally.arrived, "已上传", T.S.arrivedOnDark)
+            count(model.tally.landed, "已落盘", T.S.arrivedOnDark)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: 28)
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpenQueue)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "待传 \(model.tally.waiting) 张，传输中 \(model.tally.moving) 张，已上传 \(model.tally.arrived) 张"
-        )
+        .accessibilityLabel(tallyA11y)
         .accessibilityHint("查看上传队列")
         .accessibilityAddTraits(.isButton)
     }
 
-    private func count(_ n: Int, _ label: String, _ color: Color) -> some View {
+    private var tallyA11y: String {
+        let t = model.tally
+        let failed = t.failed > 0 ? "，其中 \(t.failed) 张失败" : ""
+        return "上传中 \(t.uploading) 张\(failed)，已暂存 \(t.staged) 张，已落盘 \(t.landed) 张"
+    }
+
+    private func count(_ n: Int, _ label: String, _ color: Color, failed: Int = 0) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             Text("\(n)")
                 .font(T.F.mono(13, .medium))
@@ -163,6 +167,12 @@ struct HomeView: View {
             Text(label)
                 .font(T.F.nano())
                 .foregroundStyle(.white.opacity(0.45))
+            if failed > 0 {
+                // 失败不单独成桶，但不能藏：云端满、会话过期这类不重试也不会好
+                Text("含 \(failed) 失败")
+                    .font(T.F.nano())
+                    .foregroundStyle(T.S.failed)
+            }
         }
     }
 
@@ -329,7 +339,7 @@ struct HomeView: View {
     private var libraryEntry: some View {
         Button(action: onOpenLibrary) {
             Group {
-                if let last = model.items.first {
+                if let last = model.currentItems.first {
                     EvidenceThumb(item: last, onDark: true)
                         .overlay(alignment: .topLeading) {
                             StatusDot(state: last.state, size: 4, onDark: true)
@@ -348,12 +358,12 @@ struct HomeView: View {
             .frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("最近影像，共 \(model.items.count) 张")
+        .accessibilityLabel("最近影像，本项目共 \(model.currentItems.count) 张")
     }
 
     private var counter: some View {
         VStack(alignment: .trailing, spacing: 1) {
-            Text("\(model.tally.waiting + model.tally.moving + model.tally.arrived)")
+            Text("\(model.tally.total)")
                 .font(T.F.mono(17, .medium))
                 .monospacedDigit()
                 .foregroundStyle(.white)

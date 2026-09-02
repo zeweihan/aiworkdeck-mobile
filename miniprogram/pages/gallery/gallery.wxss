@@ -1,0 +1,282 @@
+/* 图集。D7：影像浏览走深色（--dk-* 令牌）。影像铺满，分区靠日期小标签与发丝线；
+ * 状态色只做小圆点。深色底上的状态色与 iOS 的 *OnDark 同值（提亮保对比度）。 */
+
+page {
+  background: var(--dk-bg);
+}
+
+.page {
+  background: var(--dk-bg);
+  min-height: 100vh;
+}
+
+/* ---- 顶栏工具（列数 / 视图 / 选择） ---------------------------------------- */
+.tools {
+  display: flex;
+  align-items: center;
+}
+
+.tools__btn {
+  min-width: var(--touch-min);
+  height: var(--touch-min);
+  padding: 0 var(--s2);
+}
+
+.tools__text {
+  font-size: var(--t-small);
+  color: var(--dk-fg);
+}
+
+/* ---- 三段计数 -------------------------------------------------------------- */
+.tally {
+  display: flex;
+  align-items: baseline;
+  gap: 4rpx;
+  padding: var(--s2) var(--gutter) var(--s3);
+}
+
+.tally__num {
+  font-size: var(--t-small);
+  font-weight: 500;
+  margin-left: var(--s3);
+}
+
+.tally__num:first-child {
+  margin-left: 0;
+}
+
+.tally__num--waiting { color: #F97316; }
+.tally__num--moving  { color: #60A5FA; }
+.tally__num--arrived { color: #4ADE80; }
+
+.tally__label {
+  font-size: var(--t-nano);
+  color: var(--dk-fg-muted);
+}
+
+.tally__failed {
+  font-size: var(--t-nano);
+  color: var(--st-failed);
+  margin-left: var(--s1);
+}
+
+/* ---- 空态 ------------------------------------------------------------------ */
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s16) var(--gutter) 0;
+}
+
+.status__text {
+  font-size: var(--t-body);
+  color: var(--dk-fg);
+}
+
+.status__sub {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
+}
+
+/* ---- 日期分段 -------------------------------------------------------------- */
+.day {
+  padding: var(--s4) var(--gutter) var(--s2);
+}
+
+.day__title {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ---- 网格 ------------------------------------------------------------------ */
+.grid {
+  display: grid;
+  gap: 3rpx;
+}
+
+.grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--dk-surface);
+}
+
+.cell__img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cell__ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell__icon {
+  width: 40rpx;
+  height: 40rpx;
+  opacity: 0.5;
+}
+
+.cell__dot {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+}
+
+.cell__time {
+  position: absolute;
+  left: 12rpx;
+  bottom: 10rpx;
+  font-size: var(--t-nano);
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.04em;
+}
+
+.cell__check {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 255, 255, 0.85);
+  box-sizing: border-box;
+}
+
+.cell__check--on {
+  background: #60A5FA;
+  border-color: #60A5FA;
+}
+
+.cell--checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dot--waiting { background: #F97316; }
+.dot--moving  { background: #60A5FA; }
+.dot--arrived { background: #4ADE80; }
+.dot--failed  { background: var(--st-failed); }
+
+/* ---- 列表 ------------------------------------------------------------------ */
+.list {
+  padding: 0 var(--gutter);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  border-bottom: 1rpx solid var(--dk-rule);
+}
+
+.row__check {
+  flex-shrink: 0;
+  margin-top: var(--s2);
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 255, 255, 0.5);
+  box-sizing: border-box;
+}
+
+.row__check--on {
+  background: #60A5FA;
+  border-color: #60A5FA;
+}
+
+.row__thumb {
+  width: 88rpx;
+  height: 88rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--dk-surface);
+}
+
+.row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.row__line {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.row__dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+}
+
+.row__status {
+  font-size: var(--t-small);
+  color: var(--dk-fg);
+}
+
+.row__time {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
+}
+
+.row__error {
+  font-size: var(--t-nano);
+  color: var(--st-failed);
+  line-height: 1.5;
+}
+
+.row__name {
+  font-size: var(--t-nano);
+  color: var(--dk-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 底座（选择态） ---------------------------------------------------------- */
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s3) var(--gutter);
+  background: linear-gradient(to bottom, rgba(10, 11, 13, 0), rgba(10, 11, 13, 0.94) 40%);
+}
+
+.dock__text {
+  font-size: var(--t-small);
+  color: var(--dk-fg-muted);
+}
+
+.dock__delete {
+  padding: 0 var(--s4);
+  height: var(--touch-min);
+  background: var(--st-failed);
+  color: #fff;
+  font-size: var(--t-small);
+}
+
+.dock__delete--off {
+  opacity: 0.4;
+}

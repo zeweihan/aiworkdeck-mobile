@@ -2,7 +2,7 @@
      高度全部来自全局度量（app.globalData.metrics），组件自己不做任何测量。
      右侧 padding 让开胶囊按钮，安卓与 iOS 的差异已在 layout.ts 里抹平。 -->
 <view
-  class="nav {{glassMode === 'solid' ? 'glass--solid' : ''}} {{scrolled ? 'nav--scrolled' : ''}}"
+  class="nav {{glassMode === 'solid' ? 'glass--solid' : ''}} {{scrolled ? 'nav--scrolled' : ''}} {{dark ? 'nav--dark' : ''}}"
   style="height: {{metrics.navTotalHeight}}px; padding-top: {{metrics.statusBarHeight}}px;"
 >
   <view class="nav__content" style="height: {{metrics.navContentHeight}}px; padding-right: {{metrics.capsuleRightInset}}px;">

@@ -2,31 +2,34 @@ import SwiftUI
 
 /// 上传队列。存在的理由只有一个：**出事的时候能看懂、能自救。**
 /// 只给一个红点，用户既不知道该重试还是该找人，也不知道是自己网络的问题还是我们的问题。
+///
+/// 只列当前项目——进度跟着项目走。别的项目的未落盘件在末尾提一句，不完全藏起来。
 struct QueueView: View {
     @Environment(AppModel.self) private var model
     var onClose: () -> Void
 
-    private var failed: [CaptureItem] { model.items.filter { $0.state == .failed } }
-    private var active: [CaptureItem] { model.items.filter { $0.state == .waiting || $0.state == .moving } }
-    private var uploaded: [CaptureItem] { model.items.filter { $0.state == .uploaded } }
-    private var done: [CaptureItem] { model.items.filter { $0.state == .arrived } }
+    private var scoped: [CaptureItem] { model.currentItems }
+    private var failed: [CaptureItem] { scoped.filter { $0.state == .failed } }
+    private var active: [CaptureItem] { scoped.filter { $0.state == .waiting || $0.state == .moving } }
+    private var staged: [CaptureItem] { scoped.filter { $0.state == .uploaded } }
+    private var landed: [CaptureItem] { scoped.filter { $0.state == .arrived } }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if !failed.isEmpty { section("失败 · 需要处理", failed, tint: T.S.failed) }
-                    if !active.isEmpty { section("排队中", active, tint: T.S.moving) }
-                    if !uploaded.isEmpty { section("已上传 · 等电脑取回", uploaded, tint: T.S.moving) }
-                    if !done.isEmpty { section("已抵达电脑", done, tint: T.S.arrived) }
-                    if model.items.isEmpty { empty }
+                    if !active.isEmpty { section("上传中", active, tint: T.S.waiting) }
+                    if !staged.isEmpty { section("已暂存 · 等电脑取回", staged, tint: T.S.moving) }
+                    if !landed.isEmpty { section("已落盘", landed, tint: T.S.arrived) }
+                    if scoped.isEmpty { empty }
+                    if model.otherPendingCount > 0 { otherProjectsNote }
                 }
                 .padding(.horizontal, T.Sp.gutter)
             }
             .background(T.L.bg)
-            .navigationTitle("上传队列")
             .navigationBarTitleDisplayMode(.inline)
-            // 开着队列页时每 20 秒问一次投递回执——「已上传」翻成「已抵达」
+            // 开着队列页时每 20 秒问一次投递回执——「已暂存」翻成「已落盘」
             // 的那一下应该发生在用户眼前，而不是下次冷启动
             .task {
                 while !Task.isCancelled {
@@ -35,6 +38,12 @@ struct QueueView: View {
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        Text("上传队列").font(T.F.heading()).foregroundStyle(T.L.fg)
+                        Text(model.project.name).font(T.F.nano()).foregroundStyle(T.L.fgFaint).lineLimit(1)
+                    }
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("关闭", action: onClose)
                 }
@@ -137,7 +146,7 @@ struct QueueView: View {
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Text("还没有拍摄的影像")
+            Text("这个项目还没有拍摄的影像")
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
             Text("拍摄后会自动排队上传到当前项目。")
@@ -146,5 +155,14 @@ struct QueueView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, T.Sp.s16)
+    }
+
+    /// 队列只看当前项目，但别的项目的未落盘件不能完全藏起来——至少说一声有多少。
+    private var otherProjectsNote: some View {
+        Text("其他项目还有 \(model.otherPendingCount) 件未落盘，切换项目后可见。")
+            .font(T.F.nano())
+            .foregroundStyle(T.L.fgFaint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, T.Sp.s6)
     }
 }

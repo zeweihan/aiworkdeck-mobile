@@ -16,6 +16,7 @@ actor UploadQueue {
     /// 进度回调，UI 层订阅。
     private var onChange: (@Sendable () async -> Void)?
 
+    /// project 只给没记项目的旧记录做兜底目标；正常件各自带着拍摄时的项目。
     func configure(project: RelayProject?, onChange: (@Sendable () async -> Void)?) {
         self.project = project
         self.onChange = onChange
@@ -27,7 +28,7 @@ actor UploadQueue {
 
     /// 启动一轮。已经在跑就直接返回，不排队叠加。
     func kick() async {
-        guard !running, let project else { return }
+        guard !running else { return }
         running = true
         defer { running = false }
 
@@ -42,9 +43,17 @@ actor UploadQueue {
         if !stale.isEmpty { await onChange?() }
 
         while true {
+            // 目标项目按件走：旧记录没记项目的沿用当前选中项目并写回；两者都没有的跳过
             let pending = (try? await EvidenceStore.shared.loadAll())?
-                .filter { $0.state == .waiting } ?? []
+                .filter { $0.state == .waiting && ($0.project != nil || project != nil) } ?? []
             guard let item = pending.last else { break }   // 先传最早拍的
+            let target: RelayProject
+            if let p = item.project {
+                target = p
+            } else {
+                target = project!
+                try? await EvidenceStore.shared.setProject(item.id, target)
+            }
 
             do {
                 try await EvidenceStore.shared.updateState(item.id, to: .moving, progress: 0)
@@ -52,7 +61,7 @@ actor UploadQueue {
 
                 try await API.shared.upload(
                     item: item,
-                    project: project,
+                    project: target,
                     fileName: Self.fileName(for: item)
                 ) { _ in }
 

@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/gallery/gallery",
     "pages/login/login",
     "pages/project/project",
     "pages/queue/queue",
@@ -17,7 +18,9 @@
       "desc": "开启「存相册」后，将拍摄的照片和录像同时保存一份到系统相册"
     }
   },
-  "requiredBackgroundModes": ["audio"],
+  "requiredBackgroundModes": [
+    "audio"
+  ],
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

@@ -1,0 +1,119 @@
+<!-- 图集（D7 深色）。标题 = 正在看的项目，点标题切换；右侧：列数 / 视图 / 选择。
+     导航高度只用全局度量（metrics），页面不自己测量。 -->
+<nav-bar
+  title="{{viewingName}}"
+  subtitle="{{projects.length > 1 ? '点标题切换项目' : ''}}"
+  show-back="{{true}}"
+  dark="{{true}}"
+  scroll-top="{{scrollTop}}"
+  bind:titletap="onTitleTap"
+>
+  <view slot="action" class="tools">
+    <view
+      wx:if="{{view === 'grid' && !selecting}}"
+      class="tools__btn tappable"
+      bindtap="onToggleCols"
+      aria-label="{{cols}} 列，切换列数"
+    >
+      <text class="tools__text mono">{{cols}} 列</text>
+    </view>
+    <view
+      wx:if="{{!selecting}}"
+      class="tools__btn tappable"
+      bindtap="onToggleView"
+      aria-label="{{view === 'grid' ? '切换到列表' : '切换到网格'}}"
+    >
+      <text class="tools__text">{{view === 'grid' ? '列表' : '网格'}}</text>
+    </view>
+    <view class="tools__btn tappable" bindtap="onToggleSelecting">
+      <text class="tools__text">{{selecting ? '取消' : '选择'}}</text>
+    </view>
+  </view>
+</nav-bar>
+
+<view class="page" style="padding-bottom: {{metrics.bottomInset + 96}}px;">
+  <!-- 三段计数，只数正在看的项目 -->
+  <view class="tally">
+    <text class="tally__num mono tally__num--waiting">{{tally.uploading}}</text>
+    <text class="tally__label">上传中</text>
+    <text wx:if="{{tally.failed > 0}}" class="tally__failed">含 {{tally.failed}} 失败</text>
+    <text class="tally__num mono tally__num--moving">{{tally.staged}}</text>
+    <text class="tally__label">已暂存</text>
+    <text class="tally__num mono tally__num--arrived">{{tally.landed}}</text>
+    <text class="tally__label">已落盘</text>
+  </view>
+
+  <view class="status" wx:if="{{!days.length}}">
+    <text class="status__text">这个项目还没有影像</text>
+    <text class="status__sub">拍摄后会归入当前项目。</text>
+  </view>
+
+  <block wx:for="{{days}}" wx:for-item="day" wx:key="key">
+    <view class="day"><text class="label day__title">{{day.title}}</text></view>
+
+    <!-- 网格 -->
+    <view wx:if="{{view === 'grid'}}" class="grid grid--{{cols}}">
+      <view
+        class="cell tappable {{item.checked ? 'cell--checked' : ''}}"
+        wx:for="{{day.items}}"
+        wx:key="clientMediaId"
+        data-id="{{item.clientMediaId}}"
+        bindtap="onTapCell"
+      >
+        <image
+          wx:if="{{item.thumb}}"
+          class="cell__img"
+          src="{{item.thumb}}"
+          mode="aspectFill"
+          data-id="{{item.clientMediaId}}"
+          binderror="onThumbError"
+        />
+        <view wx:else class="cell__ph"><image class="cell__icon" src="{{item.kindIcon}}" mode="aspectFit" /></view>
+        <view class="cell__dot {{item.dotClass}}"></view>
+        <text class="cell__time mono">{{item.time}}</text>
+        <view wx:if="{{selecting}}" class="cell__check {{item.checked ? 'cell__check--on' : ''}}"></view>
+      </view>
+    </view>
+
+    <!-- 列表 -->
+    <view wx:else class="list">
+      <view
+        class="row tappable"
+        wx:for="{{day.items}}"
+        wx:key="clientMediaId"
+        data-id="{{item.clientMediaId}}"
+        bindtap="onTapCell"
+      >
+        <view wx:if="{{selecting}}" class="row__check {{item.checked ? 'row__check--on' : ''}}"></view>
+        <view class="row__thumb">
+          <image
+            wx:if="{{item.thumb}}"
+            class="cell__img"
+            src="{{item.thumb}}"
+            mode="aspectFill"
+            data-id="{{item.clientMediaId}}"
+            binderror="onThumbError"
+          />
+          <view wx:else class="cell__ph"><image class="cell__icon" src="{{item.kindIcon}}" mode="aspectFit" /></view>
+        </view>
+        <view class="row__body">
+          <view class="row__line">
+            <view class="row__dot {{item.dotClass}}"></view>
+            <text class="row__status">{{item.statusText}}</text>
+            <text class="row__time mono">{{item.time}}</text>
+          </view>
+          <text wx:if="{{item.errorText}}" class="row__error">{{item.errorText}}</text>
+          <text class="row__name">{{item.fileName}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>
+
+<!-- 底座：选择态显示删除 -->
+<view wx:if="{{selecting}}" class="dock" style="padding-bottom: {{metrics.bottomInset + 16}}px;">
+  <text class="dock__text">{{selectedCount ? '已选 ' + selectedCount + ' 件' : '点选要删除的影像'}}</text>
+  <view class="dock__delete tappable {{selectedCount ? '' : 'dock__delete--off'}}" bindtap="onDelete">
+    <text>删除 {{selectedCount}} 件</text>
+  </view>
+</view>
