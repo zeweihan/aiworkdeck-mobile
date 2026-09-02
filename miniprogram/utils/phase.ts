@@ -78,7 +78,7 @@ export function groupByDay<T extends { createdAt: number }>(items: T[]): DaySect
     .sort((a, b) => b[1].day.getTime() - a[1].day.getTime())
     .map(([key, g]) => {
       const list = g.items.slice().sort((a, b) => b.createdAt - a.createdAt)
-      return { key, title: `${g.day.getMonth() + 1}月${g.day.getDate()}日 · ${list.length} 件`, items: list }
+      return { key, title: t('library.dayTitle', { m: g.day.getMonth() + 1, d: g.day.getDate(), n: list.length }), items: list }
     })
 }
 

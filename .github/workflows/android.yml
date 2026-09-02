@@ -1,0 +1,23 @@
+name: android
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", "contract/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", "contract/**", ".github/workflows/android.yml"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: android } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :app:testIntlDebugUnitTest :app:assembleIntlDebug :app:assembleCnDebug --console=plain
+      - name: 大陆变体不得含 GMS
+        # 校验发版用的 release 配置；管道两端都要判：gradle 自己挂掉时 grep 找不到 GMS 也会「通过」
+        run: |
+          set -o pipefail
+          out=$(./gradlew :app:dependencies --configuration cnReleaseRuntimeClasspath --console=plain) && ! grep -q "com.google.android.gms" <<<"$out"

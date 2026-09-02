@@ -23,10 +23,10 @@
       bindtap="onToggleView"
       aria-label="{{view === 'grid' ? '切换到列表' : '切换到网格'}}"
     >
-      <text class="tools__text">{{view === 'grid' ? '列表' : '网格'}}</text>
+      <text class="tools__text">{{viewLabel}}</text>
     </view>
     <view class="tools__btn tappable" bindtap="onToggleSelecting">
-      <text class="tools__text">{{selecting ? '取消' : '选择'}}</text>
+      <text class="tools__text">{{selectLabel}}</text>
     </view>
   </view>
 </nav-bar>
@@ -44,7 +44,7 @@
   </view>
 
   <view class="status" wx:if="{{!days.length}}">
-    <text class="status__text">这个项目还没有影像</text>
+    <text class="status__text">{{emptyText}}</text>
     <text class="status__sub">拍摄后会归入当前项目。</text>
   </view>
 
@@ -112,7 +112,7 @@
 
 <!-- 底座：选择态显示删除 -->
 <view wx:if="{{selecting}}" class="dock" style="padding-bottom: {{metrics.bottomInset + 16}}px;">
-  <text class="dock__text">{{selectedCount ? '已选 ' + selectedCount + ' 件' : '点选要删除的影像'}}</text>
+  <text class="dock__text">{{dockText}}</text>
   <view class="dock__delete tappable {{selectedCount ? '' : 'dock__delete--off'}}" bindtap="onDelete">
     <text>{{deleteLabel}}</text>
   </view>

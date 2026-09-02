@@ -144,7 +144,7 @@ struct LibraryProject: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
 
-    static let unknown = LibraryProject(id: unknownID, name: "未知项目")
+    static let unknown = LibraryProject(id: unknownID, name: tr("library.unknownProject"))
     init(id: String, name: String) { self.id = id; self.name = name }
     init(_ p: RelayProject) { self.init(id: p.id, name: p.name) }
 }

@@ -39,14 +39,14 @@ struct LoginView: View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
 
-            Eyebrow(text: step == .identity ? "登录" : "验证码")
+            Eyebrow(text: tr(step == .identity ? "login.title" : "login.codeTitle"))
             Text(title)
                 .font(T.F.display())
                 .foregroundStyle(T.L.fg)
                 .padding(.top, T.Sp.s2)
 
             if step == .code {
-                Text("已发送至 \(masked)")
+                Text(tr("login.sentTo", ["to": masked]))
                     .font(T.F.micro())
                     .foregroundStyle(T.L.fgFaint)
                     .padding(.top, T.Sp.s1)
@@ -79,8 +79,8 @@ struct LoginView: View {
     }
 
     private var title: String {
-        if step == .code { return "输入 6 位验证码" }
-        return method == .phone ? "手机号" : "邮箱"
+        if step == .code { return tr("login.codePrompt") }
+        return tr(method == .phone ? "login.phone" : "login.email")
     }
 
     private var masked: String {
@@ -112,7 +112,7 @@ struct LoginView: View {
                     }
                     focused = true
                 } label: {
-                    Text(m == .phone ? "手机号" : "邮箱")
+                    Text(tr(m == .phone ? "login.phone" : "login.email"))
                         .font(T.F.small())
                         .foregroundStyle(method == m ? T.L.accent : T.L.fgMuted)
                 }
@@ -128,7 +128,7 @@ struct LoginView: View {
         switch step {
         case .identity:
             if method == .phone {
-                TextField("", text: $phone, prompt: Text("中国大陆手机号").foregroundStyle(T.L.fgFaint))
+                TextField("", text: $phone, prompt: Text(tr("login.phonePlaceholder")).foregroundStyle(T.L.fgFaint))
                     .keyboardType(.numberPad)
                     .textContentType(.telephoneNumber)
                     .font(T.F.mono(28, .light))
@@ -142,7 +142,7 @@ struct LoginView: View {
                 // 占位符**不能写成一个真邮箱样子的串**：SwiftUI 的 Text 会把它识别成
                 // 邮件链接、按 accent 色渲染，看上去像是已经填好了值（页脚那条
                 // hi@aiworkdeck.com 的蓝色就是同一个机制，那处是有意的）。
-                TextField("", text: $email, prompt: Text("邮箱地址").foregroundStyle(T.L.fgFaint))
+                TextField("", text: $email, prompt: Text(tr("login.emailPlaceholder")).foregroundStyle(T.L.fgFaint))
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -178,7 +178,7 @@ struct LoginView: View {
             Task { step == .identity ? await send() : await verify() }
         } label: {
             HStack {
-                Text(step == .identity ? "获取验证码" : "登录")
+                Text(tr(step == .identity ? "login.sendCode" : "login.title"))
                     .font(T.F.heading())
                     .foregroundStyle(canSubmit ? T.L.accent : T.L.fgFaint)
                 Spacer()
@@ -213,14 +213,14 @@ struct LoginView: View {
 
     private var secondaryActions: some View {
         HStack(spacing: T.Sp.s5) {
-            Button(cooldown > 0 ? "重新发送 \(cooldown)s" : "重新发送") {
+            Button(cooldown > 0 ? tr("login.resendIn", ["s": String(cooldown)]) : tr("login.resend")) {
                 Task { await send() }
             }
             .disabled(cooldown > 0 || busy)
             .font(T.F.small())
             .foregroundStyle(cooldown > 0 ? T.L.fgFaint : T.L.accent)
 
-            Button(method == .phone ? "换个号码" : "换个邮箱") {
+            Button(tr(method == .phone ? "login.changePhone" : "login.changeEmail")) {
                 withAnimation(T.A.base) { step = .identity; code = ""; error = nil }
                 focused = true
             }
@@ -235,7 +235,10 @@ struct LoginView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: T.Sp.s1) {
             Hairline()
-            Text("收不到验证码？发邮件到 hi@aiworkdeck.com")
+            // 走 LocalizedStringKey 而不是 String：那条 hi@aiworkdeck.com 的蓝色来自
+            // SwiftUI 对 LocalizedStringKey 的 Markdown/链接识别（见上面 field 里的注释），
+            // 直接传 String 会走 StringProtocol 那个 init，链接色就没了。
+            Text(LocalizedStringKey(tr("login.help")))
                 .font(T.F.nano())
                 .foregroundStyle(T.L.fgFaint)
                 .padding(.top, T.Sp.s3)

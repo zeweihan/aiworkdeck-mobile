@@ -15,16 +15,16 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    group("影像") {
+                    group(tr("settings.media")) {
                         Toggle(isOn: $saveToAlbum) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("同时存入系统相册")
+                                Text(tr("settings.saveToAlbum"))
                                     .font(T.F.body())
                                     .foregroundStyle(T.L.fg)
                                 // 把权衡摆在这儿，让每次选择都是知情的。
                                 // 这不是吓唬人——尽调影像进相册，手机丢了或被查时
                                 // 它就躺在那儿。
-                                Text("拍完同时存一份到系统相册。关掉则影像只留在本应用内，手机相册里看不到。")
+                                Text(tr("settings.saveToAlbum.hint"))
                                     .font(T.F.nano())
                                     .foregroundStyle(T.L.fgFaint)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -46,19 +46,19 @@ struct SettingsView: View {
                         infoRow("本地原图", "上传成功后不会自动删除。现场不可复现，我们不替你做这个决定。")
                     }
 
-                    group("归档目标") {
-                        infoRow("当前项目", model.project.name)
-                        infoRow("云端中转", usageCaption)
-                        Button("切换项目") { model.clearProjectSelection() }
+                    group(tr("settings.archiveTarget")) {
+                        infoRow(tr("home.eyebrow"), model.project.name)
+                        infoRow(tr("settings.relay"), usageCaption)
+                        Button(tr("settings.switchProject")) { model.clearProjectSelection() }
                             .font(T.F.small())
                             .foregroundStyle(T.L.accent)
                             .frame(minHeight: T.touchMin, alignment: .leading)
                     }
 
-                    group("账号") {
-                        infoRow("已登录", model.account?.displayName ?? "—")
-                        infoRow("服务器", Backend.baseURL.host ?? "—")
-                        Button("退出登录") { model.signOut(); onClose() }
+                    group(tr("settings.account")) {
+                        infoRow(tr("settings.signedIn"), model.account?.displayName ?? "—")
+                        infoRow(tr("settings.server"), Backend.baseURL.host ?? "—")
+                        Button(tr("common.signOut")) { model.signOut(); onClose() }
                             .font(T.F.small())
                             .foregroundStyle(T.S.failed)
                             .frame(minHeight: T.touchMin, alignment: .leading)
@@ -66,14 +66,14 @@ struct SettingsView: View {
                         // 审核指南 5.1.1(v)：支持注册就必须在 App 内能删账号。
                         // 放在退出登录下面、字号更小，是因为它比退出重得多，
                         // 不该跟退出长得一样容易误点。
-                        Button("注销账号") { confirmDelete = true }
+                        Button(tr("settings.deleteAccount")) { confirmDelete = true }
                             .font(T.F.micro())
                             .foregroundStyle(T.L.fgMuted)
                             .frame(minHeight: T.touchMin, alignment: .leading)
                     }
 
-                    group("关于") {
-                        infoRow("版本", Device.facts.appVersion)
+                    group(tr("settings.about")) {
+                        infoRow(tr("settings.version"), Device.facts.appVersion)
                         infoRow("遇到问题", "hi@aiworkdeck.com")
                     }
                 }
@@ -83,19 +83,18 @@ struct SettingsView: View {
             .background(T.L.bg)
             // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量
             .task { usage = try? await API.shared.mediaUsage() }
-            .navigationTitle("设置")
+            .navigationTitle(tr("home.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("关闭", action: onClose) }
+                ToolbarItem(placement: .topBarLeading) { Button(tr("common.close"), action: onClose) }
             }
             // 不可逆，所以用 alert 而不是直接执行；文案要把「删什么、不删什么」
             // 都说全——只写「无法恢复」等于没说清代价。
-            .alert("注销账号？", isPresented: $confirmDelete) {
-                Button("取消", role: .cancel) {}
+            .alert(tr("settings.deleteAccount.title"), isPresented: $confirmDelete) {
+                Button(tr("common.cancel"), role: .cancel) {}
                 Button("注销", role: .destructive) { Task { await runDelete() } }
             } message: {
-                Text("将删除云端的账号、待取回的影像、项目目录与设备记录，无法恢复。\n\n"
-                     + "已存在这台手机上的原图不会被删除——现场不可复现，是否清理由你决定。")
+                Text(tr("settings.deleteAccount.confirm"))
             }
             .alert("注销失败", isPresented: Binding(
                 get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {

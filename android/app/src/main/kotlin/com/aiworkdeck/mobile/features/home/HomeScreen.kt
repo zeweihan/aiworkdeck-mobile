@@ -1,0 +1,489 @@
+package com.aiworkdeck.mobile.features.home
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import com.aiworkdeck.mobile.AppModel
+import com.aiworkdeck.mobile.Overlay
+import com.aiworkdeck.mobile.design.Fonts
+import com.aiworkdeck.mobile.design.Hairline
+import com.aiworkdeck.mobile.design.StatusDot
+import com.aiworkdeck.mobile.design.TallyRow
+import com.aiworkdeck.mobile.design.Tk
+import com.aiworkdeck.mobile.design.tr
+import com.aiworkdeck.mobile.model.CaptureItem
+import com.aiworkdeck.mobile.model.MediaKind
+import com.aiworkdeck.mobile.model.TransferTally
+import com.aiworkdeck.mobile.services.AudioRecorderService
+import com.aiworkdeck.mobile.services.CameraService
+import com.aiworkdeck.mobile.services.Loc
+import com.aiworkdeck.mobile.services.LocationStamper
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+
+/** 三档采集模式。录音走 [AudioRecorderService]，不经过相机会话——麦克风不需要点亮摄像头。 */
+private enum class CapMode { photo, video, audio }
+
+/**
+ * 首页 = 取景器。现场是单手、光线差、要快，所以进来就是镜头，不再隔一层「按转盘进取景页」。
+ * 信息各归其位：业务归属在顶部，画面在中间（淡水印叠加），快门与模式在拇指够得到的下方。
+ * 镜像 iOS `HomeView`。
+ *
+ * 水印只叠加在取景与展示层，**不烧录进照片字节**（决策 D3，见 [Watermark]）。
+ */
+@Composable
+fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+
+    val project by model.selectedProject.collectAsStateWithLifecycle()
+    val items by model.currentItems.collectAsStateWithLifecycle()
+    val tally by model.tally.collectAsStateWithLifecycle()
+    val desktopOnline by model.desktopOnline.collectAsStateWithLifecycle()
+
+    val camera = remember { CameraService(context, lifecycleOwner) }
+    val recorder = remember { AudioRecorderService(context) }
+    val stamper = remember { LocationStamper(context) }
+    val previewView = remember { PreviewView(context) }
+
+    var mode by remember { mutableStateOf(CapMode.photo) }
+    var loc by remember { mutableStateOf<Loc?>(null) }
+    var now by remember { mutableStateOf(Instant.now()) }
+    var flash by remember { mutableStateOf(false) }
+
+    var hasCamera by remember { mutableStateOf(granted(context, Manifest.permission.CAMERA)) }
+    var hasMic by remember { mutableStateOf(granted(context, Manifest.permission.RECORD_AUDIO)) }
+    var hasLocation by remember { mutableStateOf(granted(context, Manifest.permission.ACCESS_FINE_LOCATION)) }
+
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        hasCamera = granted(context, Manifest.permission.CAMERA)
+        hasMic = granted(context, Manifest.permission.RECORD_AUDIO)
+        hasLocation = granted(context, Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    // 一次问齐：相机、麦克风、定位（安卓 13+ 再加通知，上传的前台任务要举通知）。
+    // 分三次问会让人在按快门前连点三个对话框，现场最烦这个。
+    LaunchedEffect(Unit) {
+        val wanted = buildList {
+            add(Manifest.permission.CAMERA)
+            add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+        }.filterNot { granted(context, it) }
+        if (wanted.isNotEmpty()) ask.launch(wanted.toTypedArray())
+    }
+
+    // 水印的秒针与录制计时共用这一个心跳
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = Instant.now()
+            delay(1_000)
+        }
+    }
+
+    // 定位每 10 秒续一次，按快门时直接取最近一次的结果：现场按下快门到落库不能等 GPS。
+    // 拿不到新定位就留着上一次的，不清空——上一次的坐标仍然说明「在这栋楼」。
+    LaunchedEffect(hasLocation) {
+        while (hasLocation) {
+            stamper.current()?.let { loc = it }
+            delay(10_000)
+        }
+    }
+
+    LaunchedEffect(mode, hasCamera) {
+        if (!hasCamera) return@LaunchedEffect
+        if (mode == CapMode.audio) camera.unbind()
+        else runCatching { camera.bind(previewView, if (mode == CapMode.photo) CameraService.Mode.photo else CameraService.Mode.video) }
+    }
+
+    // 落库一律走 ViewModel 的作用域而不是 rememberCoroutineScope：退出登录、切项目会把这一屏
+    // 整个换掉，组合作用域随之取消——正在写盘的那一件不能因为界面没了就丢。
+    val storeScope = model.viewModelScope
+
+    // 采集时刻取「开始」而不是「按停」：取证语义上什么时候开始录比什么时候按停重要（iOS 同）。
+    // 项目也在这里就定死：落库是异步的，中途用户去设置页切了项目，这一件该记的仍是
+    // 按下快门时屏幕上显示的那个项目。
+    fun stopVideoAndStore() {
+        val at = Instant.ofEpochMilli(camera.recordingStartedAt ?: System.currentTimeMillis())
+        val target = project
+        storeScope.launch { runCatching { model.store(MediaKind.video, camera.stopVideo(), at, loc, target) } }
+    }
+
+    fun stopAudioAndStore() {
+        val at = Instant.ofEpochMilli(recorder.recordingStartedAt ?: System.currentTimeMillis())
+        val target = project
+        recorder.stop()?.let { file -> storeScope.launch { runCatching { model.store(MediaKind.audio, file, at, loc, target) } } }
+    }
+
+    /** 在录的都停下并落库。退后台与这一屏被换掉走的是同一条路。 */
+    fun stopRecordingAndStore() {
+        if (camera.isRecording) stopVideoAndStore()
+        if (recorder.isRecording) stopAudioAndStore()
+    }
+
+    // 录到一半退到后台：停表并落库，不丢已录的内容——现场不可复现。
+    // 相机会话本身跟着 lifecycle 自动解绑，这里要的是把那段已经写好的文件收进库。
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_STOP) return@LifecycleEventObserver
+            stopRecordingAndStore()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // 这一屏被换掉（退出登录、切项目回到选项目页）时相机不跟着 Activity 生命周期走，
+    // 得自己放开，否则镜头一直亮着、别的应用也拿不到相机。先收在录的那一段再解绑。
+    DisposableEffect(camera) {
+        onDispose {
+            stopRecordingAndStore()
+            camera.unbind()
+        }
+    }
+
+    fun shoot() {
+        when (mode) {
+            CapMode.photo -> {
+                val at = Instant.now()
+                val target = project
+                flash = true
+                storeScope.launch { runCatching { model.store(MediaKind.photo, camera.takePhoto(), at, loc, target) } }
+                scope.launch { delay(120); flash = false }
+            }
+            CapMode.video -> if (camera.isRecording) stopVideoAndStore() else camera.startVideo()
+            CapMode.audio -> if (recorder.isRecording) stopAudioAndStore() else if (!recorder.start()) hasMic = false
+        }
+    }
+
+    val recording = camera.isRecording || recorder.isRecording
+    val startedAt = camera.recordingStartedAt ?: recorder.recordingStartedAt
+    val elapsed = startedAt?.let { (now.toEpochMilli() - it) / 1000 } ?: 0L
+
+    Column(Modifier.fillMaxSize().background(Tk.D.bg).safeDrawingPadding()) {
+        Header(
+            projectName = project?.name.orEmpty(),
+            loc = loc,
+            tally = tally,
+            onOpenQueue = { onOpen(Overlay.Queue) },
+            onOpenSettings = { onOpen(Overlay.Settings) },
+        )
+
+        Box(
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = Tk.Sp.s2)
+                .background(Color.Black).border(1.dp, Tk.D.rule),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                mode == CapMode.audio -> AudioStage(hasMic, recorder.isRecording, elapsed, context)
+                !hasCamera -> PermissionStage(tr("home.permission.camera"), context)
+                else -> {
+                    CameraPreview(previewView, Modifier.fillMaxSize())
+                    Watermark(
+                        now = now, projectName = project?.name.orEmpty(), loc = loc,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(Tk.Sp.s3),
+                    )
+                }
+            }
+            // 快门白闪：唯一的「拍到了」即时反馈，比任何提示都快
+            if (flash) Box(Modifier.fillMaxSize().background(Color.White))
+        }
+
+        Controls(
+            mode = mode,
+            onMode = { mode = it },
+            recording = recording,
+            recordingVideo = camera.isRecording,
+            elapsed = elapsed,
+            recent = items.firstOrNull(),
+            total = tally.total,
+            desktopOnline = desktopOnline,
+            onShoot = ::shoot,
+            onOpenLibrary = { onOpen(Overlay.Library) },
+            onOpenQueue = { onOpen(Overlay.Queue) },
+        )
+    }
+}
+
+// MARK: - 顶部信息
+
+@Composable
+private fun Header(
+    projectName: String,
+    loc: Loc?,
+    tally: TransferTally,
+    onOpenQueue: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = Tk.Sp.gutter, vertical = Tk.Sp.s2),
+        verticalArrangement = Arrangement.spacedBy(Tk.Sp.s1),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                tr("home.eyebrow").uppercase(), style = Fonts.nano(),
+                color = Color.White.copy(alpha = 0.45f), modifier = Modifier.weight(1f),
+            )
+            // 位置精度：没有精度的坐标在质证时说明不了问题，所以直接显示出来
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    Modifier.size(5.dp).clip(CircleShape)
+                        .background(if (loc == null) Color.White.copy(alpha = 0.3f) else Tk.S.arrivedOnDark),
+                )
+                Text(WatermarkFormat.chip(loc), style = Fonts.mono(Tk.Ty.nano), color = Color.White.copy(alpha = 0.6f))
+            }
+            Text(
+                tr("home.settings").uppercase(), style = Fonts.nano(), color = Color.White.copy(alpha = 0.55f),
+                modifier = Modifier.padding(start = Tk.Sp.s3).heightIn(min = Tk.touchMin)
+                    .clickable(onClick = onOpenSettings).wrapContentHeight(),
+            )
+        }
+
+        Text(projectName, style = Fonts.title(), color = Tk.D.fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            tr("home.archiveTo", mapOf("path" to tr("archive.path", mapOf("date" to LocalDate.now().toString())))),
+            style = Fonts.nano(), color = Color.White.copy(alpha = 0.4f),
+        )
+        Box(Modifier.fillMaxWidth().heightIn(min = 28.dp).clickable(onClick = onOpenQueue), contentAlignment = Alignment.CenterStart) {
+            TallyRow(tally, onDark = true)
+        }
+    }
+}
+
+// MARK: - 舞台
+
+/** 录音模式没有取景画面：深色底，等宽计时器就是全部的界面。 */
+@Composable
+private fun AudioStage(hasMic: Boolean, recording: Boolean, elapsed: Long, context: Context) {
+    if (!hasMic) {
+        PermissionStage(tr("home.permission.mic"), context)
+        return
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Tk.Sp.s3)) {
+        Text(WatermarkFormat.duration(elapsed), style = Fonts.hero(), color = Color.White)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Tk.Sp.s2)) {
+            if (recording) Box(Modifier.size(7.dp).clip(CircleShape).background(Tk.S.failed))
+            Text(
+                (if (recording) tr("home.recording.audio") else tr("home.audio.hint")).uppercase(),
+                style = Fonts.nano(), color = Color.White.copy(alpha = 0.55f),
+            )
+        }
+    }
+}
+
+/** 权限缺失：说清楚缺什么，给一个能直接去开的入口。不在这里重复系统的措辞。 */
+@Composable
+private fun PermissionStage(title: String, context: Context) {
+    Column(
+        Modifier.padding(Tk.Sp.s8),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Tk.Sp.s3),
+    ) {
+        Text(title, style = Fonts.heading(), color = Color.White, textAlign = TextAlign.Center)
+        Text(
+            tr("home.permission.open"), style = Fonts.small(), color = Tk.S.movingOnDark,
+            modifier = Modifier.heightIn(min = Tk.touchMin).clickable { openAppSettings(context) }.wrapContentHeight(),
+        )
+    }
+}
+
+// MARK: - 底部控制
+
+@Composable
+private fun Controls(
+    mode: CapMode,
+    onMode: (CapMode) -> Unit,
+    recording: Boolean,
+    recordingVideo: Boolean,
+    elapsed: Long,
+    recent: CaptureItem?,
+    total: Int,
+    desktopOnline: Boolean,
+    onShoot: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenQueue: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = Tk.Sp.gutter).padding(top = Tk.Sp.s3, bottom = Tk.Sp.s2),
+        verticalArrangement = Arrangement.spacedBy(Tk.Sp.s3),
+    ) {
+        if (recording) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Tk.Sp.s1, Alignment.CenterHorizontally),
+            ) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Tk.S.failed))
+                Text(WatermarkFormat.duration(elapsed), style = Fonts.mono(Tk.Ty.small), color = Color.White)
+                Text(
+                    (if (recordingVideo) tr("home.recording.video") else tr("home.recording.audio")).uppercase(),
+                    style = Fonts.nano(), color = Color.White.copy(alpha = 0.55f),
+                )
+            }
+        } else {
+            // 三档并排、点选切换。取证的模式必须显式可预期，不做横滑模式条，也不做快门手势
+            // 切换——手滑录错模式是取证事故。
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Tk.Sp.s8, Alignment.CenterHorizontally),
+            ) {
+                ModeButton(tr("home.mode.photo"), mode == CapMode.photo) { onMode(CapMode.photo) }
+                ModeButton(tr("home.mode.video"), mode == CapMode.video) { onMode(CapMode.video) }
+                ModeButton(tr("home.mode.audio"), mode == CapMode.audio) { onMode(CapMode.audio) }
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                RecentThumb(recent, onOpenLibrary)
+            }
+            Shutter(mode, recording, onShoot)
+            Column(
+                Modifier.weight(1f).clickable(onClick = onOpenQueue),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(total.toString(), style = Fonts.mono(Tk.Ty.heading), color = Color.White)
+                Text(tr("home.counter.project").uppercase(), style = Fonts.nano(), color = Color.White.copy(alpha = 0.5f))
+            }
+        }
+
+        Hairline(color = Tk.D.rule)
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Tk.Sp.s1)) {
+            Box(
+                Modifier.size(5.dp).clip(CircleShape)
+                    .background(if (desktopOnline) Tk.S.arrivedOnDark else Color.White.copy(alpha = 0.3f)),
+            )
+            Text(
+                (if (desktopOnline) tr("home.desktop.online") else tr("home.desktop.offline")).uppercase(),
+                style = Fonts.nano(), color = Color.White.copy(alpha = 0.5f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier.width(Tk.touchMin).heightIn(min = Tk.touchMin).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+    ) {
+        Text(
+            label, style = Fonts.small(),
+            color = if (selected) Color.White else Color.White.copy(alpha = 0.45f),
+        )
+        Box(
+            Modifier.size(3.dp).clip(CircleShape)
+                .background(if (selected) Color.White else Color.Transparent),
+        )
+    }
+}
+
+/** 快门。照片单击即拍；录像/录音单击切换开始与停止，录制中变红方块。 */
+@Composable
+private fun Shutter(mode: CapMode, recording: Boolean, onClick: () -> Unit) {
+    val label = when {
+        recording && mode == CapMode.video -> tr("home.shutter.stopVideo")
+        recording -> tr("home.shutter.stopAudio")
+        mode == CapMode.photo -> tr("home.shutter.photo")
+        mode == CapMode.video -> tr("home.shutter.startVideo")
+        else -> tr("home.shutter.startAudio")
+    }
+    Box(
+        Modifier.size(74.dp).clip(CircleShape).border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape)
+            .clickable(onClick = onClick).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (recording) {
+            Box(Modifier.size(30.dp).clip(RoundedCornerShape(5.dp)).background(Tk.S.failed))
+        } else {
+            Box(
+                Modifier.size(60.dp).clip(CircleShape)
+                    .background(if (mode == CapMode.photo) Color.White else Tk.S.failed),
+            )
+        }
+    }
+}
+
+/** 最近一件的真缩略图，也是影像浏览的入口。 */
+@Composable
+private fun RecentThumb(item: CaptureItem?, onClick: () -> Unit) {
+    Box(Modifier.size(Tk.touchMin).clickable(onClick = onClick)) {
+        when {
+            item == null -> Box(Modifier.fillMaxSize().border(1.dp, Tk.D.rule))
+            item.kind == MediaKind.audio -> Box(
+                Modifier.fillMaxSize().background(Tk.D.surface),
+                contentAlignment = Alignment.Center,
+            ) { Text("♪", style = Fonts.body(), color = Color.White.copy(alpha = 0.6f)) }
+            else -> AsyncImage(
+                model = item.localFile,
+                contentDescription = tr("home.thumb"),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        item?.let { StatusDot(it.state, onDark = true, size = 4.dp, modifier = Modifier.align(Alignment.TopStart).padding(3.dp)) }
+    }
+}
+
+private fun granted(context: Context, permission: String): Boolean =
+    context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+private fun openAppSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+}

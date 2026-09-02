@@ -106,6 +106,10 @@ Page({
     projectName: '',
     sections: [] as Section[],
     otherPending: 0,
+    otherPendingText: '',
+    titleText: t('queue.title'),
+    retryText: t('project.retry'),
+    emptyText: t('library.empty'),
   },
 
   unsubscribe: null as (() => void) | null,
@@ -163,7 +167,13 @@ Page({
       { title: t('queue.section.staged'), items: pick((it) => phaseOf(it.state) === 'staged') },
       { title: t('queue.section.landed'), items: pick((it) => phaseOf(it.state) === 'landed') },
     ].filter((s) => s.items.length > 0)
-    this.setData({ sections, projectName: project.name, otherPending: otherPendingCount(pid) })
+    const otherPending = otherPendingCount(pid)
+    this.setData({
+      sections,
+      projectName: project.name,
+      otherPending,
+      otherPendingText: t('library.otherPending', { n: otherPending }),
+    })
   },
 
   onPageScroll(e: { scrollTop: number }) {

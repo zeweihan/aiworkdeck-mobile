@@ -34,6 +34,9 @@ Page({
   data: {
     Icon,
     emptyText: t('empty.projects'),
+    navTitle: t('project.title'),
+    retryText: t('project.retry'),
+    signOutText: t('common.signOut'),
     metrics: {} as Metrics,
     showBack: false,
     scrollTop: 0,
@@ -96,7 +99,7 @@ Page({
 
   onLogout() {
     wx.showModal({
-      title: '退出登录',
+      title: t('common.signOut'),
       content: '退出后需要重新用手机号登录。',
       confirmText: '退出',
       confirmColor: '#B91C1C',

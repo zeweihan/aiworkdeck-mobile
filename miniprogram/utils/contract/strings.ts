@@ -80,6 +80,18 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "已落盘",
     "en": "Landed"
   },
+  "queue.title": {
+    "zh-Hans": "上传队列",
+    "en": "Upload queue"
+  },
+  "queue.retryAll": {
+    "zh-Hans": "全部重试",
+    "en": "Retry all"
+  },
+  "queue.expires": {
+    "zh-Hans": "中转区 {days} 天后清理",
+    "en": "Relay clears in {days} days"
+  },
   "delete.title": {
     "zh-Hans": "删除 {n} 件",
     "en": "Delete {n} items"
@@ -108,8 +120,340 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里",
     "en": "Sign in to the desktop app with the same phone number and keep it running. Projects appear here within about a minute."
   },
+  "login.title": {
+    "zh-Hans": "登录",
+    "en": "Sign in"
+  },
+  "login.codeTitle": {
+    "zh-Hans": "验证码",
+    "en": "Code"
+  },
+  "login.codePrompt": {
+    "zh-Hans": "输入 6 位验证码",
+    "en": "Enter the 6-digit code"
+  },
+  "login.sentTo": {
+    "zh-Hans": "已发送至 {to}",
+    "en": "Sent to {to}"
+  },
+  "login.phone": {
+    "zh-Hans": "手机号",
+    "en": "Phone"
+  },
+  "login.email": {
+    "zh-Hans": "邮箱",
+    "en": "Email"
+  },
+  "login.phonePlaceholder": {
+    "zh-Hans": "中国大陆手机号",
+    "en": "Mainland China mobile number"
+  },
+  "login.emailPlaceholder": {
+    "zh-Hans": "邮箱地址",
+    "en": "Email address"
+  },
+  "login.sendCode": {
+    "zh-Hans": "获取验证码",
+    "en": "Send code"
+  },
+  "login.resend": {
+    "zh-Hans": "重新发送",
+    "en": "Resend"
+  },
+  "login.resendIn": {
+    "zh-Hans": "重新发送 {s}s",
+    "en": "Resend in {s}s"
+  },
+  "login.changePhone": {
+    "zh-Hans": "换个号码",
+    "en": "Use another number"
+  },
+  "login.changeEmail": {
+    "zh-Hans": "换个邮箱",
+    "en": "Use another address"
+  },
+  "login.help": {
+    "zh-Hans": "收不到验证码？发邮件到 hi@aiworkdeck.com",
+    "en": "No code? Email hi@aiworkdeck.com"
+  },
+  "project.eyebrow": {
+    "zh-Hans": "归档到",
+    "en": "Archive to"
+  },
+  "project.title": {
+    "zh-Hans": "选择项目",
+    "en": "Choose a project"
+  },
+  "project.hint": {
+    "zh-Hans": "现场拍的影像会归入该项目的「现场影像 / {date}」。",
+    "en": "Field media goes into this project's “Field media / {date}”."
+  },
+  "project.loading": {
+    "zh-Hans": "正在读取项目",
+    "en": "Loading projects"
+  },
+  "project.emptyTitle": {
+    "zh-Hans": "还没同步到项目",
+    "en": "No projects synced yet"
+  },
+  "project.retry": {
+    "zh-Hans": "重试",
+    "en": "Retry"
+  },
+  "project.reload": {
+    "zh-Hans": "重新读取",
+    "en": "Reload"
+  },
+  "home.eyebrow": {
+    "zh-Hans": "当前项目",
+    "en": "Current project"
+  },
+  "home.archiveTo": {
+    "zh-Hans": "归档至 {path}",
+    "en": "Archived to {path}"
+  },
+  "archive.path": {
+    "zh-Hans": "现场影像 / {date}",
+    "en": "Field media / {date}"
+  },
+  "home.settings": {
+    "zh-Hans": "设置",
+    "en": "Settings"
+  },
+  "home.gps.none": {
+    "zh-Hans": "定位中",
+    "en": "Locating"
+  },
+  "home.gps.accuracy": {
+    "zh-Hans": "±{m} 米",
+    "en": "±{m} m"
+  },
+  "home.mode.photo": {
+    "zh-Hans": "照片",
+    "en": "Photo"
+  },
+  "home.mode.video": {
+    "zh-Hans": "录像",
+    "en": "Video"
+  },
+  "home.mode.audio": {
+    "zh-Hans": "录音",
+    "en": "Audio"
+  },
+  "home.recording.video": {
+    "zh-Hans": "录像中",
+    "en": "Recording"
+  },
+  "home.recording.audio": {
+    "zh-Hans": "录音中",
+    "en": "Recording"
+  },
+  "home.audio.hint": {
+    "zh-Hans": "按下开始录音",
+    "en": "Tap to start recording"
+  },
+  "home.shutter.photo": {
+    "zh-Hans": "拍照",
+    "en": "Take photo"
+  },
+  "home.shutter.startVideo": {
+    "zh-Hans": "开始录像",
+    "en": "Start recording"
+  },
+  "home.shutter.stopVideo": {
+    "zh-Hans": "停止录像",
+    "en": "Stop recording"
+  },
+  "home.shutter.startAudio": {
+    "zh-Hans": "开始录音",
+    "en": "Start recording"
+  },
+  "home.shutter.stopAudio": {
+    "zh-Hans": "停止录音",
+    "en": "Stop recording"
+  },
+  "home.thumb": {
+    "zh-Hans": "最近影像",
+    "en": "Latest capture"
+  },
+  "home.counter.project": {
+    "zh-Hans": "本项目",
+    "en": "This project"
+  },
+  "home.desktop.online": {
+    "zh-Hans": "桌面端在线",
+    "en": "Desktop online"
+  },
+  "home.desktop.offline": {
+    "zh-Hans": "桌面端离线",
+    "en": "Desktop offline"
+  },
+  "home.permission.camera": {
+    "zh-Hans": "没有相机权限",
+    "en": "No camera access"
+  },
+  "home.permission.mic": {
+    "zh-Hans": "没有麦克风权限",
+    "en": "No microphone access"
+  },
+  "home.permission.open": {
+    "zh-Hans": "打开设置",
+    "en": "Open Settings"
+  },
+  "common.signOut": {
+    "zh-Hans": "退出登录",
+    "en": "Sign out"
+  },
+  "common.cancel": {
+    "zh-Hans": "取消",
+    "en": "Cancel"
+  },
+  "common.close": {
+    "zh-Hans": "关闭",
+    "en": "Close"
+  },
+  "common.on": {
+    "zh-Hans": "开启",
+    "en": "On"
+  },
+  "common.off": {
+    "zh-Hans": "关闭",
+    "en": "Off"
+  },
+  "error.unauthorized": {
+    "zh-Hans": "登录已失效，请重新登录",
+    "en": "Session expired. Please sign in again."
+  },
+  "error.network": {
+    "zh-Hans": "网络不通，稍后再试",
+    "en": "Network unreachable. Try again shortly."
+  },
   "error.uploadFailed": {
     "zh-Hans": "上传失败（{code}）",
     "en": "Upload failed ({code})"
+  },
+  "library.unknownProject": {
+    "zh-Hans": "未知项目",
+    "en": "Unknown project"
+  },
+  "library.dayTitle": {
+    "zh-Hans": "{m}月{d}日 · {n} 件",
+    "en": "{m}/{d} · {n} items"
+  },
+  "library.empty": {
+    "zh-Hans": "这个项目还没有拍摄的影像",
+    "en": "No captures in this project yet"
+  },
+  "library.otherPending": {
+    "zh-Hans": "其他项目还有 {n} 件未落盘，切换项目后可见。",
+    "en": "{n} items in other projects have not landed yet. Switch projects to see them."
+  },
+  "library.select": {
+    "zh-Hans": "选择",
+    "en": "Select"
+  },
+  "library.delete": {
+    "zh-Hans": "删除",
+    "en": "Delete"
+  },
+  "library.columns": {
+    "zh-Hans": "{n} 列",
+    "en": "{n} cols"
+  },
+  "library.viewGrid": {
+    "zh-Hans": "网格",
+    "en": "Grid"
+  },
+  "library.viewList": {
+    "zh-Hans": "列表",
+    "en": "List"
+  },
+  "library.selectHint": {
+    "zh-Hans": "点选要删除的影像",
+    "en": "Tap captures to delete"
+  },
+  "library.selectedCount": {
+    "zh-Hans": "已选 {n} 件",
+    "en": "{n} selected"
+  },
+  "settings.media": {
+    "zh-Hans": "影像",
+    "en": "Media"
+  },
+  "settings.saveToAlbum": {
+    "zh-Hans": "同时存入系统相册",
+    "en": "Also save to the system album"
+  },
+  "settings.saveToAlbum.hint": {
+    "zh-Hans": "拍完同时存一份到系统相册。关掉则影像只留在本应用内，手机相册里看不到。",
+    "en": "Keep a copy in the system album after each capture. Turn it off and captures stay inside this app only."
+  },
+  "settings.archiveTarget": {
+    "zh-Hans": "归档目标",
+    "en": "Archive target"
+  },
+  "settings.relay": {
+    "zh-Hans": "云端中转",
+    "en": "Cloud relay"
+  },
+  "settings.usage": {
+    "zh-Hans": "{used} / {quota}",
+    "en": "{used} / {quota}"
+  },
+  "settings.switchProject": {
+    "zh-Hans": "切换项目",
+    "en": "Switch project"
+  },
+  "settings.account": {
+    "zh-Hans": "账号",
+    "en": "Account"
+  },
+  "settings.signedIn": {
+    "zh-Hans": "已登录",
+    "en": "Signed in"
+  },
+  "settings.server": {
+    "zh-Hans": "服务器",
+    "en": "Server"
+  },
+  "settings.deleteAccount": {
+    "zh-Hans": "注销账号",
+    "en": "Delete account"
+  },
+  "settings.deleteAccount.title": {
+    "zh-Hans": "注销账号？",
+    "en": "Delete account?"
+  },
+  "settings.deleteAccount.confirm": {
+    "zh-Hans": "将删除云端的账号、待取回的影像、项目目录与设备记录，无法恢复。\n\n已存在这台手机上的原图不会被删除——现场不可复现，是否清理由你决定。",
+    "en": "This deletes your cloud account, captures still waiting in the relay, project folders and device records. It cannot be undone.\n\nOriginals already on this phone are not deleted — the scene cannot be re-shot, so clearing them stays your call."
+  },
+  "settings.about": {
+    "zh-Hans": "关于",
+    "en": "About"
+  },
+  "settings.version": {
+    "zh-Hans": "版本",
+    "en": "Version"
+  },
+  "settings.package": {
+    "zh-Hans": "应用包名",
+    "en": "Package"
+  },
+  "notify.channel.upload": {
+    "zh-Hans": "上传",
+    "en": "Uploads"
+  },
+  "notify.uploading": {
+    "zh-Hans": "正在上传现场影像",
+    "en": "Uploading field media"
+  },
+  "file.prefix.media": {
+    "zh-Hans": "现场影像",
+    "en": "Field media"
+  },
+  "file.prefix.audio": {
+    "zh-Hans": "现场录音",
+    "en": "Field audio"
   }
 }

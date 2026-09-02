@@ -7,7 +7,7 @@
     "maxVideoSeconds":    { "ios": null,  "miniprogram": 60,        "android": null,  "harmony": null },
     "continuousSegments": { "ios": false, "miniprogram": true,      "android": false, "harmony": false,
                             "degradedNotice": "cap.segmentedRecording" },
-    "glassBlur":          { "ios": true,  "miniprogram": "runtime", "android": "runtime", "harmony": true },
+    "glassBlur":          { "ios": true,  "miniprogram": "runtime", "android": false, "harmony": true },
     "deviceAttestation":  { "ios": true,  "miniprogram": false,     "android": false, "harmony": false }
   }
 }

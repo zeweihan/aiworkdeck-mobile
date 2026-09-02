@@ -5,7 +5,7 @@ enum DemoData {
     static let project = FieldProject(
         id: "p-1",
         name: "华创科技 A 轮尽调",
-        archivePath: "现场影像 / 2026-08-17"
+        archivePath: tr("archive.path", ["date": "2026-08-17"])
     )
 
     static let tally = TransferTally(uploading: 12, failed: 1, staged: 3, landed: 148)

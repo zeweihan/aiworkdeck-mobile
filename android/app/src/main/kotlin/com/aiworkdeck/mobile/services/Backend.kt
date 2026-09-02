@@ -1,0 +1,90 @@
+package com.aiworkdeck.mobile.services
+
+import com.aiworkdeck.mobile.model.RelayProject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
+import java.io.File
+
+class ApiError(val code: Int, message: String) : Exception(message)
+class Unauthorized : Exception("unauthorized")
+
+class Backend(private val baseUrl: String, private val session: SessionStore, private val client: OkHttpClient = OkHttpClient()) {
+    private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+    private val jsonType = "application/json; charset=utf-8".toMediaType()
+
+    suspend fun sendLoginCode(phone: String) { envelope(post("/api/auth/sms-login/send-code", buildJsonObject { put("phone", phone) })) }
+    suspend fun verifyLoginCode(phone: String, code: String): LoginResult =
+        login(post("/api/auth/sms-login/verify", buildJsonObject { put("phone", phone); put("code", code) }))
+    suspend fun sendMailLoginCode(email: String) { envelope(post("/api/auth/mail-login/send-code", buildJsonObject { put("email", email) })) }
+    suspend fun verifyMailLoginCode(email: String, code: String): LoginResult =
+        login(post("/api/auth/mail-login/verify", buildJsonObject { put("email", email); put("code", code) }))
+    suspend fun deleteAccount() { envelope(post("/api/auth/account/delete", buildJsonObject {})) }
+    fun logout() = session.clear()
+    /** 本机有没有会话。只判断「有没有」，是否还有效由第一次真实请求的 401 发现。 */
+    fun hasSession(): Boolean = session.current() != null
+
+    suspend fun myProjects(): List<RelayProject> = bare("/api/mobile/projects")
+    suspend fun mediaUsage(): MediaUsage = bare("/api/mobile/media/usage")
+    suspend fun mediaStatus(ids: List<String>): List<MediaStatus> =
+        if (ids.isEmpty()) emptyList() else bare("/api/mobile/media/status?clientMediaIds=" + ids.joinToString(","))
+
+    suspend fun upload(file: File, deviceId: String, projectKey: String, clientMediaId: String, fileName: String,
+                       mediaType: String, capturedAt: String, onProgress: (Double) -> Unit): UploadResult = withContext(Dispatchers.IO) {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("deviceId", deviceId).addFormDataPart("projectKey", projectKey)
+            .addFormDataPart("clientMediaId", clientMediaId).addFormDataPart("fileName", fileName)
+            .addFormDataPart("mediaType", mediaType).addFormDataPart("capturedAt", capturedAt)
+            .addFormDataPart("file", fileName, ProgressBody(file, onProgress)).build()
+        val text = execute(Request.Builder().url(baseUrl + "/api/mobile/media").post(body))
+        val el = json.parseToJsonElement(text).jsonObject
+        checkEnvelopeCode(el)
+        json.decodeFromJsonElement<UploadResult>(el)
+    }
+
+    // ---- 内部 ----
+    private suspend fun post(path: String, body: JsonObject): String =
+        execute(Request.Builder().url(baseUrl + path).post(body.toString().toRequestBody(jsonType)))
+    private suspend inline fun <reified T> bare(path: String): T {
+        val text = execute(Request.Builder().url(baseUrl + path).get())
+        val el = json.parseToJsonElement(text)
+        if (el is JsonObject) checkEnvelopeCode(el)   // 未登录 4010 信封
+        return json.decodeFromJsonElement(el)
+    }
+    private fun envelope(text: String): JsonObject { val el = json.parseToJsonElement(text).jsonObject; checkEnvelopeCode(el); return el }
+    private fun login(text: String): LoginResult {
+        val r = json.decodeFromJsonElement<LoginResult>(envelope(text)["data"] ?: throw ApiError(1, "empty data"))
+        session.save(r.sessionId); return r
+    }
+    /** 全站信封：code 0 成功；4010 未登录（清会话）；其他为业务错误。裸数组不进这里。 */
+    private fun checkEnvelopeCode(el: JsonObject) {
+        val code = el["code"]?.jsonPrimitive?.intOrNull ?: return
+        if (code == 4010) { session.clear(); throw Unauthorized() }
+        if (code != 0) throw ApiError(code, el["message"]?.jsonPrimitive?.contentOrNull ?: "code $code")
+    }
+    private suspend fun execute(b: Request.Builder): String = withContext(Dispatchers.IO) {
+        session.current()?.let { b.header("X-Session-Id", it) }
+        client.newCall(b.build()).execute().use { resp ->
+            val text = resp.body?.string() ?: ""
+            if (!resp.isSuccessful) throw ApiError(resp.code, "HTTP ${resp.code}")
+            text
+        }
+    }
+}
+
+/** 带进度回调的文件体。 */
+class ProgressBody(private val file: File, private val onProgress: (Double) -> Unit) : RequestBody() {
+    override fun contentType() = "application/octet-stream".toMediaType()
+    override fun contentLength() = file.length()
+    override fun writeTo(sink: BufferedSink) {
+        val total = file.length().coerceAtLeast(1); var sent = 0L
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) { val n = input.read(buf); if (n < 0) break; sink.write(buf, 0, n); sent += n; onProgress(sent.toDouble() / total) }
+        }
+    }
+}

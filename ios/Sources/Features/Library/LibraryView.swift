@@ -74,13 +74,13 @@ struct LibraryView: View {
         // 用 alert 不用 confirmationDialog：后者在 iOS 26 模拟器上把「取消」画丢了，
         // 删除这种事两个按钮必须都看得见
         .alert(tr("delete.title", ["n": String(selected.count)]), isPresented: $confirmDelete) {
-            Button("删除", role: .destructive) {
+            Button(tr("library.delete"), role: .destructive) {
                 let ids = Array(selected)
                 selected = []
                 selecting = false
                 Task { await model.delete(ids: ids) }
             }
-            Button("取消", role: .cancel) {}
+            Button(tr("common.cancel"), role: .cancel) {}
         } message: {
             Text(LibraryGrouping.deleteWarning(for: selectedItems))
         }
@@ -233,7 +233,7 @@ struct LibraryView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
-            Text("这个项目还没有影像")
+            Text(tr("library.empty"))
                 .font(T.F.body())
                 .foregroundStyle(T.D.fg)
             Text("拍摄后会归入当前项目。")
@@ -251,9 +251,9 @@ struct LibraryView: View {
 
     private func kindLabel(_ kind: MediaKind) -> String {
         switch kind {
-        case .photo: "照片"
-        case .video: "录像"
-        case .audio: "录音"
+        case .photo: tr("home.mode.photo")
+        case .video: tr("home.mode.video")
+        case .audio: tr("home.mode.audio")
         }
     }
 
@@ -364,7 +364,7 @@ struct LibraryView: View {
                     viewMode = isGrid ? "list" : "grid"
                 }
             }
-            Button(selecting ? "取消" : "选择") {
+            Button(selecting ? tr("common.cancel") : tr("library.select")) {
                 selecting.toggle()
                 selected = []
             }
@@ -391,7 +391,7 @@ struct LibraryView: View {
         HStack {
             HStack(spacing: T.Sp.s1) {
                 BreathingDot(isOn: model.link.isOnline, color: T.S.arrivedOnDark)
-                Text(model.link.isOnline ? "桌面端在线" : "桌面端离线")
+                Text(model.link.isOnline ? tr("home.desktop.online") : tr("home.desktop.offline"))
                     .font(T.F.nano())
                     .tracking(0.6)
                     .foregroundStyle(T.D.fgMuted)
@@ -416,7 +416,7 @@ struct LibraryView: View {
 
     private var deleteDock: some View {
         HStack {
-            Text(selected.isEmpty ? "点选要删除的影像" : "已选 \(selected.count) 件")
+            Text(selected.isEmpty ? tr("library.selectHint") : tr("library.selectedCount", ["n": String(selected.count)]))
                 .font(T.F.small())
                 .foregroundStyle(T.D.fgMuted)
             Spacer()

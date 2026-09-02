@@ -1,8 +1,8 @@
-<nav-bar title="上传队列" subtitle="{{projectName}}" show-back="{{true}}" scroll-top="{{scrollTop}}" />
+<nav-bar title="{{titleText}}" subtitle="{{projectName}}" show-back="{{true}}" scroll-top="{{scrollTop}}" />
 
 <view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
   <view class="status" wx:if="{{!sections.length}}">
-    <text class="status__text">这个项目还没有拍摄记录</text>
+    <text class="status__text">{{emptyText}}</text>
   </view>
 
   <view class="list" wx:else>
@@ -42,7 +42,7 @@
             data-id="{{item.clientMediaId}}"
             bindtap="onRetry"
           >
-            <text>重试</text>
+            <text>{{retryText}}</text>
           </view>
         </view>
         <view class="rule"></view>
@@ -52,6 +52,6 @@
 
   <!-- 队列只看当前项目，别的项目的未落盘件至少提一句 -->
   <view class="other" wx:if="{{otherPending > 0}}">
-    <text class="other__text">其他项目还有 {{otherPending}} 件未落盘，切换项目后可见。</text>
+    <text class="other__text">{{otherPendingText}}</text>
   </view>
 </view>

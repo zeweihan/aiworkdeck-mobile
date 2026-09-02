@@ -1,4 +1,4 @@
-<nav-bar title="登录" />
+<nav-bar title="{{navTitle}}" />
 
 <view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
 
@@ -9,7 +9,7 @@
 
   <view class="form">
     <view class="field">
-      <text class="field__label">手机号</text>
+      <text class="field__label">{{phoneLabel}}</text>
       <input
         class="field__input mono"
         type="number"
@@ -23,7 +23,7 @@
     <view class="rule"></view>
 
     <view class="field">
-      <text class="field__label">验证码</text>
+      <text class="field__label">{{codeLabel}}</text>
       <view class="field__row">
         <input
           class="field__input field__input--code mono"
@@ -49,7 +49,7 @@
     class="submit tappable {{submitDisabled ? 'submit--disabled' : ''}}"
     bindtap="onLogin"
   >
-    <text class="submit__text">{{loggingIn ? '登录中…' : '登录'}}</text>
+    <text class="submit__text">{{loggingIn ? '登录中…' : submitText}}</text>
   </view>
 
   <view class="footer">
