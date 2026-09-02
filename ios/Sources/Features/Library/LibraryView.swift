@@ -17,7 +17,15 @@ struct LibraryView: View {
     @State private var selecting = false
     @State private var selected: Set<UUID> = []
     @State private var confirmDelete = false
+    @State private var viewer: ViewerTarget?
     @State private var appeared = false
+
+    /// 全屏看大图的目标：同一天的件 + 起始下标。
+    private struct ViewerTarget: Identifiable {
+        let items: [CaptureItem]
+        let index: Int
+        var id: UUID { items[index].id }
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - 派生
@@ -60,6 +68,9 @@ struct LibraryView: View {
             if selecting { deleteDock } else { dock }
         }
         .onAppear { appeared = true }
+        .fullScreenCover(item: $viewer) { target in
+            ViewerView(items: target.items, index: target.index) { viewer = nil }
+        }
         // 用 alert 不用 confirmationDialog：后者在 iOS 26 模拟器上把「取消」画丢了，
         // 删除这种事两个按钮必须都看得见
         .alert("删除 \(selected.count) 件", isPresented: $confirmDelete) {
@@ -82,7 +93,7 @@ struct LibraryView: View {
             ForEach(days) { day in
                 Section {
                     ForEach(Array(day.items.enumerated()), id: \.element.id) { index, item in
-                        cell(item)
+                        cell(item, in: day)
                             .opacity(appeared || reduceMotion ? 1 : 0)
                             .offset(y: appeared || reduceMotion ? 0 : 10)
                             .animation(
@@ -100,7 +111,13 @@ struct LibraryView: View {
         .padding(.bottom, 130)
     }
 
-    private func cell(_ item: CaptureItem) -> some View {
+    /// 非选择态点一件 = 全屏看，左右滑同一天的其他件
+    private func open(_ item: CaptureItem, in day: LibraryGrouping.DaySection) {
+        guard let i = day.items.firstIndex(where: { $0.id == item.id }) else { return }
+        viewer = ViewerTarget(items: day.items, index: i)
+    }
+
+    private func cell(_ item: CaptureItem, in day: LibraryGrouping.DaySection) -> some View {
         let checked = selected.contains(item.id)
         return EvidenceThumb(item: item, onDark: true)
             .aspectRatio(1, contentMode: .fill)
@@ -128,7 +145,7 @@ struct LibraryView: View {
             }
             .overlay { if selecting { selectionMark(checked) } }
             .contentShape(Rectangle())
-            .onTapGesture { if selecting { toggle(item.id) } }
+            .onTapGesture { if selecting { toggle(item.id) } else { open(item, in: day) } }
             .accessibilityElement()
             .accessibilityLabel(
                 "\(kindLabel(item.kind))，\(RelativeTime.clock(item.capturedAt))，\(item.state.caption)"
@@ -163,7 +180,7 @@ struct LibraryView: View {
             ForEach(days) { day in
                 Section {
                     ForEach(day.items) { item in
-                        row(item)
+                        row(item, in: day)
                         Hairline(color: T.D.rule)
                     }
                 } header: {
@@ -175,7 +192,7 @@ struct LibraryView: View {
         .padding(.bottom, 130)
     }
 
-    private func row(_ item: CaptureItem) -> some View {
+    private func row(_ item: CaptureItem, in day: LibraryGrouping.DaySection) -> some View {
         let checked = selected.contains(item.id)
         return HStack(alignment: .top, spacing: T.Sp.s3) {
             if selecting {
@@ -211,7 +228,7 @@ struct LibraryView: View {
         .padding(.horizontal, T.Sp.gutter)
         .padding(.vertical, T.Sp.s3)
         .contentShape(Rectangle())
-        .onTapGesture { if selecting { toggle(item.id) } }
+        .onTapGesture { if selecting { toggle(item.id) } else { open(item, in: day) } }
     }
 
     private var emptyState: some View {

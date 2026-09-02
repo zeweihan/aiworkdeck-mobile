@@ -24,6 +24,9 @@ const KEY_VIEW = 'awd.gallery.view'
 
 interface Cell {
   clientMediaId: string
+  mediaType: QueueItem['mediaType']
+  /** 原件路径（留底路径或临时路径），全屏预览 / 播放用 */
+  filePath: string
   thumb: string
   kindIcon: string
   time: string
@@ -74,6 +77,9 @@ Page({
   unsubscribe: null as (() => void) | null,
   pollTimer: null as number | null,
   selected: new Set<string>(),
+  /** 正在播放的录音（同一时刻最多一条） */
+  audio: null as WechatMiniprogram.InnerAudioContext | null,
+  audioId: '',
 
   onLoad() {
     const app = getApp<AppGlobal>()
@@ -92,6 +98,7 @@ Page({
       clearInterval(this.pollTimer)
       this.pollTimer = null
     }
+    this.stopAudio()
   },
 
   onUnload() {
@@ -118,6 +125,8 @@ Page({
     const items = listItems(viewingId)
     const cells: Cell[] = items.map((it) => ({
       clientMediaId: it.clientMediaId,
+      mediaType: it.mediaType,
+      filePath: it.filePath,
       thumb: thumbFor(it),
       kindIcon: kindIcon(it.mediaType),
       time: formatTime(it.createdAt),
@@ -177,11 +186,79 @@ Page({
   },
 
   onTapCell(e: WechatMiniprogram.BaseEvent<WechatMiniprogram.IAnyObject, { id: string }>) {
-    if (!this.data.selecting) return
     const id = e.currentTarget.dataset.id
+    if (!this.data.selecting) {
+      this.openViewer(id)
+      return
+    }
     if (this.selected.has(id)) this.selected.delete(id)
     else this.selected.add(id)
     this.refresh()
+  },
+
+  // ---------- 全屏看大图：走系统接口（dev-board#387） ----------
+
+  /**
+   * 照片与录像用 wx.previewMedia：系统级全屏、左右滑同一天的其他件、缩放。
+   * 它显示不了状态与哈希——核对在列表视图里看；全屏页的任务是看清画面。
+   * 录音 previewMedia 不支持，用 InnerAudioContext 点播/点停。
+   */
+  openViewer(id: string) {
+    const day = this.data.days.find((d) => d.items.some((c) => c.clientMediaId === id))
+    const cell = day?.items.find((c) => c.clientMediaId === id)
+    if (!day || !cell) return
+
+    if (cell.mediaType === 'audio') {
+      this.toggleAudio(cell)
+      return
+    }
+    if (!cell.filePath) {
+      wx.showToast({ title: '原件已不在本机', icon: 'none' })
+      return
+    }
+    // previewMedia 最多 50 项；按同一天里能预览的件组
+    const sources = day.items
+      .filter((c) => c.mediaType !== 'audio' && c.filePath)
+      .slice(0, 50)
+      .map((c) => ({ url: c.filePath, type: c.mediaType as 'image' | 'video' }))
+    const current = Math.max(0, sources.findIndex((s) => s.url === cell.filePath))
+    wx.previewMedia({
+      sources,
+      current,
+      fail: () => wx.showToast({ title: '打不开这件影像', icon: 'none' }),
+    })
+  },
+
+  toggleAudio(cell: Cell) {
+    if (this.audio && this.audioId === cell.clientMediaId) {
+      this.stopAudio()
+      return
+    }
+    this.stopAudio()
+    if (!cell.filePath) {
+      wx.showToast({ title: '录音原件已不在本机', icon: 'none' })
+      return
+    }
+    const ctx = wx.createInnerAudioContext()
+    ctx.src = cell.filePath
+    ctx.onEnded(() => this.stopAudio())
+    ctx.onError(() => {
+      this.stopAudio()
+      wx.showToast({ title: '播放失败', icon: 'none' })
+    })
+    ctx.play()
+    this.audio = ctx
+    this.audioId = cell.clientMediaId
+    wx.showToast({ title: `播放 ${cell.time} 的录音，再点一次停止`, icon: 'none', duration: 2000 })
+  },
+
+  stopAudio() {
+    if (this.audio) {
+      this.audio.stop()
+      this.audio.destroy()
+      this.audio = null
+      this.audioId = ''
+    }
   },
 
   onDelete() {
