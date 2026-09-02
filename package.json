@@ -4,6 +4,7 @@
   "private": true,
   "description": "AI Workdeck 移动端：iOS 原生 + 微信小程序",
   "scripts": {
+    "prepare": "node scripts/install-hooks.mjs",
     "typecheck": "tsc --noEmit",
     "shot": "node scripts/screenshot.js",
     "test": "node --import ./scripts/node-ts-resolve.mjs --test \"tests/**/*.test.ts\"",
