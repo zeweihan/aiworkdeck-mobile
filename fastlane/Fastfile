@@ -311,6 +311,10 @@ platform :ios do
     flavor = (ENV["FLAVOR"] || "both").strip
     setup_ci   # 建临时 keychain 并设为默认（fastlane_tmp_keychain，空口令）
 
+    # 取构建号与进组都要走 ASC API 的 python 脚本，venv 先备好
+    sh("cd .. && test -x .venv/bin/python || " \
+       "(python3 -m venv .venv && .venv/bin/pip install --quiet pyjwt cryptography)")
+
     import_certificate(
       certificate_path: ENV.fetch("DIST_P12_PATH"),
       certificate_password: ENV.fetch("DIST_P12_PASSWORD"),
@@ -332,8 +336,9 @@ platform :ios do
 
     if %w[intl both].include?(flavor)
       key = asc_key
-      build = latest_testflight_build_number(
-        api_key: key, app_identifier: "com.aiworkdeck.mobile", initial_build_number: 0) + 1
+      # 不用 latest_testflight_build_number：它只看最新预发布版本下的构建，会漏号
+      # （2026-09-02 报 19 而 ASC 已有 20，上传撞 409 buildUpload INVALID_STATE）。
+      build = sh("cd .. && .venv/bin/python scripts/asc-next-build.py intl").strip.to_i
       UI.message("CI 国际版 #{marketing_version} (#{build})")
       sigh(api_key: key, app_identifier: "com.aiworkdeck.mobile",
            platform: "ios", output_path: "fastlane/profiles")
@@ -352,8 +357,6 @@ platform :ios do
       # 代价是 fastlane 传完即退、**不做分组**；而国际版的内部组
       # hasAccessToAllBuilds=false，构建不会自己进组——包在 ASC 里是 VALID 的，
       # TestFlight 里却一个都看不到（2026-08-18 与 09-02 各踩一次）。
-      sh("cd .. && test -x .venv/bin/python || " \
-         "(python3 -m venv .venv && .venv/bin/pip install --quiet pyjwt cryptography)")
       sh("cd .. && ASC_APP_ID=6802233845 ASC_KEY_ID=#{ENV.fetch('ASC_KEY_ID')} " \
          "ASC_ISSUER_ID=#{ENV.fetch('ASC_ISSUER_ID')} ASC_KEY_PATH=#{ENV.fetch('ASC_KEY_PATH')} " \
          ".venv/bin/python scripts/attach-build-to-group.py")
@@ -361,8 +364,7 @@ platform :ios do
 
     if %w[cn both].include?(flavor)
       key = asc_key_cn
-      build = latest_testflight_build_number(
-        api_key: key, app_identifier: "com.aiworkdeck.mobile.cn", initial_build_number: 0) + 1
+      build = sh("cd .. && .venv/bin/python scripts/asc-next-build.py cn").strip.to_i
       UI.message("CI 大陆版 #{marketing_version} (#{build})")
       build_app(
         project: "ios/Workdeck.xcodeproj", scheme: "WorkdeckCN", configuration: "Release",
