@@ -41,9 +41,10 @@ struct StatusDot: View {
 
     private var color: Color {
         switch state {
-        case .waiting: onDark ? T.S.waitingOnDark : T.S.waiting
-        // uploaded 仍在「路上」的语义族：进了中转区但还没到电脑，绿点会撒谎
-        case .moving, .uploaded: onDark ? T.S.movingOnDark : T.S.moving
+        // 排队与传输都是「还在手机上」：一个颜色，别让用户猜串行队列的内部细节
+        case .waiting, .moving: onDark ? T.S.waitingOnDark : T.S.waiting
+        // 已暂存：进了中转区但还没到电脑，绿点会撒谎
+        case .uploaded: onDark ? T.S.movingOnDark : T.S.moving
         case .arrived: onDark ? T.S.arrivedOnDark : T.S.arrived
         case .failed: T.S.failed
         }
