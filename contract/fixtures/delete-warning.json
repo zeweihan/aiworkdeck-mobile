@@ -1,0 +1,7 @@
+{ "cases": [
+  { "states": ["arrived", "arrived"],            "expect": { "level": "landed", "n": 2 } },
+  { "states": ["arrived", "uploaded"],           "expect": { "level": "staged", "n": 1 } },
+  { "states": ["uploaded", "failed", "waiting"], "expect": { "level": "unsent", "n": 2 } },
+  { "states": ["uploading"],                     "expect": { "level": "unsent", "n": 1 } },
+  { "states": [],                                "expect": { "level": "landed", "n": 0 } }
+] }

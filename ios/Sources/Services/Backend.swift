@@ -226,7 +226,7 @@ actor API {
 
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             let sc = (resp as? HTTPURLResponse)?.statusCode ?? -1
-            throw APIError(message: "上传失败（\(sc)）")
+            throw APIError(message: tr("error.uploadFailed", ["code": String(sc)]))
         }
         // 后端这条返回 {code,...}；code 非 0 也算失败
         if let env = try? JSONDecoder().decode(CodeOnly.self, from: data), env.code != 0 {

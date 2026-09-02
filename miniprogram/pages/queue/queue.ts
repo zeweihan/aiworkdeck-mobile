@@ -4,6 +4,7 @@ import { getSelectedProject } from '../../utils/api'
 import { listItems, otherPendingCount, subscribe, pollStatus, retry, type QueueItem } from '../../utils/queue'
 import { dotClass, phaseOf, projectId, stateText } from '../../utils/phase'
 import { thumbFor, markThumbBroken } from '../../utils/thumbs'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -157,10 +158,10 @@ Page({
     const all = listItems(pid)
     const pick = (f: (it: QueueItem) => boolean) => all.filter(f).map(toDisplayItem)
     const sections: Section[] = [
-      { title: '失败 · 需要处理', items: pick((it) => it.state === 'failed') },
-      { title: '上传中', items: pick((it) => it.state === 'waiting' || it.state === 'uploading') },
-      { title: '已暂存 · 等电脑取回', items: pick((it) => phaseOf(it.state) === 'staged') },
-      { title: '已落盘', items: pick((it) => phaseOf(it.state) === 'landed') },
+      { title: t('queue.section.failed'), items: pick((it) => it.state === 'failed') },
+      { title: t('queue.section.uploading'), items: pick((it) => it.state === 'waiting' || it.state === 'uploading') },
+      { title: t('queue.section.staged'), items: pick((it) => phaseOf(it.state) === 'staged') },
+      { title: t('queue.section.landed'), items: pick((it) => phaseOf(it.state) === 'landed') },
     ].filter((s) => s.items.length > 0)
     this.setData({ sections, projectName: project.name, otherPending: otherPendingCount(pid) })
   },

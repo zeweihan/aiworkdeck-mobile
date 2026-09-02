@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "required": ["cases"], "additionalProperties": false,
+  "properties": { "cases": { "type": "array", "minItems": 1, "items": {
+    "type": "object", "required": ["from", "event", "attempts", "to"], "additionalProperties": false,
+    "properties": {
+      "from": { "$ref": "#/$defs/state" },
+      "event": { "enum": ["kick", "http_2xx", "http_error", "network_error", "retry_manual", "retry_auto", "status_delivered", "status_pending", "app_launch"] },
+      "attempts": { "type": "integer", "minimum": 0 },
+      "to": { "oneOf": [{ "$ref": "#/$defs/state" }, { "type": "null" }] }
+    } } } },
+  "$defs": { "state": { "enum": ["waiting", "uploading", "uploaded", "arrived", "failed"] } }
+}

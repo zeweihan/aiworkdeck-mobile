@@ -2,6 +2,7 @@ import { myProjects, setSelectedProject, logout } from '../../utils/api'
 import type { ApiError, RelayProject } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
 import { Icon } from '../../utils/icons'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -32,6 +33,7 @@ function groupByDevice(list: RelayProject[]): ProjectGroup[] {
 Page({
   data: {
     Icon,
+    emptyText: t('empty.projects'),
     metrics: {} as Metrics,
     showBack: false,
     scrollTop: 0,

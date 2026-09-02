@@ -13,7 +13,8 @@ import { Icon } from '../../utils/icons'
 import type { Metrics } from '../../utils/layout'
 import { getSession, getSelectedProject, type RelayProject } from '../../utils/api'
 import { listItems, tallyFor, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
-import { dotClass, projectId, tallyTotal, type Tally } from '../../utils/phase'
+import { dotClass, projectId, tallyTotal, PHASE_LABEL, type Tally } from '../../utils/phase'
+import { t } from '../../utils/i18n'
 import { startRecording, stopRecording, isRecording } from '../../utils/recorder'
 import { thumbFor, setVideoThumb, markThumbBroken } from '../../utils/thumbs'
 
@@ -75,9 +76,11 @@ function watermarkTime(): string {
 Page({
   data: {
     Icon,
+    phaseLabel: PHASE_LABEL,
     metrics: {} as Metrics,
     project: { name: '', archivePath: '' },
     tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
+    failedSuffix: '',
     total: 0,
     recent: null as RecentDisplay | null,
     mode: 'photo' as CaptureMode,
@@ -202,7 +205,8 @@ Page({
         }
       : null
     const tally = tallyFor(pid)
-    this.setData({ tally, total: tallyTotal(tally), recent })
+    const failedSuffix = tally.failed > 0 ? t('tally.failedSuffix', { m: tally.failed }) : ''
+    this.setData({ tally, failedSuffix, total: tallyTotal(tally), recent })
   },
 
   // ---------- 水印（仅界面叠加，不写入影像文件） ----------

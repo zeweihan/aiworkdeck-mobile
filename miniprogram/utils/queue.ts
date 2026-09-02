@@ -10,9 +10,12 @@
  */
 
 import { ApiError, getSession, mediaStatus, uploadMedia, uuid, type RelayProject } from './api'
-import { projectId, tallyOf, type QueueState, type Tally } from './phase'
+import { projectId, tallyOf, type Tally } from './phase'
+import { recover, applyStatus } from './transition'
+import { t } from './i18n'
+import { RETRY_DELAYS_MS, MAX_AUTO_RETRIES, type QueueState } from './contract/states'
 
-export type { QueueState } from './phase'
+export type { QueueState } from './contract/states'
 
 const STORAGE_KEY = 'awd.queue'
 
@@ -185,11 +188,6 @@ export function enqueueCapture(
 
 let uploading = false
 
-/** 退避间隔（毫秒），按第几次失败取值；用完这些档位还失败就落到终态 failed。 */
-const RETRY_DELAYS_MS = [5000, 15000, 45000]
-/** 自动重试的次数上限；超过后落到终态 failed，只留手动 retry() 入口。 */
-const MAX_AUTO_RETRIES = RETRY_DELAYS_MS.length
-
 /** 失败后延迟回拨成 waiting 再续队列；不是忙循环。 */
 function scheduleRetry(clientMediaId: string, attempts: number): void {
   const delay = RETRY_DELAYS_MS[attempts - 1]
@@ -210,13 +208,8 @@ export function recoverOnLaunch(): void {
   const items = readItems()
   let changed = false
   for (const it of items) {
-    if (it.state === 'uploading') {
-      it.state = 'waiting'
-      changed = true
-    } else if (it.state === 'failed' && (it.attempts ?? 0) <= MAX_AUTO_RETRIES) {
-      it.state = 'waiting'
-      changed = true
-    }
+    const to = recover(it.state, it.attempts ?? 0)
+    if (to !== it.state) { it.state = to; changed = true }
   }
   if (changed) writeItems(items)
   if (getSession()) processQueue()
@@ -260,7 +253,7 @@ export function processQueue(): void {
       const attempts = (next.attempts ?? 0) + 1
       updateItem(next.clientMediaId, (it) => {
         it.state = 'failed'
-        it.errorMessage = e instanceof Error ? e.message : '上传失败'
+        it.errorMessage = e instanceof Error ? e.message : t('state.failed')
         it.attempts = attempts
       })
       if (attempts <= MAX_AUTO_RETRIES) {
@@ -313,17 +306,13 @@ export function pollStatus(): Promise<boolean> {
     for (const it of uploaded) {
       const status = byId.get(it.clientMediaId)
       if (!status) continue
-      if (status.delivered) {
-        updateItem(it.clientMediaId, (x) => {
-          x.state = 'arrived'
-        })
-      } else {
-        updateItem(it.clientMediaId, (x) => {
-          x.waitingSeconds = status.waitingSeconds
-          x.expiresAt = status.expiresAt
-        })
-        stillPending = true
-      }
+      const merged = applyStatus(it.state, status)
+      updateItem(it.clientMediaId, (x) => {
+        x.state = merged.state
+        if (merged.waitingSeconds === null) delete x.waitingSeconds; else x.waitingSeconds = merged.waitingSeconds
+        if (merged.expiresAt === null) delete x.expiresAt; else x.expiresAt = merged.expiresAt
+      })
+      if (merged.state === 'uploaded') stillPending = true
     }
 
     return stillPending

@@ -9,9 +9,10 @@ import type { Metrics } from '../../utils/layout'
 import { getSelectedProject } from '../../utils/api'
 import { listItems, removeItems, subscribe, pollStatus, type QueueItem } from '../../utils/queue'
 import {
-  deleteWarning, dotClass, groupByDay, projectsIn, stateText, tallyOf, type Tally,
+  deleteWarning, dotClass, groupByDay, projectsIn, stateText, tallyOf, PHASE_LABEL, type Tally,
 } from '../../utils/phase'
 import { thumbFor, markThumbBroken } from '../../utils/thumbs'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -61,17 +62,20 @@ function readView(): 'grid' | 'list' {
 Page({
   data: {
     Icon,
+    phaseLabel: PHASE_LABEL,
     metrics: {} as Metrics,
     scrollTop: 0,
     viewingId: '',
     viewingName: '',
     projects: [] as Array<{ id: string; name: string }>,
     tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
+    failedSuffix: '',
     days: [] as Array<{ key: string; title: string; items: Cell[] }>,
     cols: 3,
     view: 'grid' as 'grid' | 'list',
     selecting: false,
     selectedCount: 0,
+    deleteLabel: '',
   },
 
   unsubscribe: null as (() => void) | null,
@@ -137,13 +141,16 @@ Page({
       createdAt: it.createdAt,
       checked: this.selected.has(it.clientMediaId),
     }))
+    const tally = tallyOf(items)
     this.setData({
       projects,
       viewingId,
       viewingName,
-      tally: tallyOf(items),
+      tally,
+      failedSuffix: tally.failed > 0 ? t('tally.failedSuffix', { m: tally.failed }) : '',
       days: groupByDay(cells),
       selectedCount: this.selected.size,
+      deleteLabel: t('delete.title', { n: this.selected.size }),
     })
   },
 
@@ -268,7 +275,7 @@ Page({
       .filter((it) => this.selected.has(it.clientMediaId))
       .map((it) => it.state)
     wx.showModal({
-      title: `删除 ${ids.length} 件`,
+      title: t('delete.title', { n: ids.length }),
       content: deleteWarning(states),
       confirmText: '删除',
       confirmColor: '#B91C1C',

@@ -73,7 +73,7 @@ struct LibraryView: View {
         }
         // 用 alert 不用 confirmationDialog：后者在 iOS 26 模拟器上把「取消」画丢了，
         // 删除这种事两个按钮必须都看得见
-        .alert("删除 \(selected.count) 件", isPresented: $confirmDelete) {
+        .alert(tr("delete.title", ["n": String(selected.count)]), isPresented: $confirmDelete) {
             Button("删除", role: .destructive) {
                 let ids = Array(selected)
                 selected = []
@@ -133,7 +133,7 @@ struct LibraryView: View {
                     .padding(8)
             }
             .overlay(alignment: .bottom) {
-                if item.state == .moving {
+                if item.state == .uploading {
                     // 进度直接画在图上。单独开一栏进度条会把注意力从影像上拉走。
                     GeometryReader { geo in
                         Rectangle()
@@ -321,15 +321,15 @@ struct LibraryView: View {
 
     private var tallyRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
-            pill(tally.uploading, "上传中", T.S.waitingOnDark)
+            pill(tally.uploading, TransferPhase.uploading.caption, T.S.waitingOnDark)
             if tally.failed > 0 {
-                Text("含 \(tally.failed) 失败")
+                Text(tr("tally.failedSuffix", ["m": String(tally.failed)]))
                     .font(T.F.nano())
                     .foregroundStyle(T.S.failed)
                     .padding(.trailing, T.Sp.s2)
             }
-            pill(tally.staged, "已暂存", T.S.movingOnDark)
-            pill(tally.landed, "已落盘", T.S.arrivedOnDark)
+            pill(tally.staged, TransferPhase.staged.caption, T.S.movingOnDark)
+            pill(tally.landed, TransferPhase.landed.caption, T.S.arrivedOnDark)
         }
         .accessibilityElement(children: .combine)
     }
@@ -423,7 +423,7 @@ struct LibraryView: View {
             Button {
                 confirmDelete = true
             } label: {
-                Text("删除 \(selected.count) 件")
+                Text(tr("delete.title", ["n": String(selected.count)]))
                     .font(T.F.small())
                     .foregroundStyle(.white)
                     .padding(.horizontal, T.Sp.s4)

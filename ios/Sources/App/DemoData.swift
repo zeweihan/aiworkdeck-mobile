@@ -23,7 +23,7 @@ enum DemoData {
         let spec: [(MediaKind, TransferState, Int, Double)] = [
             (.photo, .arrived, 60, 1),
             (.photo, .arrived, 120, 1),
-            (.video, .moving, 240, 0.62),
+            (.video, .uploading, 240, 0.62),
             (.photo, .waiting, 300, 0),
             (.video, .waiting, 420, 0),
             (.photo, .arrived, 700, 1),

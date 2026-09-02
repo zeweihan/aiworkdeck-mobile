@@ -4,7 +4,7 @@ import XCTest
 final class TransferPhaseTests: XCTestCase {
     func testPhaseMapping() {
         XCTAssertEqual(TransferState.waiting.phase, .uploading)
-        XCTAssertEqual(TransferState.moving.phase, .uploading)
+        XCTAssertEqual(TransferState.uploading.phase, .uploading)
         XCTAssertEqual(TransferState.failed.phase, .uploading)
         XCTAssertEqual(TransferState.uploaded.phase, .staged)
         XCTAssertEqual(TransferState.arrived.phase, .landed)
@@ -16,13 +16,15 @@ final class TransferPhaseTests: XCTestCase {
         XCTAssertEqual(TransferPhase.landed.caption, "已落盘")
         XCTAssertEqual(TransferState.failed.caption, "上传失败")
         XCTAssertEqual(TransferState.waiting.caption, "上传中")
+        // caption 是短形式（state.uploaded），长句「已暂存 · 等待桌面端接收」在 detail 里。
         XCTAssertEqual(TransferState.uploaded.caption, "已暂存")
+        XCTAssertEqual(TransferState.uploaded.detail, "已暂存 · 等待桌面端接收")
         XCTAssertEqual(TransferState.arrived.caption, "已落盘")
     }
 
     func testTallyCountsFailedInsideUploading() {
         let items = [
-            TestItems.make(.waiting), TestItems.make(.failed), TestItems.make(.moving),
+            TestItems.make(.waiting), TestItems.make(.failed), TestItems.make(.uploading),
             TestItems.make(.uploaded), TestItems.make(.arrived), TestItems.make(.arrived),
         ]
         let t = TransferTally.of(items)

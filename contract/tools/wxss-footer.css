@@ -1,0 +1,18 @@
+/* 全大写小标签。字距拉开是这套排版的签名，别改。 */
+.label {
+  font-size: var(--t-nano);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  font-weight: 500;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  height: 1rpx;
+  background: var(--rule);
+}

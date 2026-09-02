@@ -1,0 +1,18 @@
+{ "cases": [
+  { "from": "waiting",   "event": "kick",             "attempts": 0, "to": "uploading" },
+  { "from": "uploading", "event": "http_2xx",         "attempts": 0, "to": "uploaded" },
+  { "from": "uploading", "event": "http_error",       "attempts": 0, "to": "failed" },
+  { "from": "uploading", "event": "network_error",    "attempts": 1, "to": "failed" },
+  { "from": "failed",    "event": "retry_manual",     "attempts": 9, "to": "waiting" },
+  { "from": "failed",    "event": "retry_auto",       "attempts": 3, "to": "waiting" },
+  { "from": "failed",    "event": "retry_auto",       "attempts": 4, "to": "failed" },
+  { "from": "uploaded",  "event": "status_delivered", "attempts": 0, "to": "arrived" },
+  { "from": "uploaded",  "event": "status_pending",   "attempts": 0, "to": "uploaded" },
+  { "from": "uploading", "event": "app_launch",       "attempts": 0, "to": "waiting" },
+  { "from": "failed",    "event": "app_launch",       "attempts": 2, "to": "waiting" },
+  { "from": "failed",    "event": "app_launch",       "attempts": 4, "to": "failed" },
+  { "from": "arrived",   "event": "kick",             "attempts": 0, "to": null },
+  { "from": "waiting",   "event": "http_2xx",         "attempts": 0, "to": null },
+  { "from": "uploaded",  "event": "kick",             "attempts": 0, "to": null },
+  { "from": "arrived",   "event": "status_delivered", "attempts": 0, "to": null }
+] }

@@ -1,0 +1,7 @@
+{ "cases": [
+  { "name": "mixed", "states": ["waiting", "failed", "uploading", "uploaded", "arrived", "arrived"],
+    "expect": { "uploading": 3, "failed": 1, "staged": 1, "landed": 2, "total": 6 } },
+  { "name": "empty", "states": [], "expect": { "uploading": 0, "failed": 0, "staged": 0, "landed": 0, "total": 0 } },
+  { "name": "all failed", "states": ["failed", "failed"], "expect": { "uploading": 2, "failed": 2, "staged": 0, "landed": 0, "total": 2 } },
+  { "name": "only staged", "states": ["uploaded", "uploaded", "uploaded"], "expect": { "uploading": 0, "failed": 0, "staged": 3, "landed": 0, "total": 3 } }
+] }

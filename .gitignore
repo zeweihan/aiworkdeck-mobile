@@ -41,3 +41,5 @@ fastlane/screenshots/
 
 # 会话交接文件，含凭据类内容，公开仓绝不能收
 .remember/
+
+.claude/worktrees/

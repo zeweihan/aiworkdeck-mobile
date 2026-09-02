@@ -1,61 +1,61 @@
 import Foundation
 
-/// 一张影像在「拍摄 → 抵达电脑」这条链上的位置。
-/// 这是整个 App 的主线叙事，界面上所有状态表达都从这里派生。
+/// 一张影像在「拍摄 → 抵达电脑」这条链上的位置。名称、别名、映射、文案键全部来自 contract/（ContractStates）。
 enum TransferState: String, Codable, Sendable, CaseIterable {
-    /// 在手机上，还没开始传
-    case waiting
-    /// 正在上传到中转区
-    case moving
-    /// 已进中转区，等桌面端取回（桌面端不开着就一直停在这）
-    case uploaded
-    /// 桌面端已确认落盘，中转区已删除
-    case arrived
-    case failed
+    case waiting, uploading, uploaded, arrived, failed
 
-    var caption: String {
-        switch self {
-        case .waiting, .moving: "上传中"
-        case .uploaded: "已暂存"
-        case .arrived: "已落盘"
-        case .failed: "上传失败"
+    /// 旧版本落盘的 `moving` 按契约别名解码为 uploading；编码始终用正式名。
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        let canonical = ContractStates.aliases[raw] ?? raw
+        guard let s = TransferState(rawValue: canonical) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "未知状态 \(raw)"))
         }
+        self = s
     }
 
-    /// 展示层三段。内部五态是状态机与存储契约，界面上只说三段：
-    /// 在手机上（含排队、传输、失败）/ 在云端等电脑 / 已在电脑上。
-    var phase: TransferPhase {
-        switch self {
-        case .waiting, .moving, .failed: .uploading
-        case .uploaded: .staged
-        case .arrived: .landed
-        }
+    /// 短形式，行标签用。长形式见 detail。
+    var caption: String { tr(ContractStates.stateTextKey[rawValue]!) }
+    /// 长形式，有空间的行用（uploaded 出「已暂存 · 等待桌面端接收」）。
+    var detail: String { tr(ContractStates.stateDetailKey[rawValue]!) }
+    var whereItIs: String { tr(ContractStates.whereKey[rawValue]!) }
+    var phase: TransferPhase { TransferPhase(rawValue: ContractStates.phaseOf[rawValue]!)! }
+
+    /// 迁移表驱动。无规则 → nil（非法迁移）；有规则但 guard 不满足 → 原态。
+    func next(_ event: TransferEvent, attempts: Int = 0) -> TransferState? {
+        let rules = ContractStates.transitions.filter { $0.from == rawValue && $0.event == event.rawValue }
+        if rules.isEmpty { return nil }
+        for r in rules where TransferState.guardOK(r.guard, attempts: attempts) { return TransferState(rawValue: r.to)! }
+        return self
     }
 
-    /// 「已上传」与「已抵达」是两回事：前者只保证进了中转区，
-    /// 后者是桌面端确认落盘的回执（ACK 后中转区即删）。
-    /// 桌面端是 Electron，关掉就不取件——uploaded 停多久都是真实状态，不要装成 arrived。
-    var whereItIs: String {
-        switch self {
-        case .waiting: "在手机上"
-        case .moving: "在路上"
-        case .uploaded: "在中转区，等电脑取回"
-        case .arrived: "在你电脑上"
-        case .failed: "需重试"
-        }
+    /// 冷启动回拨 = app_launch 事件。iOS 暂无 attempts 计数，调用方传 0。
+    func recovered(attempts: Int = 0) -> TransferState { next(.appLaunch, attempts: attempts) ?? self }
+
+    /// status 轮询只对 uploaded 有意义；delivered 清掉等待字段，pending 回填。
+    func applyingStatus(delivered: Bool, waitingSeconds: Int64, expiresAt: String?)
+        -> (state: TransferState, waitingSeconds: Int64?, expiresAt: String?) {
+        guard self == .uploaded else { return (self, nil, nil) }
+        if delivered { return (next(.statusDelivered) ?? self, nil, nil) }
+        return (next(.statusPending) ?? self, waitingSeconds, expiresAt)
     }
+
+    private static func guardOK(_ g: String?, attempts: Int) -> Bool {
+        guard let g else { return true }
+        if g == "attempts <= maxAutoRetries" { return attempts <= ContractStates.maxAutoRetries }
+        preconditionFailure("未知 guard: \(g)")
+    }
+}
+
+enum TransferEvent: String, Sendable {
+    case kick, http2xx = "http_2xx", httpError = "http_error", networkError = "network_error"
+    case retryManual = "retry_manual", retryAuto = "retry_auto"
+    case statusDelivered = "status_delivered", statusPending = "status_pending", appLaunch = "app_launch"
 }
 
 enum TransferPhase: String, CaseIterable, Sendable {
     case uploading, staged, landed
-
-    var caption: String {
-        switch self {
-        case .uploading: "上传中"
-        case .staged: "已暂存"
-        case .landed: "已落盘"
-        }
-    }
+    var caption: String { tr(ContractStates.phaseLabelKey[rawValue]!) }
 }
 
 enum MediaKind: String, Codable, Sendable {
@@ -96,7 +96,7 @@ struct CaptureItem: Identifiable, Sendable {
     let manifest: CaptureManifest
     /// 应用沙盒内的原图路径。不进系统相册 —— 手机丢了、相册被翻，尽调材料不在里面。
     let localURL: URL
-    /// 上传进度 0...1，仅 .moving 时有意义
+    /// 上传进度 0...1，仅 .uploading 时有意义
     var progress: Double
     /// 上次失败原因。队列页要显示「为什么失败」——只给一个红点，
     /// 用户既不知道该重试还是该找人，也不知道是自己网络的问题还是我们的问题。
