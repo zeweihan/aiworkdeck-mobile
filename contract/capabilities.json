@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "clients": ["ios", "miniprogram", "android", "harmony"],
+  "capabilities": {
+    "backgroundUpload":   { "ios": true,  "miniprogram": false,     "android": true,  "harmony": true,
+                            "degradedNotice": "cap.noBackgroundUpload" },
+    "maxVideoSeconds":    { "ios": null,  "miniprogram": 60,        "android": null,  "harmony": null },
+    "continuousSegments": { "ios": false, "miniprogram": true,      "android": false, "harmony": false,
+                            "degradedNotice": "cap.segmentedRecording" },
+    "glassBlur":          { "ios": true,  "miniprogram": "runtime", "android": "runtime", "harmony": true },
+    "deviceAttestation":  { "ios": true,  "miniprogram": false,     "android": false, "harmony": false }
+  }
+}

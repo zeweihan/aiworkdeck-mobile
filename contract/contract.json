@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "files": {
+    "transfer-state.json": "88c5027a426e8c6b3250a40bc338c4634f02262f0fe42751dd7adf99ef5958af",
+    "strings.json": "dd84391b959d70feb90d23142c3e22035c4911efe9bcb7cea2ea0cebf297eeea",
+    "tokens.json": "9344377f9efcd6b0924bb43bbd0111e230900cbcd8cddcad3937044b1c35a136",
+    "capabilities.json": "0c78effcfe0f7a053798b50fcde9f1ca2fb38df026d7dc9f86963e9681759775"
+  }
+}

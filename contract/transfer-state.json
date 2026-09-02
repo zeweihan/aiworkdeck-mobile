@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "states": ["waiting", "uploading", "uploaded", "arrived", "failed"],
+  "aliases": { "moving": "uploading" },
+  "phases": {
+    "uploading": { "states": ["waiting", "uploading", "failed"], "label": "phase.uploading", "dot": "S.waiting" },
+    "staged":    { "states": ["uploaded"], "label": "phase.staged", "dot": "S.moving" },
+    "landed":    { "states": ["arrived"],  "label": "phase.landed", "dot": "S.arrived" }
+  },
+  "failedDot": "S.failed",
+  "stateText": {
+    "waiting": "state.uploading",
+    "uploading": "state.uploading",
+    "failed": "state.failed",
+    "uploaded": "state.uploaded.detail",
+    "arrived": "state.landed"
+  },
+  "whereItIs": {
+    "waiting": "where.waiting",
+    "uploading": "where.uploading",
+    "uploaded": "where.uploaded",
+    "arrived": "where.arrived",
+    "failed": "where.failed"
+  },
+  "retryDelaysMs": [5000, 15000, 45000],
+  "maxAutoRetries": 3,
+  "events": ["kick", "http_2xx", "http_error", "network_error", "retry_manual", "retry_auto", "status_delivered", "status_pending", "app_launch"],
+  "transitions": [
+    { "from": "waiting",   "event": "kick",             "to": "uploading" },
+    { "from": "uploading", "event": "http_2xx",         "to": "uploaded" },
+    { "from": "uploading", "event": "http_error",       "to": "failed" },
+    { "from": "uploading", "event": "network_error",    "to": "failed" },
+    { "from": "failed",    "event": "retry_manual",     "to": "waiting" },
+    { "from": "failed",    "event": "retry_auto",       "to": "waiting", "guard": "attempts <= maxAutoRetries" },
+    { "from": "uploaded",  "event": "status_delivered", "to": "arrived" },
+    { "from": "uploaded",  "event": "status_pending",   "to": "uploaded" },
+    { "from": "uploading", "event": "app_launch",       "to": "waiting" },
+    { "from": "failed",    "event": "app_launch",       "to": "waiting", "guard": "attempts <= maxAutoRetries" }
+  ],
+  "deleteWarning": {
+    "order": ["uploading", "staged", "landed"],
+    "levels": { "uploading": "unsent", "staged": "staged", "landed": "landed" },
+    "keys": { "unsent": "delete.warn.unsent", "staged": "delete.warn.staged", "landed": "delete.warn.landed" }
+  }
+}
