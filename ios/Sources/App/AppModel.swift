@@ -139,12 +139,11 @@ final class AppModel {
     private func seedForScreenshots() {
         account = AccountUser(id: 1, username: "demo", displayName: "演示账号",
                               avatarUrl: "", role: "USER")
-        let p = RelayProject(deviceId: "demo-mac", deviceName: "MacBook Pro",
-                             key: "p-1", name: DemoData.project.name)
-        selectedProject = p
+        // 项目要和 DemoData.recent 里每件记的项目一致：计数与图集现在都按件内项目派生，
+        // 对不上就是一屏「0 / 0 / 0」
+        selectedProject = DemoData.relay
         project = DemoData.project
         items = DemoData.recent
-        tally = DemoData.tally
         link = DemoData.link
         didRestore = true
     }
