@@ -60,10 +60,9 @@ struct LibraryView: View {
             if selecting { deleteDock } else { dock }
         }
         .onAppear { appeared = true }
-        .confirmationDialog(
-            LibraryGrouping.deleteWarning(for: selectedItems),
-            isPresented: $confirmDelete, titleVisibility: .visible
-        ) {
+        // 用 alert 不用 confirmationDialog：后者在 iOS 26 模拟器上把「取消」画丢了，
+        // 删除这种事两个按钮必须都看得见
+        .alert("删除 \(selected.count) 件", isPresented: $confirmDelete) {
             Button("删除", role: .destructive) {
                 let ids = Array(selected)
                 selected = []
@@ -71,6 +70,8 @@ struct LibraryView: View {
                 Task { await model.delete(ids: ids) }
             }
             Button("取消", role: .cancel) {}
+        } message: {
+            Text(LibraryGrouping.deleteWarning(for: selectedItems))
         }
     }
 

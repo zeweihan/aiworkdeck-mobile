@@ -28,7 +28,7 @@
         ↓  云端中转区：只存密文，7 天 TTL 兜底
   桌面端上线后拉取 → 解密 → 落到 localRoot
         ↓  桌面端 ACK 确认落盘 → 云端立即删除
-  手机端标记「已抵达」，提示可清理本地原图
+  手机端标记「已落盘」（界面三段：上传中 / 已暂存 / 已落盘），本地原图不自动删，图集里手动删
 ```
 
 删除由 **ACK 触发**，不由时间触发。7 天 TTL 只是兜底，两个机制不能混。
@@ -80,8 +80,10 @@ miniprogram/
   utils/layout.ts        顶部/底部安全区度量，全局算一次
   utils/capability.ts    毛玻璃能力探测
   utils/icons.ts         SVG 图标（内联 data URI，不用 emoji）
-  components/nav-bar/    自定义导航栏
+  components/nav-bar/    自定义导航栏（dark 属性给深色页）
+  utils/phase.ts         传输阶段展示层：三段映射 / 计数 / 按日分段 / 删除文案（纯函数，tests/ 里有单测）
   pages/
+    gallery/             图集：按项目看、按日分段、列数 / 视图切换、多选删除
 ios/                     SwiftUI（待建）
 docs/specs/              设计文档
 ```
