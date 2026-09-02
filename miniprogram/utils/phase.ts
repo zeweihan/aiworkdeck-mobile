@@ -2,8 +2,8 @@
  * 传输阶段的展示层 —— 纯函数，不碰 wx。名称与文案全部来自 contract/（生成物在 ./contract/）。
  */
 import {
-  PHASE_OF, PHASE_LABEL_KEY, PHASE_DOT, FAILED_DOT, STATE_TEXT_KEY, DELETE_WARN_ORDER, DELETE_WARN_LEVEL,
-  DELETE_WARN_KEY, type QueueState, type Phase,
+  PHASE_OF, PHASE_LABEL_KEY, PHASE_DOT, FAILED_DOT, STATE_TEXT_KEY, STATE_DETAIL_KEY, DELETE_WARN_ORDER,
+  DELETE_WARN_LEVEL, DELETE_WARN_KEY, type QueueState, type Phase,
 } from './contract/states'
 import { t } from './i18n'
 
@@ -19,7 +19,13 @@ export function phaseOf(state: QueueState): Phase {
   return PHASE_OF[state]
 }
 
+/** 长形式：给有空间的行用（uploaded 出「已暂存 · 等待桌面端接收」）。 */
 export function stateText(state: QueueState): string {
+  return t(STATE_DETAIL_KEY[state])
+}
+
+/** 短形式：给窄行标签用（uploaded 只出「已暂存」）。 */
+export function stateShortText(state: QueueState): string {
   return t(STATE_TEXT_KEY[state])
 }
 

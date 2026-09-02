@@ -14,7 +14,10 @@ enum TransferState: String, Codable, Sendable, CaseIterable {
         self = s
     }
 
+    /// 短形式，行标签用。长形式见 detail。
     var caption: String { tr(ContractStates.stateTextKey[rawValue]!) }
+    /// 长形式，有空间的行用（uploaded 出「已暂存 · 等待桌面端接收」）。
+    var detail: String { tr(ContractStates.stateDetailKey[rawValue]!) }
     var whereItIs: String { tr(ContractStates.whereKey[rawValue]!) }
     var phase: TransferPhase { TransferPhase(rawValue: ContractStates.phaseOf[rawValue]!)! }
 

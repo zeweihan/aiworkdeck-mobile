@@ -12,6 +12,13 @@
     "waiting": "state.uploading",
     "uploading": "state.uploading",
     "failed": "state.failed",
+    "uploaded": "state.uploaded",
+    "arrived": "state.landed"
+  },
+  "stateDetail": {
+    "waiting": "state.uploading",
+    "uploading": "state.uploading",
+    "failed": "state.failed",
     "uploaded": "state.uploaded.detail",
     "arrived": "state.landed"
   },

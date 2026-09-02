@@ -94,6 +94,9 @@ backend/src/test/java/.../MobileApiContractTest.java  MockMvc 打每个端点，
 计数：`{ uploading, failed, staged, landed }`，`failed ⊆ uploading`。展示
 「N 上传中（含 M 失败）」，M 为 0 不显示括号。**计数只数当前项目**。
 
+单件文案有两份映射：`stateText` 是短形式，给窄的行标签用（`uploaded` → 「已暂存」）；
+`stateDetail` 是长形式，给有空间的行用（`uploaded` → 「已暂存 · 等待桌面端接收」），其余状态两者同键。
+
 令牌名 `S.waiting / S.moving / S.arrived` 不改（PR #15 决定），契约里用 `dot` 字段显式记桶到令牌的映射。
 
 ### 3.3 迁移

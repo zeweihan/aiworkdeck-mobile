@@ -33,6 +33,13 @@ export const ContractStates = {
     "waiting": "state.uploading",
     "uploading": "state.uploading",
     "failed": "state.failed",
+    "uploaded": "state.uploaded",
+    "arrived": "state.landed"
+  },
+  "stateDetailKey": {
+    "waiting": "state.uploading",
+    "uploading": "state.uploading",
+    "failed": "state.failed",
     "uploaded": "state.uploaded.detail",
     "arrived": "state.landed"
   },

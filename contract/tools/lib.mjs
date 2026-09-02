@@ -83,6 +83,7 @@ export const PHASE_LABEL_KEY: Record<Phase, string> = ${q(Object.fromEntries(Obj
 export const PHASE_DOT: Record<Phase, string> = ${q(Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.dot])))}
 export const FAILED_DOT = ${q(s.failedDot)}
 export const STATE_TEXT_KEY: Record<QueueState, string> = ${q(s.stateText)}
+export const STATE_DETAIL_KEY: Record<QueueState, string> = ${q(s.stateDetail)}
 export const WHERE_KEY: Record<QueueState, string> = ${q(s.whereItIs)}
 export const RETRY_DELAYS_MS: readonly number[] = ${q(s.retryDelaysMs)}
 export const MAX_AUTO_RETRIES = ${s.maxAutoRetries}
@@ -146,6 +147,7 @@ function renderSwiftStates(c) {
     static let phaseDot: [String: String] = ${swiftDict(Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.dot])))}
     static let failedDot = ${q(s.failedDot)}
     static let stateTextKey: [String: String] = ${swiftDict(s.stateText)}
+    static let stateDetailKey: [String: String] = ${swiftDict(s.stateDetail)}
     static let whereKey: [String: String] = ${swiftDict(s.whereItIs)}
     static let retryDelaysMs: [Int] = ${q(s.retryDelaysMs)}
     static let maxAutoRetries = ${s.maxAutoRetries}
@@ -216,6 +218,7 @@ object ContractStates {
     val phaseDot: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.dot])))}
     const val failedDot: String = ${q(s.failedDot)}
     val stateTextKey: Map<String, String> = ${ktMap(s.stateText)}
+    val stateDetailKey: Map<String, String> = ${ktMap(s.stateDetail)}
     val whereKey: Map<String, String> = ${ktMap(s.whereItIs)}
     val retryDelaysMs: List<Int> = listOf(${s.retryDelaysMs.join(', ')})
     const val maxAutoRetries: Int = ${s.maxAutoRetries}
@@ -264,7 +267,7 @@ function renderEtsStates(c) {
     phaseOf: Object.fromEntries(Object.entries(s.phases).flatMap(([p, v]) => v.states.map((st) => [st, p]))),
     phaseLabelKey: Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.label])),
     phaseDot: Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.dot])),
-    failedDot: s.failedDot, stateTextKey: s.stateText, whereKey: s.whereItIs,
+    failedDot: s.failedDot, stateTextKey: s.stateText, stateDetailKey: s.stateDetail, whereKey: s.whereItIs,
     retryDelaysMs: s.retryDelaysMs, maxAutoRetries: s.maxAutoRetries, events: s.events, transitions: s.transitions,
     deleteWarnOrder: s.deleteWarning.order, deleteWarnLevel: s.deleteWarning.levels, deleteWarnKey: s.deleteWarning.keys,
   }, null, 2)} as const

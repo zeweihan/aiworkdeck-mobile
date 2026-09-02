@@ -7,7 +7,8 @@ enum ContractStates {
     static let phaseLabelKey: [String: String] = ["uploading": "phase.uploading", "staged": "phase.staged", "landed": "phase.landed"]
     static let phaseDot: [String: String] = ["uploading": "S.waiting", "staged": "S.moving", "landed": "S.arrived"]
     static let failedDot = "S.failed"
-    static let stateTextKey: [String: String] = ["waiting": "state.uploading", "uploading": "state.uploading", "failed": "state.failed", "uploaded": "state.uploaded.detail", "arrived": "state.landed"]
+    static let stateTextKey: [String: String] = ["waiting": "state.uploading", "uploading": "state.uploading", "failed": "state.failed", "uploaded": "state.uploaded", "arrived": "state.landed"]
+    static let stateDetailKey: [String: String] = ["waiting": "state.uploading", "uploading": "state.uploading", "failed": "state.failed", "uploaded": "state.uploaded.detail", "arrived": "state.landed"]
     static let whereKey: [String: String] = ["waiting": "where.waiting", "uploading": "where.uploading", "uploaded": "where.uploaded", "arrived": "where.arrived", "failed": "where.failed"]
     static let retryDelaysMs: [Int] = [5000,15000,45000]
     static let maxAutoRetries = 3

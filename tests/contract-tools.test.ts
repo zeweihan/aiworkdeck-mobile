@@ -38,6 +38,7 @@ test('状态机引用闭合', () => {
   assert.deepEqual([...covered].sort(), [...states].sort(), '每个状态必须恰属一个桶')
   for (const s of state.states) {
     assert.ok(strings[state.stateText[s]], `stateText[${s}] 文案键不存在`)
+    assert.ok(strings[state.stateDetail[s]], `stateDetail[${s}] 文案键不存在`)
     assert.ok(strings[state.whereItIs[s]], `whereItIs[${s}] 文案键不存在`)
   }
   for (const t of state.transitions) {

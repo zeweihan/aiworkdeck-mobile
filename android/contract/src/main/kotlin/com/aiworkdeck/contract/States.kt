@@ -11,7 +11,8 @@ object ContractStates {
     val phaseLabelKey: Map<String, String> = mapOf("uploading" to "phase.uploading", "staged" to "phase.staged", "landed" to "phase.landed")
     val phaseDot: Map<String, String> = mapOf("uploading" to "S.waiting", "staged" to "S.moving", "landed" to "S.arrived")
     const val failedDot: String = "S.failed"
-    val stateTextKey: Map<String, String> = mapOf("waiting" to "state.uploading", "uploading" to "state.uploading", "failed" to "state.failed", "uploaded" to "state.uploaded.detail", "arrived" to "state.landed")
+    val stateTextKey: Map<String, String> = mapOf("waiting" to "state.uploading", "uploading" to "state.uploading", "failed" to "state.failed", "uploaded" to "state.uploaded", "arrived" to "state.landed")
+    val stateDetailKey: Map<String, String> = mapOf("waiting" to "state.uploading", "uploading" to "state.uploading", "failed" to "state.failed", "uploaded" to "state.uploaded.detail", "arrived" to "state.landed")
     val whereKey: Map<String, String> = mapOf("waiting" to "where.waiting", "uploading" to "where.uploading", "uploaded" to "where.uploaded", "arrived" to "where.arrived", "failed" to "where.failed")
     val retryDelaysMs: List<Int> = listOf(5000, 15000, 45000)
     const val maxAutoRetries: Int = 3

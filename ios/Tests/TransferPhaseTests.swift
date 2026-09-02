@@ -16,9 +16,9 @@ final class TransferPhaseTests: XCTestCase {
         XCTAssertEqual(TransferPhase.landed.caption, "已落盘")
         XCTAssertEqual(TransferState.failed.caption, "上传失败")
         XCTAssertEqual(TransferState.waiting.caption, "上传中")
-        // 契约里 state.uploaded 的展示文案是长句「已暂存 · 等待桌面端接收」（小程序同款），
-        // 与三段标签 phase.staged 的「已暂存」不是同一个键。
-        XCTAssertEqual(TransferState.uploaded.caption, tr("state.uploaded.detail"))
+        // caption 是短形式（state.uploaded），长句「已暂存 · 等待桌面端接收」在 detail 里。
+        XCTAssertEqual(TransferState.uploaded.caption, "已暂存")
+        XCTAssertEqual(TransferState.uploaded.detail, "已暂存 · 等待桌面端接收")
         XCTAssertEqual(TransferState.arrived.caption, "已落盘")
     }
 
