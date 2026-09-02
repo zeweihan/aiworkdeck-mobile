@@ -12,6 +12,8 @@ Component({
     title: { type: String, value: '' },
     subtitle: { type: String, value: '' },
     showBack: { type: Boolean, value: false },
+    /** 深色页（图集）用：底色与文字翻成 --dk-* 令牌 */
+    dark: { type: Boolean, value: false },
     /** 页面滚动距离，由页面透传。超过阈值才显示底部分隔线。 */
     scrollTop: { type: Number, value: 0 },
   },
