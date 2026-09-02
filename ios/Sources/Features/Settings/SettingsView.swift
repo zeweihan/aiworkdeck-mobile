@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @State private var confirmDelete = false
+    @State private var deleting = false
+    @State private var deleteError: String?
     var onClose: () -> Void
 
     @State private var saveToAlbum = Prefs.saveToAlbum
@@ -59,6 +62,14 @@ struct SettingsView: View {
                             .font(T.F.small())
                             .foregroundStyle(T.S.failed)
                             .frame(minHeight: T.touchMin, alignment: .leading)
+
+                        // 审核指南 5.1.1(v)：支持注册就必须在 App 内能删账号。
+                        // 放在退出登录下面、字号更小，是因为它比退出重得多，
+                        // 不该跟退出长得一样容易误点。
+                        Button("注销账号") { confirmDelete = true }
+                            .font(T.F.micro())
+                            .foregroundStyle(T.L.fgMuted)
+                            .frame(minHeight: T.touchMin, alignment: .leading)
                     }
 
                     group("关于") {
@@ -77,6 +88,43 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("关闭", action: onClose) }
             }
+            // 不可逆，所以用 alert 而不是直接执行；文案要把「删什么、不删什么」
+            // 都说全——只写「无法恢复」等于没说清代价。
+            .alert("注销账号？", isPresented: $confirmDelete) {
+                Button("取消", role: .cancel) {}
+                Button("注销", role: .destructive) { Task { await runDelete() } }
+            } message: {
+                Text("将删除云端的账号、待取回的影像、项目目录与设备记录，无法恢复。\n\n"
+                     + "已存在这台手机上的原图不会被删除——现场不可复现，是否清理由你决定。")
+            }
+            .alert("注销失败", isPresented: Binding(
+                get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+                Button("好", role: .cancel) { deleteError = nil }
+            } message: {
+                Text(deleteError ?? "")
+            }
+            .overlay {
+                if deleting {
+                    ZStack {
+                        Color.black.opacity(0.25).ignoresSafeArea()
+                        ProgressView("正在注销")
+                    }
+                }
+            }
+        }
+    }
+
+    /// 注销成功后直接关掉设置页——账号没了，停在这一页没有意义，
+    /// RootView 会因为 account 变 nil 自己回到登录页。
+    private func runDelete() async {
+        deleting = true
+        do {
+            try await model.deleteAccount()
+            deleting = false
+            onClose()
+        } catch {
+            deleting = false
+            deleteError = error.localizedDescription
         }
     }
 

@@ -1,14 +1,34 @@
 import SwiftUI
 
-/// 首屏登录：手机号 + 验证码。注册与登录合一——号码没见过后端就建号，
-/// 所以界面上没有「注册」这个词，也没有第二个入口。
+/// 首屏登录：手机号或邮箱 + 验证码。
+///
+/// 两条路径**语义不同**，界面上必须说清，别做成同一句话换个输入框：
+/// - 手机号：注册与登录合一，号码没见过后端就建号。只走中国大陆短信通道。
+/// - 邮箱：同样是注册登录合一（后端 findOrCreateByEmail），未注册的地址也会收到码，
+///   验过就建号。两条路在「填标识 → 收码 → 进去」这件事上没有差别，界面上也就
+///   不该再区别对待。
+///
+/// 邮箱这条是国际版能用的前提：境外收不到中国短信，只有手机号那条等于门是锁死的。
 struct LoginView: View {
     @Environment(AppModel.self) private var model
 
-    private enum Step { case phone, code }
+    private enum Method { case phone, email }
+    private enum Step { case identity, code }
 
-    @State private var step: Step = .phone
+    /// 进门先看见哪一种。
+    ///
+    /// 短信通道只有阿里云的大陆签名，**发不到境外号码**，所以国际版默认邮箱：
+    /// 让海外用户一进门就对着一个填不了的手机号框，是在浪费他一次尝试。
+    /// 手机号那条对国际版仍然留着——带 +86 号码的人在境外照样收得到码，
+    /// 那是国际版的主要人群之一，砍掉等于把他们挡在门外。
+    private static var defaultMethod: Method {
+        Bundle.main.bundleIdentifier == "com.aiworkdeck.mobile.cn" ? .phone : .email
+    }
+
+    @State private var method: Method = LoginView.defaultMethod
+    @State private var step: Step = .identity
     @State private var phone = ""
+    @State private var email = ""
     @State private var code = ""
     @State private var busy = false
     @State private var error: String?
@@ -19,8 +39,8 @@ struct LoginView: View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
 
-            Eyebrow(text: step == .phone ? "登录" : "验证码")
-            Text(step == .phone ? "手机号" : "输入 6 位验证码")
+            Eyebrow(text: step == .identity ? "登录" : "验证码")
+            Text(title)
                 .font(T.F.display())
                 .foregroundStyle(T.L.fg)
                 .padding(.top, T.Sp.s2)
@@ -32,7 +52,9 @@ struct LoginView: View {
                     .padding(.top, T.Sp.s1)
             }
 
-            field.padding(.top, T.Sp.s8)
+            if step == .identity { methodPicker.padding(.top, T.Sp.s4) }
+
+            field.padding(.top, step == .identity ? T.Sp.s5 : T.Sp.s8)
             Hairline().padding(.top, T.Sp.s3)
 
             if let error {
@@ -56,27 +78,84 @@ struct LoginView: View {
         .onAppear { focused = true }
     }
 
+    private var title: String {
+        if step == .code { return "输入 6 位验证码" }
+        return method == .phone ? "手机号" : "邮箱"
+    }
+
     private var masked: String {
-        guard phone.count >= 7 else { return phone }
-        return phone.prefix(3) + "****" + phone.suffix(4)
+        switch method {
+        case .phone:
+            guard phone.count >= 7 else { return phone }
+            return phone.prefix(3) + "****" + phone.suffix(4)
+        case .email:
+            guard let at = email.firstIndex(of: "@") else { return email }
+            let name = email[email.startIndex..<at]
+            let head = name.count <= 1 ? "***" : name.prefix(1) + "***"
+            return head + email[at...]
+        }
     }
 
     // MARK: - 输入
 
+    /// 两个方式之间切换。切换要清掉另一路的输入与报错，否则会出现
+    /// 「填了邮箱、报的是手机号那条的错」这种对不上号的状态。
+    private var methodPicker: some View {
+        HStack(spacing: T.Sp.s5) {
+            ForEach([Method.phone, Method.email], id: \.self) { m in
+                Button {
+                    guard method != m else { return }
+                    withAnimation(T.A.base) {
+                        method = m
+                        code = ""
+                        error = nil
+                    }
+                    focused = true
+                } label: {
+                    Text(m == .phone ? "手机号" : "邮箱")
+                        .font(T.F.small())
+                        .foregroundStyle(method == m ? T.L.accent : T.L.fgMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .frame(minHeight: T.touchMin)
+    }
+
     @ViewBuilder
     private var field: some View {
-        if step == .phone {
-            TextField("", text: $phone, prompt: Text("11 位手机号").foregroundStyle(T.L.fgFaint))
-                .keyboardType(.numberPad)
-                .textContentType(.telephoneNumber)
-                .font(T.F.mono(28, .light))
-                .foregroundStyle(T.L.fg)
-                .focused($focused)
-                .onChange(of: phone) { _, v in
-                    phone = String(v.filter(\.isNumber).prefix(11))
-                    error = nil
-                }
-        } else {
+        switch step {
+        case .identity:
+            if method == .phone {
+                TextField("", text: $phone, prompt: Text("中国大陆手机号").foregroundStyle(T.L.fgFaint))
+                    .keyboardType(.numberPad)
+                    .textContentType(.telephoneNumber)
+                    .font(T.F.mono(28, .light))
+                    .foregroundStyle(T.L.fg)
+                    .focused($focused)
+                    .onChange(of: phone) { _, v in
+                        phone = String(v.filter(\.isNumber).prefix(11))
+                        error = nil
+                    }
+            } else {
+                // 占位符**不能写成一个真邮箱样子的串**：SwiftUI 的 Text 会把它识别成
+                // 邮件链接、按 accent 色渲染，看上去像是已经填好了值（页脚那条
+                // hi@aiworkdeck.com 的蓝色就是同一个机制，那处是有意的）。
+                TextField("", text: $email, prompt: Text("邮箱地址").foregroundStyle(T.L.fgFaint))
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(T.F.mono(20, .light))
+                    .foregroundStyle(T.L.fg)
+                    .focused($focused)
+                    .onChange(of: email) { _, v in
+                        email = v.trimmingCharacters(in: .whitespaces)
+                        error = nil
+                    }
+            }
+        case .code:
             TextField("", text: $code, prompt: Text("······").foregroundStyle(T.L.fgFaint))
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)   // 让系统从短信里自动填
@@ -96,10 +175,10 @@ struct LoginView: View {
 
     private var primaryAction: some View {
         Button {
-            Task { step == .phone ? await send() : await verify() }
+            Task { step == .identity ? await send() : await verify() }
         } label: {
             HStack {
-                Text(step == .phone ? "获取验证码" : "登录")
+                Text(step == .identity ? "获取验证码" : "登录")
                     .font(T.F.heading())
                     .foregroundStyle(canSubmit ? T.L.accent : T.L.fgFaint)
                 Spacer()
@@ -118,7 +197,18 @@ struct LoginView: View {
     }
 
     private var canSubmit: Bool {
-        step == .phone ? phone.count == 11 : code.count == 6
+        switch step {
+        case .identity: return method == .phone ? phone.count == 11 : looksLikeEmail
+        case .code:     return code.count == 6
+        }
+    }
+
+    /// 只做「明显不是邮箱」的拦截，不做 RFC 校验——真正的判定在后端，
+    /// 客户端把合法地址挡下来比放个错地址过去更糟。
+    private var looksLikeEmail: Bool {
+        guard let at = email.firstIndex(of: "@"), at != email.startIndex else { return false }
+        let domain = email[email.index(after: at)...]
+        return domain.contains(".") && !domain.hasPrefix(".") && !domain.hasSuffix(".")
     }
 
     private var secondaryActions: some View {
@@ -130,8 +220,8 @@ struct LoginView: View {
             .font(T.F.small())
             .foregroundStyle(cooldown > 0 ? T.L.fgFaint : T.L.accent)
 
-            Button("换个号码") {
-                withAnimation(T.A.base) { step = .phone; code = ""; error = nil }
+            Button(method == .phone ? "换个号码" : "换个邮箱") {
+                withAnimation(T.A.base) { step = .identity; code = ""; error = nil }
                 focused = true
             }
             .font(T.F.small())
@@ -156,7 +246,10 @@ struct LoginView: View {
     private func send() async {
         busy = true; error = nil
         do {
-            try await API.shared.sendLoginCode(phone: phone)
+            switch method {
+            case .phone: try await API.shared.sendLoginCode(phone: phone)
+            case .email: try await API.shared.sendMailLoginCode(email: email)
+            }
             withAnimation(T.A.base) { step = .code }
             code = ""
             focused = true
@@ -171,7 +264,10 @@ struct LoginView: View {
         guard !busy else { return }
         busy = true; error = nil
         do {
-            let r = try await API.shared.verifyLoginCode(phone: phone, code: code)
+            let r = switch method {
+            case .phone: try await API.shared.verifyLoginCode(phone: phone, code: code)
+            case .email: try await API.shared.verifyMailLoginCode(email: email, code: code)
+            }
             await model.didLogin(r)
         } catch {
             self.error = error.localizedDescription

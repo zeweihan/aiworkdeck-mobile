@@ -1,0 +1,72 @@
+# 正式包为什么在 CI 打：本机 macOS 是 beta 时，包里 BuildMachineOSBuild 带 beta
+# 系统号，提审必被 ITMS-90111 打回（Xcode/SDK 是正式版也没用）。细节与环境契约
+# 见 fastlane/Fastfile 的 ci_appstore 注释。
+#
+# 触发：push 且 commit message 含 [appstore]（macOS runner 一次约 20 分钟，
+# 不值得每次 push 都跑）。
+name: appstore-build
+on:
+  push:
+    branches: ["**"]
+permissions:
+  contents: read
+jobs:
+  build-upload:
+    if: contains(github.event.head_commit.message, '[appstore]')
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 环境自检（runner 必须是发行版 macOS——整个工作流存在的原因）
+        run: |
+          sw_vers
+          BUILD=$(sw_vers -buildVersion)
+          # beta/seed 的 BuildVersion 是「主版本+字母+4~5 位数字+小写字母」（如 26A5421a）
+          if [[ "$BUILD" =~ ^[0-9]+[A-Z][0-9]{4,}[a-z]$ ]]; then
+            echo "::error::runner 系统 $BUILD 像是 beta 版，打出来的包会被 ITMS-90111 拒"
+            exit 1
+          fi
+
+      - name: 选最新的非 beta Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          if [ -n "$XC" ]; then sudo xcode-select -s "$XC"; fi
+          xcodebuild -version
+
+      - name: 安装 xcodegen 与 fastlane
+        run: |
+          brew install xcodegen
+          which fastlane || brew install fastlane
+
+      - name: 落签名材料到 RUNNER_TEMP
+        env:
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+          ASC_CN_KEY_P8_B64: ${{ secrets.ASC_CN_KEY_P8_B64 }}
+          DIST_P12_B64: ${{ secrets.DIST_P12_B64 }}
+          CN_PROFILE_B64: ${{ secrets.CN_PROFILE_B64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$ASC_KEY_P8_B64"    | base64 -d > "$RUNNER_TEMP/signing/asc.p8"
+          echo "$ASC_CN_KEY_P8_B64" | base64 -d > "$RUNNER_TEMP/signing/asc_cn.p8"
+          echo "$DIST_P12_B64"      | base64 -d > "$RUNNER_TEMP/signing/dist.p12"
+          echo "$CN_PROFILE_B64"    | base64 -d > "$RUNNER_TEMP/signing/cn.mobileprovision"
+
+      - name: 打包并上传
+        env:
+          LC_ALL: en_US.UTF-8
+          LANG: en_US.UTF-8
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "180"
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "6"
+          APPLE_TEAM_ID: X9B97KVA84
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_CN_KEY_ID: ${{ secrets.ASC_CN_KEY_ID }}
+          ASC_CN_ISSUER_ID: ${{ secrets.ASC_CN_ISSUER_ID }}
+          DIST_P12_PASSWORD: ${{ secrets.DIST_P12_PASSWORD }}
+        run: |
+          export ASC_KEY_PATH="$RUNNER_TEMP/signing/asc.p8"
+          export ASC_CN_KEY_PATH="$RUNNER_TEMP/signing/asc_cn.p8"
+          export DIST_P12_PATH="$RUNNER_TEMP/signing/dist.p12"
+          export CN_PROFILE_PATH="$RUNNER_TEMP/signing/cn.mobileprovision"
+          fastlane ios ci_appstore
