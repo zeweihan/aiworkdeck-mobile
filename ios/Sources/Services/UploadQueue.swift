@@ -111,20 +111,26 @@ actor UploadQueue {
         guard !uploaded.isEmpty else { return [:] }
         let ids = uploaded.map { $0.manifest.clientMediaId.uuidString.lowercased() }
         guard let status = try? await API.shared.mediaStatus(clientMediaIds: ids) else { return [:] }
-        let delivered = Set(status.filter { $0.delivered }.map { $0.clientMediaId })
+        let byID = Dictionary(status.map { ($0.clientMediaId.lowercased(), $0) },
+                              uniquingKeysWith: { _, last in last })
         var changed = false
-        for item in uploaded
-        where delivered.contains(item.manifest.clientMediaId.uuidString.lowercased()) {
-            try? await EvidenceStore.shared.updateState(item.id, to: .arrived, progress: 1)
-            changed = true
+        var expiry: [String: Date] = [:]
+        for item in uploaded {
+            let key = item.manifest.clientMediaId.uuidString.lowercased()
+            guard let st = byID[key] else { continue }
+            // 合并规则走契约迁移表（status_delivered / status_pending），这里不再手写 .arrived。
+            let merged = item.state.applyingStatus(delivered: st.delivered,
+                                                   waitingSeconds: st.waitingSeconds,
+                                                   expiresAt: st.expiresAt)
+            if merged.state != item.state {
+                try? await EvidenceStore.shared.updateState(item.id, to: merged.state, progress: 1)
+                changed = true
+            }
+            // CaptureItem 与 EvidenceStore 都没有 waitingSeconds / expiresAt 字段，等待信息不落盘；
+            // 未投递件按 applyingStatus 回填的 expiresAt 解析成到期时刻，返给队列页做提醒。
+            if let s = merged.expiresAt, let d = Self.parseExpiry(s) { expiry[key] = d }
         }
         if changed { await onChange?() }
-        var expiry: [String: Date] = [:]
-        for st in status where !st.delivered {
-            if let s = st.expiresAt, let d = Self.parseExpiry(s) {
-                expiry[st.clientMediaId.lowercased()] = d
-            }
-        }
         return expiry
     }
 
