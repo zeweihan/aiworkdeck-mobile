@@ -61,13 +61,42 @@ function checkGenerated(c, problems) {
   }
 }
 
+function walk(dir, exts, skip, out = []) {
+  if (!existsSync(dir)) return out
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (skip.some((s) => p.includes(s))) continue
+    if (e.isDirectory()) walk(p, exts, skip, out)
+    else if (exts.some((x) => e.name.endsWith(x))) out.push(p)
+  }
+  return out
+}
+
+function checkInline(c, problems) {
+  const values = Object.values(c.strings).map((v) => v['zh-Hans']).filter((v) => !v.includes('{'))
+  const files = [
+    ...walk(join(c.root, 'ios', 'Sources'), ['.swift'], ['/Contract/']),
+    ...walk(join(c.root, 'miniprogram', 'pages'), ['.ts', '.wxml'], []),
+    ...walk(join(c.root, 'miniprogram', 'utils'), ['.ts'], ['/utils/contract/']),
+  ]
+  for (const f of files) {
+    const text = readFileSync(f, 'utf8')
+    for (const v of values) {
+      for (const form of [`"${v}"`, `'${v}'`, `>${v}<`]) {
+        if (text.includes(form)) problems.push(`内联文案 ${form} 于 ${f.slice(c.root.length + 1)}：改用 strings.json 的键`)
+      }
+    }
+  }
+}
+
 export function runChecks(root, { quick = false } = {}) {
   const problems = []
   const c = loadContract(root)
   checkManifest(c, problems)
   checkFixtures(c, problems)
   checkGenerated(c, problems)
-  // ④ ⑤ 在后续任务补入
+  if (!quick) checkInline(c, problems)
+  // ④ 在后续任务补入
   return { ok: problems.length === 0, problems }
 }
 

@@ -14,7 +14,7 @@
   </view>
 
   <view wx:elif="{{groups.length === 0}}" class="status">
-    <text class="status__text">桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里</text>
+    <text class="status__text">{{emptyText}}</text>
     <view class="status__btn tappable" bindtap="onRefresh">
       <text>刷新</text>
     </view>

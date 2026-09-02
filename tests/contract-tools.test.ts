@@ -129,3 +129,22 @@ test('check：生成物被手改要红', () => {
   const r = runChecks(dir, { quick: true })
   assert.ok(r.problems.some((m) => m.includes('miniprogram/utils/contract/strings.ts') && m.includes('过期')), r.problems.join('\n'))
 })
+
+test('check：现状全量（含内联扫描）全绿', () => {
+  const r = runChecks(ROOT, { quick: false })
+  assert.deepEqual(r.problems, [])
+})
+
+test('check：内联词典文案要红', () => {
+  const dir = tempCopy()
+  for (const rel of outputs(loadContract(ROOT)).keys()) {
+    const src = join(ROOT, rel)
+    if (existsSync(src)) cpSync(src, join(dir, rel))
+  }
+  cpSync(join(ROOT, 'contract', 'tools', 'wxss-footer.css'), join(dir, 'contract', 'tools', 'wxss-footer.css'))
+  const p = join(dir, 'ios', 'Sources', 'Features', 'Foo.swift')
+  cpSync(join(ROOT, 'ios', 'Sources', 'Design', 'L10n.swift'), p)  // 任意 swift 文件做载体
+  writeFileSync(p, readFileSync(p, 'utf8') + '\nlet x = "已落盘"\n')
+  const r = runChecks(dir, { quick: false })
+  assert.ok(r.problems.some((m) => m.includes('Foo.swift') && m.includes('内联')), r.problems.join('\n'))
+})
