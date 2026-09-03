@@ -18,8 +18,8 @@
 ### Personal info（个人信息）
 | 数据类型 | 是否收集 | 是否共享 | 用途 | 是否可选 | 备注 |
 |---|---|---|---|---|---|
-| Email address | 是（国际版账号注册/登录走邮箱验证码） | 否 | 账号功能（Account management） | 否，注册必需 | |
-| Phone number | 否（国际版走邮箱；仅国内版走手机号，国内版不在 Play 上架范围内） | 否 | — | — | |
+| Email address | 是 | 否 | 账号功能（Account management） | 是，二选一——登录页 `MethodPicker`（`LoginScreen.kt`）在任何 flavor 下都能在邮箱/手机号之间自由切换，`BuildConfig.DEFAULT_LOGIN` 只决定默认选中哪一种，不限制能不能切到另一种；用户选邮箱验证码登录时必需，选手机号登录时不涉及 | 国际版默认邮箱（`DEFAULT_LOGIN="mail"`） |
+| Phone number | 是——**此前草稿误判为「国际版不收集」，已订正**：`LoginScreen.kt` 的方式切换不按 flavor 限制，国际版界面同样提供手机号验证码登录选项 | 否 | 账号功能（Account management） | 是，二选一，理由同上；用户选手机号验证码登录时必需，选邮箱登录时不涉及 | 国内版默认手机号（`DEFAULT_LOGIN="sms"`）；国际版虽默认邮箱，但 UI 未屏蔽手机号选项，Play 端需如实申报为「收集」 |
 | User IDs | 是（账号会话标识、`session token`） | 否 | 账号功能、App functionality | 否 | 存于设备 `EncryptedSharedPreferences`，不进系统备份 |
 
 ### Location（位置信息）
