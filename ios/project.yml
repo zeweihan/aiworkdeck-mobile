@@ -29,6 +29,8 @@ targetTemplates:
     sources:
       - path: Sources
       - path: Resources
+      # Live Activity 的属性与停止意图，与扩展共用同一份源码（见 LiveActivityExt）
+      - path: Shared
     settings:
       base:
         PRODUCT_NAME: Workdeck
@@ -70,6 +72,13 @@ targetTemplates:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
 
+        # 录音退后台 / 锁屏继续录（dev-board#404）。只有录音需要：录像是前台动作，
+        # iOS 也不允许后台用摄像头。
+        UIBackgroundModes:
+          - audio
+        # 录音中的灵动岛 + 锁屏卡片，视图在 WorkdeckLiveActivity 扩展里
+        NSSupportsLiveActivities: true
+
         # Apple 的 purpose string 是 SDK 链接期强制，不是运行期强制：
         # 只要二进制链接到引用了受限 API 的 SDK 就必须声明，否则 ITMS-90683 直接拒。
         # Claws 在这上面被拒过一次 build，这里一次写全。
@@ -82,6 +91,43 @@ targetTemplates:
         NSPhotoLibraryAddUsageDescription: >-
           在你主动导出某张影像时，将其存入系统相册。
 
+  # 录音 Live Activity 的 WidgetKit 扩展（dev-board#404）。国际版 / 大陆版各一个，
+  # 差异同样只在 bundle id / 团队 / 描述文件。扩展里只编：共享的属性与停止意图、
+  # 卡片视图、以及 tr() 所需的词典与令牌（L10n + 生成物 Strings/Tokens + Typography），
+  # 不带 App 的其它代码——扩展进程里从不做录音本身。
+  LiveActivityExt:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Shared
+      - path: LiveActivity
+      - path: Sources/Contract/Strings.swift
+      - path: Sources/Contract/Tokens.swift
+      - path: Sources/Design/L10n.swift
+      - path: Sources/Design/Typography.swift
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        # 签名策略同 WorkdeckApp：模拟器不签，发版手动 Distribution。
+        Debug:
+          CODE_SIGN_STYLE: Automatic
+          CODE_SIGNING_REQUIRED: NO
+          CODE_SIGNING_ALLOWED: NO
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+          "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution"
+    info:
+      path: Info-LiveActivity.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: AI WorkDeck
+        NSSupportsLiveActivities: true
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
 targets:
   # 国际版：App Store 国际区，真善美承澤（香港）团队。
   # 两个 target 都显式声明共享 scheme：不声明的话 XcodeGen 不落
@@ -93,6 +139,8 @@ targets:
     scheme:
       configVariants: []
       testTargets: [WorkdeckTests]
+    dependencies:
+      - target: WorkdeckLiveActivity
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile
@@ -100,6 +148,16 @@ targets:
         Release:
           # 由 fastlane sigh 签发，名字模式固定是 "<bundleid> AppStore"。
           PROVISIONING_PROFILE_SPECIFIER: "com.aiworkdeck.mobile AppStore"
+
+  WorkdeckLiveActivity:
+    templates: [LiveActivityExt]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.LiveActivity
+      configs:
+        Release:
+          # 同样由 sigh 签发（Fastfile 的 sigh_intl）
+          PROVISIONING_PROFILE_SPECIFIER: "com.aiworkdeck.mobile.LiveActivity AppStore"
 
   # 大陆版：App Store 中国区，北京京微资易团队（8WKHZVR2W8）。
   # 证书/描述文件不走 sigh（私钥在本机 5-Tech/x-apple-jwzy/，非 fastlane 生成），
@@ -110,6 +168,8 @@ targets:
     templates: [WorkdeckApp]
     scheme:
       configVariants: []
+    dependencies:
+      - target: WorkdeckCNLiveActivity
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.cn
@@ -117,6 +177,18 @@ targets:
       configs:
         Release:
           PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN AppStore"
+
+  # 大陆版扩展的描述文件与主 App 一样由人在 ASC 手建（不走 sigh），
+  # 名字就是下面这个；CI 经 CN_LA_PROFILE_B64 secret 装入（见 Fastfile ci_appstore）。
+  WorkdeckCNLiveActivity:
+    templates: [LiveActivityExt]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.cn.LiveActivity
+        DEVELOPMENT_TEAM: 8WKHZVR2W8
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN LiveActivity AppStore"
 
   # 纯逻辑单测（阶段映射、图集分组、删除文案）。不参与 fastlane 归档。
   WorkdeckTests:

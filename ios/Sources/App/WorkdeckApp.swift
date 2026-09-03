@@ -4,6 +4,13 @@ import SwiftUI
 struct WorkdeckApp: App {
     @State private var model = AppModel()
 
+    init() {
+        // 锁屏卡片 / 灵动岛的「停止录音」在主进程执行，落到录音单例。
+        // 顺带在启动时就把单例建起来：它的 init 会收掉上次进程遗留的 Live Activity。
+        let recorder = AudioRecorderService.shared
+        StopRecordingIntent.handler = { recorder.stop() }
+    }
+
     // 词典眼下只覆盖传输状态一族，此刻切成 en 会出一半英文一半中文的界面，比全中文更糟。
     // 等取证主流程（相机、队列、图集、归档确认）文案全部入键，再在这里调 L10n.configureFromDevice()。
 
