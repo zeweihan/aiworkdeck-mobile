@@ -5,6 +5,7 @@ import { Home } from './Home'
 import { Library } from './Library'
 import { Login } from './Login'
 import { ProjectPicker } from './ProjectPicker'
+import { Queue } from './Queue'
 import { Settings } from './Settings'
 import { Viewer } from './Viewer'
 
@@ -19,7 +20,6 @@ const PAGE_HOME: string = 'Home'
 const PAGE_SETTINGS: string = 'Settings'
 const PAGE_LIBRARY: string = 'Library'
 const PAGE_VIEWER: string = 'Viewer'
-/** Task 8 的队列页。先占住名字，取景页的入口才有地方去。 */
 const PAGE_QUEUE: string = 'Queue'
 
 /**
@@ -74,7 +74,7 @@ struct Root {
     } else if (name === PAGE_VIEWER) {
       Viewer({ stack: this.stack })
     } else if (name === PAGE_QUEUE) {
-      Placeholder({ name: name })
+      Queue({ stack: this.stack })
     } else {
       Home({ stack: this.stack })
     }
@@ -95,21 +95,3 @@ struct Root {
   }
 }
 
-/** Task 8 未建的队列页。名字先占住，那个任务把它换成真页面。 */
-@Component
-struct Placeholder {
-  @Prop name: string = ''
-
-  build() {
-    NavDestination() {
-      Text(this.name)
-        .fontSize(Tk.Ty.body)
-        .fontColor(Tk.D.fgMuted)
-        .width('100%')
-        .height('100%')
-        .textAlign(TextAlign.Center)
-    }
-    .hideTitleBar(true)
-    .backgroundColor(Tk.D.bg)
-  }
-}
