@@ -49,7 +49,11 @@ struct SettingsView: View {
                     group(tr("settings.archiveTarget")) {
                         infoRow(tr("home.eyebrow"), model.project.name)
                         infoRow(tr("settings.relay"), usageCaption)
-                        Button(tr("settings.switchProject")) { model.clearProjectSelection() }
+                        // 必须跟着关设置页：clearProjectSelection() 会把 RootView 从
+                        // signedIn 切到项目选择页，也就是把这层 fullScreenCover 的呈现方
+                        // 整个撤掉。route 留在 .settings 不清，等重新选完项目、HomeView
+                        // 回来的那一刻设置页会自己再弹一次（dev-board#418）。
+                        Button(tr("settings.switchProject")) { model.clearProjectSelection(); onClose() }
                             .font(T.F.small())
                             .foregroundStyle(T.L.accent)
                             .frame(minHeight: T.touchMin, alignment: .leading)

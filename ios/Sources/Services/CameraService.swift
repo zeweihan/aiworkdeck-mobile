@@ -14,6 +14,13 @@ import UIKit
 @MainActor
 @Observable
 final class CameraService: NSObject {
+    /// 进程级单例。**不要再用 `@State private var camera = CameraService()` 持有**：
+    /// `@State` 的初始值表达式在每次重建 HomeView 结构体时都会被求值，也就是每次
+    /// RootView body 走一遍就 new 一个 AVCaptureSession 再丢掉。在 Mac
+    /// （Designed for iPad）上建会话是主线程上的一次 XPC（FigCaptureSessionCreate），
+    /// 而这一下恰好落在「呈现设置页全屏浮层」的那次更新里（dev-board#418）。
+    static let shared = CameraService()
+
     enum Mode { case photo, video }
 
     private(set) var isRunning = false
@@ -32,6 +39,8 @@ final class CameraService: NSObject {
 
     /// 一条采集完成后回调。UI 层拿去落库。
     var onCaptured: ((Data, MediaKind, Date) -> Void)?
+
+    private override init() { super.init() }
 
     // MARK: - 生命周期
 
@@ -209,10 +218,14 @@ struct CameraPreview: UIViewRepresentable {
 @MainActor
 @Observable
 final class LocationStamper: NSObject, CLLocationManagerDelegate {
+    /// 同 CameraService：CLLocationManager 的创建也是主线程上的一次 daemon 注册，
+    /// 不该跟着 HomeView 结构体一遍遍重建（dev-board#418）。
+    static let shared = LocationStamper()
+
     private let manager = CLLocationManager()
     private(set) var last: (lat: Double, lon: Double, accuracy: Double)?
 
-    override init() {
+    private override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
