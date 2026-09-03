@@ -1,73 +1,142 @@
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppModel, Route } from '../AppModel'
 import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
-import { GlassBar, Pill, PrimaryButton, StatusDot } from '../design/Components'
-import { CaptureItem, CaptureManifest, MediaKind, RelayProject, projectId } from '../model/Capture'
-import { TransferState, TransferStateOps } from '../model/TransferState'
-import { Tally, tallyOf } from '../model/TransferTally'
-import { DaySection, groupByDay } from '../model/LibraryGrouping'
-import { uploadFileName } from '../model/UploadNaming'
-import { formatIso } from '../model/IsoTime'
-import { RecordingClock } from '../model/RecordingClock'
-import { Backoff } from '../model/Backoff'
-import { isDesktopOnline, otherPendingCount } from '../model/AppModelLogic'
-import { checkEnvelope } from '../model/Envelope'
-import { BASE_URL, ServiceLocator } from '../services/ServiceLocator'
-import { KickResult } from '../services/UploadQueue'
+import { RelayProject } from '../model/Capture'
+import { Login } from './Login'
+import { ProjectPicker } from './ProjectPicker'
+import { Settings } from './Settings'
+
+const DOMAIN: number = 0x0000
+const TAG: string = 'Root'
+
+const PAGE_LOGIN: string = 'Login'
+const PAGE_PROJECTS: string = 'ProjectPicker'
+/** 换项目：从设置页进来的那一次，选完退回设置而不是推去取景器。 */
+const PAGE_PROJECTS_SWITCH: string = 'ProjectPickerSwitch'
+const PAGE_HOME: string = 'Home'
+const PAGE_SETTINGS: string = 'Settings'
 
 /**
- * 临时探针：领域层与设计层还没接页面，在这里各引一次，好让 hvigor 的 ArkTS 检查覆盖到它们。
- * 后续任务用真正的 Navigation 栈替换整个文件。
+ * 根路由。四态互斥、按顺序判定：还没恢复完（boot）→ 没登录 → 没选项目 → 主界面，
+ * 与安卓 `MainActivity.Root` 一致，只是换成 Navigation 栈来承载。
+ *
+ * 路由由 AppModel 的 `route` 说了算，这里只负责把它翻译成栈操作：
+ * 每次换态先 `clear()` 再 `pushPath()`——这四态之间没有「返回上一态」的语义
+ * （登出之后能按返回键回到取景器是安全事故），所以不留历史。
  */
-function probe(): number {
-  const now: number = 0
-  const manifest: CaptureManifest = {
-    clientMediaId: 'probe', sha256: '', capturedAt: formatIso(now),
-    deviceModel: '', osVersion: '', appVersion: '', fromCamera: true,
-  }
-  const project: RelayProject = { deviceId: 'dev', key: 'proj', name: 'probe' }
-  const item: CaptureItem = new CaptureItem('probe', MediaKind.photo, TransferState.waiting,
-    manifest, '', 0, null, false, project)
-  const tally: Tally = tallyOf([item.state, TransferState.arrived])
-  const sections: DaySection[] = groupByDay([item])
-  const clock: RecordingClock = new RecordingClock()
-  clock.start(now)
-  const backoff: Backoff = new Backoff()
-  backoff.onFailure(now)
-  const payload: Record<string, Object> = { 'code': 0 }
-  checkEnvelope(payload)
-  const names: string[] = [
-    projectId(project),
-    uploadFileName(item.kind, item.capturedAtMs(), item.id),
-    TransferStateOps.caption(item.state),
-  ]
-  // 服务层：只引，不调用需要 context 的方法（装配在 EntryAbility.onCreate）
-  const wired: number = ServiceLocator.isReady() ? 1 : 0
-  const kicked: string = KickResult.done
-  return tally.total + sections.length + names.length + clock.elapsed(now) +
-    backoff.seconds + otherPendingCount([item], null) + (isDesktopOnline(null, now) ? 1 : 0) +
-    wired + BASE_URL.length + kicked.length
-}
-
 @Entry
 @Component
 struct Root {
-  private readonly probed: number = probe()
+  private readonly stack: NavPathStack = new NavPathStack()
+  @State @Watch('applyRoute') route: Route = Route.boot
+  private token: number = -1
+
+  aboutToAppear(): void {
+    this.token = AppModel.shared.subscribe((): void => {
+      const r: Route = AppModel.shared.route
+      if (this.route !== r) this.route = r
+    })
+    AppModel.shared.bootstrap().catch((e: Object): void => {
+      hilog.error(DOMAIN, TAG, 'bootstrap failed: %{public}s', `${e}`)
+    })
+  }
+
+  aboutToDisappear(): void {
+    if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
+  }
+
+  applyRoute(): void {
+    this.stack.clear(false)
+    if (this.route === Route.login) this.stack.pushPath(new NavPathInfo(PAGE_LOGIN, ''), false)
+    else if (this.route === Route.projects) this.stack.pushPath(new NavPathInfo(PAGE_PROJECTS, ''), false)
+    else if (this.route === Route.home) this.stack.pushPath(new NavPathInfo(PAGE_HOME, ''), false)
+    // boot：什么都不推，露出 Navigation 自己那张与主界面同色的空屏
+  }
+
+  @Builder
+  pageMap(name: string) {
+    if (name === PAGE_LOGIN) {
+      Login()
+    } else if (name === PAGE_PROJECTS) {
+      ProjectPicker({ stack: this.stack, switching: false })
+    } else if (name === PAGE_PROJECTS_SWITCH) {
+      ProjectPicker({ stack: this.stack, switching: true })
+    } else if (name === PAGE_SETTINGS) {
+      Settings({ stack: this.stack })
+    } else {
+      HomeStub({ stack: this.stack })
+    }
+  }
 
   build() {
-    Column({ space: Tk.Sp.s4 }) {
-      GlassBar() {
-        Text(tr('home.eyebrow'))
-          .fontSize(Tk.Ty.title)
-          .fontColor(Tk.D.fg)
-          .padding(Tk.Sp.s4)
-      }
-      StatusDot({ color: Tk.color(TransferStateOps.dotToken(TransferState.waiting)), dotSize: 6 })
-      Pill({ label: `${this.probed}`, selected: true })
-      PrimaryButton({ label: tr('home.eyebrow') })
+    Navigation(this.stack) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(Tk.L.bg)
     }
+    .hideTitleBar(true)
+    .navDestination(this.pageMap)
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
     .backgroundColor(Tk.L.bg)
+  }
+}
+
+/**
+ * 取景首页的占位。Task 6 用真正的取景器（相机预览 + 三档 + 水印）整个换掉这一屏，
+ * 这里只留两条出口，好让登录 → 选项目 → 设置 → 退出这条链在模拟器上能走通。
+ */
+@Component
+struct HomeStub {
+  stack: NavPathStack = new NavPathStack()
+  @State projectName: string = ''
+  private token: number = -1
+
+  aboutToAppear(): void {
+    this.token = AppModel.shared.subscribe((): void => this.sync())
+    this.sync()
+  }
+
+  aboutToDisappear(): void {
+    if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
+  }
+
+  build() {
+    NavDestination() {
+      Column({ space: Tk.Sp.s4 }) {
+        Text(tr('home.eyebrow'))
+          .fontSize(Tk.Ty.nano)
+          .fontColor(Tk.L.fgMuted)
+        Text(this.projectName)
+          .fontSize(Tk.Ty.display)
+          .fontColor(Tk.L.fg)
+        Text(tr('home.settings'))
+          .fontSize(Tk.Ty.small)
+          .fontColor(Tk.L.accent)
+          .height(Tk.touchMin)
+          .onClick((): void => {
+            this.stack.pushPath(new NavPathInfo(PAGE_SETTINGS, ''))
+          })
+        Text(tr('common.signOut'))
+          .fontSize(Tk.Ty.small)
+          .fontColor(Tk.L.fgMuted)
+          .height(Tk.touchMin)
+          .onClick((): void => {
+            AppModel.shared.signOut().catch((): void => {})
+          })
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+    }
+    .hideTitleBar(true)
+    .backgroundColor(Tk.L.bg)
+  }
+
+  private sync(): void {
+    const p: RelayProject | null = AppModel.shared.selectedProject
+    this.projectName = p === null ? '' : p.name
   }
 }
