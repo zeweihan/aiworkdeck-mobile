@@ -23,6 +23,7 @@ shot-*.png
 # Xcode
 ios/Workdeck.xcodeproj/
 ios/Info.plist
+ios/Info-LiveActivity.plist
 
 fastlane/.env
 fastlane/report.xml

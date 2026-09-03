@@ -64,16 +64,17 @@ import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.model.CaptureItem
 import com.aiworkdeck.mobile.model.MediaKind
 import com.aiworkdeck.mobile.model.TransferTally
-import com.aiworkdeck.mobile.services.AudioRecorderService
 import com.aiworkdeck.mobile.services.CameraService
 import com.aiworkdeck.mobile.services.Loc
 import com.aiworkdeck.mobile.services.LocationStamper
+import com.aiworkdeck.mobile.services.RecordingService
+import com.aiworkdeck.mobile.services.RecordingState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 
-/** 三档采集模式。录音走 [AudioRecorderService]，不经过相机会话——麦克风不需要点亮摄像头。 */
+/** 三档采集模式。录音走前台服务 [RecordingService]，不经过相机会话——麦克风不需要点亮摄像头。 */
 private enum class CapMode { photo, video, audio }
 
 /**
@@ -95,7 +96,6 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     val desktopOnline by model.desktopOnline.collectAsStateWithLifecycle()
 
     val camera = remember { CameraService(context, lifecycleOwner) }
-    val recorder = remember { AudioRecorderService(context) }
     val stamper = remember { LocationStamper(context) }
     val previewView = remember { PreviewView(context) }
 
@@ -162,20 +162,17 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
         storeScope.launch { runCatching { model.store(MediaKind.video, camera.stopVideo(), at, loc, target) } }
     }
 
-    fun stopAudioAndStore() {
-        val at = Instant.ofEpochMilli(recorder.recordingStartedAt ?: System.currentTimeMillis())
-        val target = project
-        recorder.stop()?.let { file -> storeScope.launch { runCatching { model.store(MediaKind.audio, file, at, loc, target) } } }
-    }
-
-    /** 在录的都停下并落库。退后台与这一屏被换掉走的是同一条路。 */
+    /**
+     * 在录的录像停下并落库。退后台与这一屏被换掉走的是同一条路。
+     * 只管录像：录音由前台服务 [RecordingService] 承担，退后台、换屏都不停（dev-board#405）。
+     */
     fun stopRecordingAndStore() {
         if (camera.isRecording) stopVideoAndStore()
-        if (recorder.isRecording) stopAudioAndStore()
     }
 
-    // 录到一半退到后台：停表并落库，不丢已录的内容——现场不可复现。
+    // 录像到一半退到后台：停表并落库，不丢已录的内容——现场不可复现。
     // 相机会话本身跟着 lifecycle 自动解绑，这里要的是把那段已经写好的文件收进库。
+    // 录音不在此列：它跟着前台服务走，锁屏、切别的应用都继续录。
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_STOP) return@LifecycleEventObserver
@@ -204,12 +201,16 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
                 scope.launch { delay(120); flash = false }
             }
             CapMode.video -> if (camera.isRecording) stopVideoAndStore() else camera.startVideo()
-            CapMode.audio -> if (recorder.isRecording) stopAudioAndStore() else if (!recorder.start()) hasMic = false
+            CapMode.audio -> when {
+                RecordingState.isRecording -> RecordingService.stop(context)
+                !granted(context, Manifest.permission.RECORD_AUDIO) -> hasMic = false
+                else -> RecordingService.start(context, project, loc)
+            }
         }
     }
 
-    val recording = camera.isRecording || recorder.isRecording
-    val startedAt = camera.recordingStartedAt ?: recorder.recordingStartedAt
+    val recording = camera.isRecording || RecordingState.isRecording
+    val startedAt = camera.recordingStartedAt ?: RecordingState.startedAt
     val elapsed = startedAt?.let { (now.toEpochMilli() - it) / 1000 } ?: 0L
 
     Column(Modifier.fillMaxSize().background(Tk.D.bg).safeDrawingPadding()) {
@@ -227,7 +228,7 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             when {
-                mode == CapMode.audio -> AudioStage(hasMic, recorder.isRecording, elapsed, context)
+                mode == CapMode.audio -> AudioStage(hasMic, RecordingState.isRecording, elapsed, context)
                 !hasCamera -> PermissionStage(tr("home.permission.camera"), context)
                 else -> {
                     CameraPreview(previewView, Modifier.fillMaxSize())
@@ -320,6 +321,8 @@ private fun AudioStage(hasMic: Boolean, recording: Boolean, elapsed: Long, conte
                 style = Fonts.nano(), color = Color.White.copy(alpha = 0.55f),
             )
         }
+        // 录音中说一句「退后台也在录」：用户开会时最怕的就是切出去一下就断了
+        if (recording) Text(tr("home.audio.backgroundOk"), style = Fonts.nano(), color = Color.White.copy(alpha = 0.35f))
     }
 }
 

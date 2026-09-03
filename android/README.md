@@ -103,6 +103,10 @@ adb shell pm grant com.aiworkdeck.mobile.cn android.permission.POST_NOTIFICATION
 adb shell am start -n com.aiworkdeck.mobile.cn/com.aiworkdeck.mobile.MainActivity
 ```
 
+录音走前台服务 `RecordingService`（`foregroundServiceType="microphone"`，权限
+`FOREGROUND_SERVICE_MICROPHONE`），切后台、锁屏继续录，通知栏常驻计时与「停止录音」；
+走查时 `adb shell dumpsys activity services com.aiworkdeck.mobile.cn` 能看到它 `isForeground=true`。
+
 登录走审核/演示账号（见项目记忆 `mobile-local-verify-recipe`，不入仓）。**不带桌面端、只想直奔取景器**（不想每次都走登录+选项目）时，
 可以绕过登录后的选项目页，直接给 `Prefs.selectedProject` 灌一条本地项目：
 

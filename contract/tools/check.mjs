@@ -159,6 +159,8 @@ function checkInline(c, problems) {
   }
   const files = [
     ...walk(join(c.root, 'ios', 'Sources'), ['.swift'], ['/Contract/']),
+    ...walk(join(c.root, 'ios', 'Shared'), ['.swift'], []),
+    ...walk(join(c.root, 'ios', 'LiveActivity'), ['.swift'], []),
     ...walk(join(c.root, 'miniprogram', 'pages'), ['.ts', '.wxml'], []),
     ...walk(join(c.root, 'miniprogram', 'components'), ['.ts', '.wxml'], []),
     ...walk(join(c.root, 'miniprogram', 'utils'), ['.ts'], ['/utils/contract/']),

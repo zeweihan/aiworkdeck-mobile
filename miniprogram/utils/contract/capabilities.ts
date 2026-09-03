@@ -5,6 +5,7 @@ export const CAPS = {
   "maxVideoSeconds": 60,
   "continuousSegments": true,
   "glassBlur": "runtime",
-  "deviceAttestation": false
+  "deviceAttestation": false,
+  "backgroundRecording": false
 } as const
-export const DEGRADED_NOTICE: Record<string, string> = {"backgroundUpload":"cap.noBackgroundUpload","continuousSegments":"cap.segmentedRecording"}
+export const DEGRADED_NOTICE: Record<string, string> = {"backgroundUpload":"cap.noBackgroundUpload","continuousSegments":"cap.segmentedRecording","backgroundRecording":"cap.noBackgroundRecording"}

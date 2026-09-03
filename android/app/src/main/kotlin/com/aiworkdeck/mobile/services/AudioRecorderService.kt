@@ -5,9 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import java.io.File
 import java.util.UUID
@@ -17,13 +14,14 @@ import java.util.UUID
  * 单声道、64kbps——人声清晰，一小时约 28MB，走与照片同一条 EvidenceStore → UploadQueue 链路。
  *
  * 录音不经过相机会话：麦克风不需要点亮摄像头，也不该占着取景。
+ *
+ * 纯录音引擎，由前台服务 [RecordingService] 持有；界面不直接拿它，可观察的状态在 [RecordingState]。
  */
 class AudioRecorderService(private val context: Context) {
-    var isRecording by mutableStateOf(false)
-        private set
+    val isRecording: Boolean get() = recorder != null
 
     /** 录制开始的墙钟时刻。落库用的采集时刻也取它——「什么时候开始录」比「什么时候按停」重要。 */
-    var recordingStartedAt by mutableStateOf<Long?>(null)
+    var recordingStartedAt: Long? = null
         private set
 
     private var recorder: MediaRecorder? = null
@@ -48,7 +46,6 @@ class AudioRecorderService(private val context: Context) {
             r.start()
             recorder = r
             file = target
-            isRecording = true
             recordingStartedAt = System.currentTimeMillis()
             true
         } catch (_: Exception) {
@@ -67,7 +64,6 @@ class AudioRecorderService(private val context: Context) {
         val target = file
         recorder = null
         file = null
-        isRecording = false
         recordingStartedAt = null
         return try {
             r.stop()

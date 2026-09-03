@@ -30,6 +30,21 @@ set -a; . fastlane/.env; set +a
 语言本地化就会被拒（实测报 *Cannot add localization due to app name*）。国际版
 占 en-US、大陆版占 zh-Hans，各自够用，别再互相加。
 
+### 1.1 描述文件
+
+每个 App 现在是**两个 bundle**：主 App + 录音 Live Activity 扩展（dev-board#404），
+各要一份 App Store 描述文件。
+
+| Bundle ID | 描述文件名 | 来源 |
+|---|---|---|
+| `com.aiworkdeck.mobile` | `com.aiworkdeck.mobile AppStore` | `sigh` 自动 |
+| `com.aiworkdeck.mobile.LiveActivity` | `com.aiworkdeck.mobile.LiveActivity AppStore` | `sigh` 自动（lane 先注册 App ID） |
+| `com.aiworkdeck.mobile.cn` | `AI WorkDeck CN AppStore` | 人工在 ASC 建，CI secret `CN_PROFILE_B64` |
+| `com.aiworkdeck.mobile.cn.LiveActivity` | `AI WorkDeck CN LiveActivity AppStore` | 2026-09-03 已用 ASC API 建好（profile `NL5G9Q2UT5`，同一张 Distribution 证书 579SG95VN2），CI secret `CN_LA_PROFILE_B64` 已加；文件与 ID 见总表 §6.7 |
+
+大陆版扩展的描述文件建好、secret 加上之前，`ci_appstore` 的 CN 分支会在
+exportArchive 因扩展没有描述文件而失败——先用 `FLAVOR=intl` 单打国际版。
+
 ## 2. 命令序列
 
 **先看打包机的系统**：`sw_vers` 显示 beta（BuildVersion 形如 `26A5421a`，

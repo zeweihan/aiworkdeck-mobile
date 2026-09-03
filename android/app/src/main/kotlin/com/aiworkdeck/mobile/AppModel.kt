@@ -13,6 +13,7 @@ import com.aiworkdeck.mobile.services.AccountUser
 import com.aiworkdeck.mobile.services.Loc
 import com.aiworkdeck.mobile.services.LoginResult
 import com.aiworkdeck.mobile.services.MediaUsage
+import com.aiworkdeck.mobile.services.RecordingState
 import com.aiworkdeck.mobile.services.ServiceLocator
 import com.aiworkdeck.mobile.services.Unauthorized
 import com.aiworkdeck.mobile.services.UploadWorker
@@ -89,6 +90,11 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     private var lastProjectsSeenAt: Long? = null
     private var heartbeat: Job? = null
+
+    init {
+        // 录音由前台服务落库（用户可能从通知栏按停，界面未必活着），库变了这里跟着重读
+        viewModelScope.launch { RecordingState.stored.collect { refresh() } }
+    }
 
     // MARK: - 启动
 

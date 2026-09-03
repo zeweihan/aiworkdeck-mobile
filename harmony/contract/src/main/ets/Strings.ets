@@ -116,6 +116,18 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "本端录像为记录用途，证据用途请用 iOS 端",
     "en": "Video on this client is for record-keeping. Use the iOS app for evidentiary recording."
   },
+  "cap.noBackgroundRecording": {
+    "zh-Hans": "小程序切到后台或锁屏后录音可能中断，请保持微信在前台",
+    "en": "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground."
+  },
+  "home.audio.backgroundOk": {
+    "zh-Hans": "切到后台、锁屏也会继续录音",
+    "en": "Keeps recording in the background and when locked"
+  },
+  "rec.paused.interrupted": {
+    "zh-Hans": "通话中，录音已暂停，结束后自动继续",
+    "en": "Paused for a call. Recording resumes automatically when it ends."
+  },
   "empty.projects": {
     "zh-Hans": "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里",
     "en": "Sign in to the desktop app with the same phone number and keep it running. Projects appear here within about a minute."
@@ -447,6 +459,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "notify.uploading": {
     "zh-Hans": "正在上传现场影像",
     "en": "Uploading field media"
+  },
+  "notify.channel.recording": {
+    "zh-Hans": "录音",
+    "en": "Recording"
   },
   "file.prefix.media": {
     "zh-Hans": "现场影像",

@@ -30,6 +30,9 @@ enum ContractStrings {
         "delete.warn.landed": ["zh-Hans": "删除 {n} 件本地原图？电脑上已有副本。", "en": "Delete {n} local originals? Your computer already has copies."],
         "cap.noBackgroundUpload": ["zh-Hans": "本端不支持后台上传，请保持页面打开直到上传完成", "en": "This client cannot upload in the background. Keep the page open until uploads finish."],
         "cap.segmentedRecording": ["zh-Hans": "本端录像为记录用途，证据用途请用 iOS 端", "en": "Video on this client is for record-keeping. Use the iOS app for evidentiary recording."],
+        "cap.noBackgroundRecording": ["zh-Hans": "小程序切到后台或锁屏后录音可能中断，请保持微信在前台", "en": "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground."],
+        "home.audio.backgroundOk": ["zh-Hans": "切到后台、锁屏也会继续录音", "en": "Keeps recording in the background and when locked"],
+        "rec.paused.interrupted": ["zh-Hans": "通话中，录音已暂停，结束后自动继续", "en": "Paused for a call. Recording resumes automatically when it ends."],
         "empty.projects": ["zh-Hans": "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里", "en": "Sign in to the desktop app with the same phone number and keep it running. Projects appear here within about a minute."],
         "login.title": ["zh-Hans": "登录", "en": "Sign in"],
         "login.codeTitle": ["zh-Hans": "验证码", "en": "Code"],
@@ -113,6 +116,7 @@ enum ContractStrings {
         "settings.package": ["zh-Hans": "应用包名", "en": "Package"],
         "notify.channel.upload": ["zh-Hans": "上传", "en": "Uploads"],
         "notify.uploading": ["zh-Hans": "正在上传现场影像", "en": "Uploading field media"],
+        "notify.channel.recording": ["zh-Hans": "录音", "en": "Recording"],
         "file.prefix.media": ["zh-Hans": "现场影像", "en": "Field media"],
         "file.prefix.audio": ["zh-Hans": "现场录音", "en": "Field audio"],
     ]

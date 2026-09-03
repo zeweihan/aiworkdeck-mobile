@@ -6,8 +6,10 @@ export const ContractCapabilities = {
   "continuousSegments": false,
   "glassBlur": true,
   "deviceAttestation": false,
+  "backgroundRecording": true,
   "degradedNotice": {
     "backgroundUpload": "cap.noBackgroundUpload",
-    "continuousSegments": "cap.segmentedRecording"
+    "continuousSegments": "cap.segmentedRecording",
+    "backgroundRecording": "cap.noBackgroundRecording"
   }
 } as const

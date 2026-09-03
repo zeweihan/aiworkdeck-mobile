@@ -45,12 +45,18 @@ jobs:
           ASC_CN_KEY_P8_B64: ${{ secrets.ASC_CN_KEY_P8_B64 }}
           DIST_P12_B64: ${{ secrets.DIST_P12_B64 }}
           CN_PROFILE_B64: ${{ secrets.CN_PROFILE_B64 }}
+          CN_LA_PROFILE_B64: ${{ secrets.CN_LA_PROFILE_B64 }}
         run: |
           mkdir -p "$RUNNER_TEMP/signing"
           echo "$ASC_KEY_P8_B64"    | base64 -d > "$RUNNER_TEMP/signing/asc.p8"
           echo "$ASC_CN_KEY_P8_B64" | base64 -d > "$RUNNER_TEMP/signing/asc_cn.p8"
           echo "$DIST_P12_B64"      | base64 -d > "$RUNNER_TEMP/signing/dist.p12"
           echo "$CN_PROFILE_B64"    | base64 -d > "$RUNNER_TEMP/signing/cn.mobileprovision"
+          # 大陆版 Live Activity 扩展的描述文件（dev-board#404）。secret 还没建时不落文件，
+          # Fastfile 走「不存在」分支——但 CN 归档会在 exportArchive 失败，这是预期。
+          if [ -n "$CN_LA_PROFILE_B64" ]; then
+            echo "$CN_LA_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/signing/cn-la.mobileprovision"
+          fi
 
       - name: 打包并上传
         env:
@@ -69,4 +75,7 @@ jobs:
           export ASC_CN_KEY_PATH="$RUNNER_TEMP/signing/asc_cn.p8"
           export DIST_P12_PATH="$RUNNER_TEMP/signing/dist.p12"
           export CN_PROFILE_PATH="$RUNNER_TEMP/signing/cn.mobileprovision"
+          if [ -f "$RUNNER_TEMP/signing/cn-la.mobileprovision" ]; then
+            export CN_LA_PROFILE_PATH="$RUNNER_TEMP/signing/cn-la.mobileprovision"
+          fi
           fastlane ios ci_appstore

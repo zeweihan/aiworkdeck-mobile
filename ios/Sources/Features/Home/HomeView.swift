@@ -22,7 +22,9 @@ struct HomeView: View {
     var onOpenSettings: () -> Void
 
     @State private var camera = CameraService()
-    @State private var recorder = AudioRecorderService()
+    /// 进程级单例（锁屏停止意图要找到它）。@Observable 对象不必用 @State 持有，
+    /// body 里读它的属性照样被观察。
+    private let recorder = AudioRecorderService.shared
     @State private var stamper = LocationStamper()
     @State private var mode: CapMode = .photo
     @State private var showFlash = false
@@ -73,8 +75,8 @@ struct HomeView: View {
                 // 回前台立刻续传：后台被杀的上传此刻已是滞留态，kick 入口会回收
                 model.kickUpload()
             case .background:
-                // 录到一半退后台：停表并落库，不丢已录的内容——现场不可复现
-                if recorder.isRecording { recorder.stop() }
+                // 录像退后台：停表并落库，不丢已录的内容——现场不可复现。
+                // 录音不停：靠 UIBackgroundModes audio 在后台 / 锁屏继续录（dev-board#404）。
                 if camera.isRecording { Task { await camera.toggleRecording() } }
                 camera.stop()
             default:
@@ -387,7 +389,7 @@ struct HomeView: View {
             case .video:
                 Task { await camera.toggleRecording() }
             case .audio:
-                Task { await recorder.toggle() }
+                Task { await recorder.toggle(projectName: model.selectedProject?.name ?? model.project.name) }
             }
         } label: {
             ZStack {
@@ -459,8 +461,15 @@ struct HomeView: View {
                         if recorder.isRecording {
                             Circle().fill(T.S.failed).frame(width: 7, height: 7)
                         }
-                        Eyebrow(text: recorder.isRecording ? "正在录音" : tr("home.audio.hint"),
+                        Eyebrow(text: recorder.isRecording ? tr("home.recording.audio") : tr("home.audio.hint"),
                                 color: .white.opacity(0.55))
+                    }
+                    if recorder.isRecording {
+                        // 说清楚退后台也在录；来电中断时换成暂停提示，结束后自动续录
+                        Text(recorder.isInterrupted ? tr("rec.paused.interrupted") : tr("home.audio.backgroundOk"))
+                            .font(T.F.micro())
+                            .foregroundStyle(.white.opacity(0.45))
+                            .multilineTextAlignment(.center)
                     }
                 }
             }
