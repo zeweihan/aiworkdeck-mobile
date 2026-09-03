@@ -2,6 +2,36 @@
 @preconcurrency import AVFoundation
 import Foundation
 
+/// AVAudioSession 的配置全部走这条串行队列。两个理由，缺一不可：
+/// 1. **不能在主线程调**——在 Mac（Designed for iPad）上 setCategory / setActive 走
+///    SessionCore_macOS_Legacy，Apple 的运行时诊断会直接报
+///    「AVAudioSession Hang Risk: This method can lead to UI unresponsiveness
+///    if called on the main thread」（dev-board#418 实测日志里出现过两次）。
+/// 2. **必须串行**——开录的 setActive(true) 与收尾的 setActive(false) 一旦并发，
+///    停止的那次可能插到开始的前面，把刚起来的会话关掉。Task.detached 不保证顺序，
+///    专用串行队列保证。
+private let audioSessionQueue = DispatchQueue(label: "com.aiworkdeck.mobile.audiosession")
+
+/// 在串行队列上配置录音会话，配完回到调用方的 actor。返回是否成功。
+private func configureAudioSession(active: Bool) async -> Bool {
+    await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+        audioSessionQueue.async {
+            let s = AVAudioSession.sharedInstance()
+            do {
+                if active {
+                    try s.setCategory(.record, mode: .default)
+                    try s.setActive(true)
+                } else {
+                    try s.setActive(false)
+                }
+                cont.resume(returning: true)
+            } catch {
+                cont.resume(returning: false)
+            }
+        }
+    }
+}
+
 /// 现场录音。用 AVAudioRecorder 而不是复用 AVCaptureSession——
 /// 录音不需要摄像头，不该点亮相机、占着取景会话。
 ///
@@ -41,7 +71,7 @@ final class AudioRecorderService: NSObject {
         ) { [weak self] note in
             guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                   let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
-            Task { @MainActor in self?.handleInterruption(type) }
+            Task { @MainActor in await self?.handleInterruption(type) }
         }
     }
 
@@ -62,11 +92,9 @@ final class AudioRecorderService: NSObject {
         }
         permissionDenied = false
 
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.record, mode: .default)
-            try session.setActive(true)
-        } catch { return }
+        // 会话激活在后台串行队列上做，完成后才回到这里继续建 recorder——
+        // 顺序不能乱：没激活会话就 record() 拿不到麦克风。
+        guard await configureAudioSession(active: true) else { return }
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("aud-\(UUID().uuidString).m4a")
@@ -101,7 +129,7 @@ final class AudioRecorderService: NSObject {
         .init(elapsedBase: clock.elapsedBase, resumedAt: clock.resumedAt, paused: clock.paused)
     }
 
-    private func handleInterruption(_ type: AVAudioSession.InterruptionType) {
+    private func handleInterruption(_ type: AVAudioSession.InterruptionType) async {
         guard isRecording, let r = recorder else { return }
         switch type {
         case .began:
@@ -113,7 +141,8 @@ final class AudioRecorderService: NSObject {
         case .ended:
             // 不看 shouldResume：取证录音能续就续。record() 在同一文件上接着写；
             // 续不上（会话被别人占死）就收尾落库，已录的内容不能丢。
-            try? AVAudioSession.sharedInstance().setActive(true)
+            _ = await configureAudioSession(active: true)
+            // 重新拿到会话之后才续录；拿不到就往下走，record() 会失败并收尾落库
             if r.record() {
                 clock.resume(at: Date())
                 isInterrupted = false
@@ -149,8 +178,10 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
             self.recorder = nil
             self.recordingSeconds = 0
             self.activity.end()
-            try? AVAudioSession.sharedInstance().setActive(false)
+            // 先把采集交出去，别让「关闭会话」这次跨进程往返拖住落库；
+            // 关闭本身仍排在同一条串行队列上，不会插到下一次开录前面。
             if let data { self.onCaptured?(data, self.startedAt) }
+            _ = await configureAudioSession(active: false)
         }
     }
 }
