@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatBytes, formatClock } from '../../harmony/entry/src/main/ets/model/Format.ets'
+import { formatBytes, formatClock, formatHm, formatHms } from '../../harmony/entry/src/main/ets/model/Format.ets'
 
 test('小于 1 KB 直接给整数字节', () => {
   assert.equal(formatBytes(0), '0 B')
@@ -43,4 +43,16 @@ test('超过一小时继续加分钟，不进位到小时', () => {
 test('秒数向下取整，负数按 0 算', () => {
   assert.equal(formatClock(12.9), '00:12')
   assert.equal(formatClock(-5), '00:00')
+})
+
+test('图集时刻 HH:mm，格子上只到分', () => {
+  assert.equal(formatHm(new Date(2026, 8, 3, 9, 5, 7).getTime()), '09:05')
+  assert.equal(formatHm(new Date(2026, 8, 3, 23, 59, 59).getTime()), '23:59')
+  assert.equal(formatHm(new Date(2026, 8, 3, 0, 0, 0).getTime()), '00:00')
+})
+
+test('查看器时刻 HH:mm:ss，核对取证件要到那一下', () => {
+  assert.equal(formatHms(new Date(2026, 8, 3, 9, 5, 7).getTime()), '09:05:07')
+  assert.equal(formatHms(new Date(2026, 8, 3, 23, 59, 59).getTime()), '23:59:59')
+  assert.equal(formatHms(new Date(2026, 8, 3, 0, 0, 0).getTime()), '00:00:00')
 })

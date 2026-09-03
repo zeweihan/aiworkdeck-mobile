@@ -2,9 +2,11 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppModel, Route } from '../AppModel'
 import { Tk } from '../design/Tokens'
 import { Home } from './Home'
+import { Library } from './Library'
 import { Login } from './Login'
 import { ProjectPicker } from './ProjectPicker'
 import { Settings } from './Settings'
+import { Viewer } from './Viewer'
 
 const DOMAIN: number = 0x0000
 const TAG: string = 'Root'
@@ -15,10 +17,10 @@ const PAGE_PROJECTS: string = 'ProjectPicker'
 const PAGE_PROJECTS_SWITCH: string = 'ProjectPickerSwitch'
 const PAGE_HOME: string = 'Home'
 const PAGE_SETTINGS: string = 'Settings'
-/** Task 7 / 8 的三屏。先占住名字，取景页的三个入口才有地方去。 */
 const PAGE_LIBRARY: string = 'Library'
-const PAGE_QUEUE: string = 'Queue'
 const PAGE_VIEWER: string = 'Viewer'
+/** Task 8 的队列页。先占住名字，取景页的入口才有地方去。 */
+const PAGE_QUEUE: string = 'Queue'
 
 /**
  * 根路由。四态互斥、按顺序判定：还没恢复完（boot）→ 没登录 → 没选项目 → 主界面，
@@ -67,7 +69,11 @@ struct Root {
       ProjectPicker({ stack: this.stack, switching: true })
     } else if (name === PAGE_SETTINGS) {
       Settings({ stack: this.stack })
-    } else if (name === PAGE_LIBRARY || name === PAGE_QUEUE || name === PAGE_VIEWER) {
+    } else if (name === PAGE_LIBRARY) {
+      Library({ stack: this.stack })
+    } else if (name === PAGE_VIEWER) {
+      Viewer({ stack: this.stack })
+    } else if (name === PAGE_QUEUE) {
       Placeholder({ name: name })
     } else {
       Home({ stack: this.stack })
@@ -89,7 +95,7 @@ struct Root {
   }
 }
 
-/** Task 7 / 8 未建的三屏。名字先占住，那两个任务把它换成真页面。 */
+/** Task 8 未建的队列页。名字先占住，那个任务把它换成真页面。 */
 @Component
 struct Placeholder {
   @Prop name: string = ''

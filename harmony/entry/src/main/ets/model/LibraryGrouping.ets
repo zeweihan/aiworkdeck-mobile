@@ -1,5 +1,5 @@
 import { ContractStates } from 'contract'
-import { CaptureItem } from './Capture'
+import { CaptureItem, RelayProject, projectId } from './Capture'
 import { TransferState, TransferPhase, TransferStateOps } from './TransferState'
 import { tr } from '../design/L10n'
 
@@ -8,6 +8,14 @@ export interface DaySection {
   title: string
   items: CaptureItem[]
 }
+
+export interface ProjectChoice {
+  id: string
+  name: string
+}
+
+/** 没记项目的件的归属桶。它们确实存在，只是不知道归谁，藏起来比放错地方更糟。 */
+export const UNKNOWN_PROJECT: string = 'unknown'
 
 export interface DeleteWarn {
   level: string
@@ -53,6 +61,41 @@ export function groupByDay(items: CaptureItem[]): DaySection[] {
     sections.push(section)
   }
   return sections
+}
+
+/** 一件归哪个桶。没记项目（旧记录、选项目之前拍的）归「未知项目」。 */
+function bucketOf(it: CaptureItem): string {
+  const p: RelayProject | null = it.project
+  return p === null ? UNKNOWN_PROJECT : projectId(p)
+}
+
+/** 正在看的那个项目里的件。 */
+export function itemsIn(items: CaptureItem[], choiceId: string | null): CaptureItem[] {
+  return items.filter((it: CaptureItem): boolean => bucketOf(it) === choiceId)
+}
+
+/**
+ * 可切换的项目：当前项目永远第一（哪怕它一件都还没有），其余有记录的按名称升序。
+ * 名称按码点比，与安卓 `sortedBy { it.name }` 同口径——两端的菜单顺序得一样。
+ */
+export function projectsIn(items: CaptureItem[], current: RelayProject | null): ProjectChoice[] {
+  const currentId: string | null = current === null ? null : projectId(current)
+  const seen: Map<string, string> = new Map<string, string>()
+  for (const it of items) {
+    const id: string = bucketOf(it)
+    if (id === currentId || seen.has(id)) continue
+    const p: RelayProject | null = it.project
+    seen.set(id, p === null ? tr('library.unknownProject') : p.name)
+  }
+  const rest: ProjectChoice[] = []
+  seen.forEach((name: string, id: string): void => {
+    const choice: ProjectChoice = { id: id, name: name }
+    rest.push(choice)
+  })
+  rest.sort((a: ProjectChoice, b: ProjectChoice): number => a.name < b.name ? -1 : (a.name > b.name ? 1 : 0))
+  if (current === null) return rest
+  const head: ProjectChoice = { id: projectId(current), name: current.name }
+  return [head].concat(rest)
 }
 
 /** 删除确认等级：按所选里最坏的桶说话。n = 该桶件数；landed 时 n = 总数。 */

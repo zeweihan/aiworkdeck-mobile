@@ -32,3 +32,17 @@ export function formatClock(seconds: number): string {
   const s: number = seconds > 0 ? Math.floor(seconds) : 0
   return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
 }
+
+/**
+ * 本机时区的时刻。格子上只到分（一格里塞不下更多），查看器到秒——核对取证件要精确到那一下。
+ * 与安卓 `LibraryTime.clock / precise` 同口径。
+ */
+export function formatHm(ms: number): string {
+  const d: Date = new Date(ms)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+export function formatHms(ms: number): string {
+  const d: Date = new Date(ms)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
