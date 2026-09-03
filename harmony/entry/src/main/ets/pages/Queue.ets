@@ -84,8 +84,11 @@ export struct Queue {
   private expiry: Map<string, string> = new Map<string, string>()
   private token: number = -1
   private pollId: number = -1
+  /** 这一屏还在不在。异步回调回来时组件可能已经销毁，往里写 @State 是错误日志甚至崩溃。 */
+  private alive: boolean = false
 
   aboutToAppear(): void {
+    this.alive = true
     this.token = AppModel.shared.subscribe((): void => this.syncModel())
     this.syncModel()
     // 进页面先问一次，再按 20 秒续问：用户是带着「到底传没传到」的疑问推开这一页的
@@ -94,6 +97,7 @@ export struct Queue {
   }
 
   aboutToDisappear(): void {
+    this.alive = false
     if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
     if (this.pollId >= 0) {
       clearInterval(this.pollId)
@@ -312,6 +316,8 @@ export struct Queue {
   /** 回执查询失败静默——它只是状态汇报，不该产生任何打扰。 */
   private poll(): void {
     ServiceLocator.queue.checkDelivered().then((m: Map<string, string>): void => {
+      // 20 秒的轮询发出去之后用户随时可能退这一页，回来时组件已经销毁
+      if (!this.alive) return
       this.expiry = m
       this.syncModel()
     }).catch((e: Object): void => {
@@ -384,7 +390,7 @@ export struct Queue {
       key: `${item.id}|${item.state}|${progress}|${error}|${expires}`,
       isAudio: item.kind === MediaKind.audio,
       localPath: item.localPath,
-      dotColor: Tk.color(TransferStateOps.dotToken(item.state)),
+      dotColor: Tk.color(TransferStateOps.dotToken(item.state), false),
       detail: TransferStateOps.detail(item.state),
       time: formatHm(item.capturedAtMs()),
       showProgress: uploading,

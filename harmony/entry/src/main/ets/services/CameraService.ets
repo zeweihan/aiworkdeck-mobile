@@ -20,6 +20,17 @@ const RATIO_TOLERANCE: number = 0.02
 const DEVICE_DEGREE: number = 0
 
 /**
+ * 在途拍照被相机拆掉时的失败信息。调用方（取景页）据此把这一次静默处理——
+ * 是用户自己退了后台 / 切了档位，不是出错，不该弹吐司。
+ */
+export const CAMERA_CLOSED: string = 'camera closed'
+
+/** 这次失败是不是「相机被拆」。 */
+export function isCameraClosed(e: Object): boolean {
+  return e instanceof Error && (e as Error).message === CAMERA_CLOSED
+}
+
+/**
  * 相机会话。镜像安卓 `CameraService.kt` 与 iOS `CameraService`：照片 JPEG 直出、录像 MP4，
  * 两者都落到 cacheDir 的临时文件，由 `AppModel.store` 接手搬进证据库。
  *
@@ -81,6 +92,9 @@ export class CameraService {
    */
   async close(): Promise<void> {
     this.surfaceId = ''
+    // 在排队之前就把在途的那一张回收掉：这条链上还排着别的活时，等着拿照片的人
+    // 不该被吊到链走完，而回前台后也不能留一个非空的 pendingPhoto 把快门锁死
+    this.abortPendingPhoto()
     await this.run<void>(async (): Promise<void> => {
       await this.teardown()
     })
@@ -135,6 +149,9 @@ export class CameraService {
         // 建不起来就把拍照会话还回去，别让用户对着一块黑屏
         hilog.error(DOMAIN, TAG, 'startVideo failed: %{public}s', messageOf(e))
         await this.teardownSession()
+        // 建到一半的那个 mp4 里什么都没有，留着只会在 cacheDir 里当孤儿
+        // （`EvidenceStore.sweepOrphans` 只扫证据目录，扫不到这里）
+        this.removeVideoFile()
         await this.openPhotoSession()
         throw e as Error
       }
@@ -157,6 +174,9 @@ export class CameraService {
     this.videoStartedAt = 0
     return await this.run<string>(async (): Promise<string> => {
       const path: string = this.videoPath
+      // 交出去之后这条路径就不再归相机管了：留着它，下一次开录半途失败时
+      // `removeVideoFile()` 会照着这个陈旧路径去删上一段录像
+      this.videoPath = ''
       await this.teardownSession()
       if (this.surfaceId.length > 0) {
         try {
@@ -268,6 +288,9 @@ export class CameraService {
    * 下一次 open 就会撞上一个「还占着相机」的旧会话。
    */
   private async teardownSession(): Promise<void> {
+    // 输出一旦释放，photoAvailable 就再也不会回来了；在途的等待者必须当场了结，
+    // 否则这张照片静默丢失，而 pendingPhoto 留着非空会让之后每一次快门直接抛错
+    this.abortPendingPhoto()
     const recorder: media.AVRecorder | null = this.recorder
     const videoOut: camera.VideoOutput | null = this.videoOut
     const session: camera.Session | null = this.session
@@ -338,6 +361,30 @@ export class CameraService {
     await this.teardownSession()
     this.videoPath = ''
     hilog.info(DOMAIN, TAG, '%{public}s', 'camera closed')
+  }
+
+  // MARK: - 内部：收尾
+
+  /** 回收在途拍照的等待者。幂等：没有在途的直接返回。 */
+  private abortPendingPhoto(): void {
+    const reject: ((e: Object) => void) | null = this.pendingPhotoFail
+    this.pendingPhoto = null
+    this.pendingPhotoFail = null
+    if (reject === null) return
+    hilog.info(DOMAIN, TAG, '%{public}s', 'pending capture aborted')
+    reject(new Error(CAMERA_CLOSED))
+  }
+
+  /** 删掉还没录出内容的临时 mp4，并把路径清空。 */
+  private removeVideoFile(): void {
+    const path: string = this.videoPath
+    this.videoPath = ''
+    if (path.length === 0) return
+    try {
+      fs.unlinkSync(path)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'unlink empty video failed: %{public}s', messageOf(e))
+    }
   }
 
   // MARK: - 内部：照片回调

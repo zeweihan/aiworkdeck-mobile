@@ -229,10 +229,16 @@ export class AppModel {
   /**
    * 落一件。顺序是「先进库、再存相册、最后排上传」：库是唯一可信的那一份，
    * 相册与上传都从它派生，任何一条失败都不该回滚已经落好的原件。
+   *
+   * **项目由调用方在按下的那一瞬快照后传进来**，这里不读 `this.selectedProject`：
+   * 落库是异步的（录像更是几分钟之后才停），中途换了项目，这一件该记的仍是按下时
+   * 屏幕上显示的那一个。与安卓 `HomeScreen.kt` 的 `target` 快照、录音服务的
+   * `RecorderService.start(project, loc)` 同口径。
    */
-  async store(kind: MediaKind, tempPath: string, capturedAtMs: number, loc: Loc | null): Promise<CaptureItem> {
+  async store(kind: MediaKind, tempPath: string, capturedAtMs: number, loc: Loc | null,
+    project: RelayProject | null): Promise<CaptureItem> {
     const item: CaptureItem = await ServiceLocator.store.save(
-      kind, tempPath, capturedAtMs, loc, this.selectedProject)
+      kind, tempPath, capturedAtMs, loc, project)
     await this.refresh()
     // 存相册与上传是两条互不影响的链，都不 await：存相册要弹系统确认（spec H8），
     // 等用户点完再排上传等于让网络传输迁就一次点击

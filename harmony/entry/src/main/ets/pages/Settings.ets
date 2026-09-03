@@ -3,6 +3,7 @@ import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
 import { formatBytes } from '../model/Format'
 import { RelayProject } from '../model/Capture'
+import { Unauthorized } from '../model/Envelope'
 import { AccountUser, MediaUsage } from '../services/ApiTypes'
 import { BASE_URL, ServiceLocator } from '../services/ServiceLocator'
 import { errorText, toast } from './Feedback'
@@ -29,20 +30,31 @@ export struct Settings {
   @State projectName: string = DASH
   @State usage: MediaUsage | null = null
   private token: number = -1
+  /** 这一屏还在不在。异步回调回来时组件可能已经销毁，往里写 @State 是错误日志甚至崩溃。 */
+  private alive: boolean = false
 
   aboutToAppear(): void {
+    this.alive = true
     this.token = AppModel.shared.subscribe((): void => this.syncProject())
     this.syncProject()
     ServiceLocator.prefs.saveToAlbum().then((v: boolean): void => {
+      if (!this.alive) return
       this.saveToAlbum = v
     }).catch((): void => {})
-    // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量
+    // 进页面拉一次用量。读不到就留占位「—」，比一条报错更符合这行信息的分量；
+    // 但会话失效是另一回事——和选项目页同口径，回登录页，别让人对着一屏死数据点
     AppModel.shared.mediaUsage().then((u: MediaUsage): void => {
+      if (!this.alive) return
       this.usage = u
-    }).catch((): void => {})
+    }).catch((e: Object): void => {
+      if (e instanceof Unauthorized) {
+        AppModel.shared.signOut().catch((): void => {})
+      }
+    })
   }
 
   aboutToDisappear(): void {
+    this.alive = false
     if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
   }
 

@@ -46,3 +46,12 @@ export function formatHms(ms: number): string {
   const d: Date = new Date(ms)
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
+
+/**
+ * 本机时区的日期 yyyy-MM-dd。归档路径里的那个日期（`archive.path` 的 `{date}`），
+ * 用户看得见且要与桌面端的归档目录同形，所以只留这一份实现——两处各写一份迟早漂移。
+ */
+export function formatDay(ms: number): string {
+  const d: Date = new Date(ms)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}

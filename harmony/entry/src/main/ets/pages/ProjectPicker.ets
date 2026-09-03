@@ -3,18 +3,9 @@ import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
 import { RelayProject, projectId } from '../model/Capture'
 import { Unauthorized } from '../model/Envelope'
+import { formatDay } from '../model/Format'
 import { ServiceLocator } from '../services/ServiceLocator'
 import { errorText } from './Feedback'
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : `${n}`
-}
-
-/** 今天的日期，与桌面端归档目录同形（yyyy-MM-dd）。 */
-function today(): string {
-  const d: Date = new Date()
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-}
 
 /**
  * 选归档目标。登录后必走一次——不选项目就不知道照片该往哪去，与其让人先拍完再问，
@@ -45,7 +36,7 @@ export struct ProjectPicker {
           Text(tr('project.title'))
             .fontSize(Tk.Ty.display)
             .fontColor(Tk.L.fg)
-          Text(tr('project.hint', { 'date': today() }))
+          Text(tr('project.hint', { 'date': formatDay(Date.now()) }))
             .fontSize(Tk.Ty.micro)
             .fontColor(Tk.L.fgFaint)
         }

@@ -157,7 +157,16 @@ export class Uploader {
   async sweepStale(): Promise<void> {
     let tids: string[] = []
     try {
-      tids = await request.agent.search()
+      // 必须显式给 Filter：`Filter.after` 不传时默认「调用时刻减 24 小时」
+      // （`@ohos.request.d.ts:2455` 的注释），只扫得到最近一天的残留，
+      // 而进程被杀两天后才回来的那条旧任务正是要清的。0 是 Unix 纪元，覆盖全部历史；
+      // `before` 不传默认就是调用时刻，这里一并写明白。
+      const filter: request.agent.Filter = {
+        after: 0,
+        before: Date.now(),
+        action: request.agent.Action.UPLOAD,
+      }
+      tids = await request.agent.search(filter)
     } catch (e) {
       hilog.warn(DOMAIN, TAG, 'search failed: %{public}s', (e as Error).message)
       return

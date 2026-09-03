@@ -6,11 +6,11 @@ import { StatusDot } from '../design/Components'
 import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
 import { CaptureItem, MediaKind, RelayProject } from '../model/Capture'
-import { formatClock } from '../model/Format'
+import { formatClock, formatDay } from '../model/Format'
 import { Loc } from '../model/Loc'
 import { Tally } from '../model/TransferTally'
 import { gpsChip, watermarkLines } from '../model/Watermark'
-import { CameraService } from '../services/CameraService'
+import { CameraService, isCameraClosed } from '../services/CameraService'
 import { LocationStamper } from '../services/LocationStamper'
 import {
   hasPermission, PERM_APPROX_LOCATION, PERM_CAMERA, PERM_LOCATION, PERM_MICROPHONE,
@@ -82,8 +82,14 @@ export struct Home {
   private readonly stamper: LocationStamper = new LocationStamper()
   /** 最近一次定位。按快门时取它的快照——现场按下快门到落库不能等 GPS。 */
   private locSnapshot: Loc | null = null
+  /** 开录那一瞬的项目与位置快照。停录可能是几分钟后的事，中途换了项目也不该改归属。 */
+  private videoProject: RelayProject | null = null
+  private videoLoc: Loc | null = null
   private surfaceId: string = ''
+  /** 这一屏还在不在。异步回调回来时组件可能已经销毁，往里写 @State 是错误日志甚至崩溃。 */
+  private alive: boolean = false
   private tickId: number = -1
+  private flashId: number = -1
   private locateId: number = -1
   private token: number = -1
   private recToken: number = -1
@@ -92,6 +98,7 @@ export struct Home {
   // MARK: - 生命周期
 
   aboutToAppear(): void {
+    this.alive = true
     this.token = AppModel.shared.subscribe((): void => this.syncModel())
     this.recToken = RecorderService.shared.state.subscribe((): void => this.syncRecording())
     this.lifeToken = AppModel.shared.subscribeLifecycle((foreground: boolean): void => {
@@ -106,10 +113,15 @@ export struct Home {
   }
 
   aboutToDisappear(): void {
+    this.alive = false
     if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
     if (this.recToken >= 0) RecorderService.shared.state.unsubscribe(this.recToken)
     if (this.lifeToken >= 0) AppModel.shared.unsubscribeLifecycle(this.lifeToken)
     if (this.tickId >= 0) clearInterval(this.tickId)
+    if (this.flashId >= 0) {
+      clearTimeout(this.flashId)
+      this.flashId = -1
+    }
     this.stopLocating()
     // 这一屏被换掉（退出登录、切项目）时相机不会自己放开，镜头会一直亮着、别的应用也拿不到
     this.stopVideoAndStore()
@@ -172,6 +184,19 @@ export struct Home {
     }
     .hideTitleBar(true)
     .backgroundColor(Tk.D.bg)
+    // 往栈上推图集 / 队列 / 设置**不会**销毁这一层，`aboutToDisappear` 不触发；
+    // 不在这里放开相机，镜头就一直亮着（系统指示灯常亮、耗电、别的应用拿不到摄像头）。
+    // `onShown` / `onHidden`：`component/nav_destination.d.ts:684,703`，@since 10。
+    .onHidden((): void => {
+      this.stopVideoAndStore()
+      this.camera.close().catch((e: Object): void => {
+        hilog.warn(DOMAIN, TAG, 'close on hidden failed: %{public}s', `${e}`)
+      })
+    })
+    .onShown((): void => {
+      this.readPermissions()
+      this.openCamera()
+    })
   }
 
   // MARK: - 画面
@@ -292,7 +317,7 @@ export struct Home {
         .fontColor(Tk.D.fg)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(tr('home.archiveTo', { 'path': tr('archive.path', { 'date': today() }) }))
+      Text(tr('home.archiveTo', { 'path': tr('archive.path', { 'date': formatDay(Date.now()) }) }))
         .fontSize(Tk.Ty.nano)
         .fontColor(Tk.D.fgMuted)
       Text(this.tallyText)
@@ -509,28 +534,46 @@ export struct Home {
 
   private takePhoto(): void {
     if (!this.hasCamera) return
-    // 采集时刻与项目在按下的这一瞬定死：落库是异步的，中途切了项目，这一件该记的仍是
-    // 按下快门时屏幕上显示的那个（项目由 AppModel.store 取，位置由这里取）
+    // 采集时刻、项目、位置都在按下的这一瞬定死：落库是异步的，中途切了项目，
+    // 这一件该记的仍是按下快门时屏幕上显示的那个（与录音路径同口径）
     const at: number = Date.now()
     const loc: Loc | null = this.locSnapshot
+    const target: RelayProject | null = AppModel.shared.selectedProject
     this.flash = true
-    setTimeout((): void => {
+    if (this.flashId >= 0) clearTimeout(this.flashId)
+    this.flashId = setTimeout((): void => {
+      this.flashId = -1
+      if (!this.alive) return
       this.flash = false
     }, FLASH_MS)
     this.camera.takePhoto().then((path: string): Promise<CaptureItem> =>
-      AppModel.shared.store(MediaKind.photo, path, at, loc)
+      AppModel.shared.store(MediaKind.photo, path, at, loc, target)
     ).catch((e: Object): void => {
+      // 相机被拆（退后台、切档位）导致的失败是用户自己的动作，记一句就够，不打扰
+      if (isCameraClosed(e)) {
+        hilog.info(DOMAIN, TAG, '%{public}s', 'capture dropped: camera closed')
+        return
+      }
       hilog.error(DOMAIN, TAG, 'takePhoto failed: %{public}s', `${e}`)
+      if (!this.alive) return
       toast(this.getUIContext(), errorText(e))
     })
   }
 
   private startVideo(): void {
+    // 项目与位置在按下开录的这一瞬快照，停录时用它落库——录像可能录几分钟，
+    // 中途从设置里换了项目也不该把这一段搬到别人的电脑上去
+    const target: RelayProject | null = AppModel.shared.selectedProject
+    const loc: Loc | null = this.locSnapshot
     this.camera.startVideo().then((): void => {
+      this.videoProject = target
+      this.videoLoc = loc
+      if (!this.alive) return
       this.recordingVideo = true
       this.tick()
     }).catch((e: Object): void => {
       hilog.error(DOMAIN, TAG, 'startVideo failed: %{public}s', `${e}`)
+      if (!this.alive) return
       toast(this.getUIContext(), errorText(e))
     })
   }
@@ -539,10 +582,13 @@ export struct Home {
   private stopVideoAndStore(): void {
     if (!this.camera.isRecordingVideo) return
     const at: number = this.camera.videoStartedAt
-    const loc: Loc | null = this.locSnapshot
-    this.recordingVideo = false
+    const loc: Loc | null = this.videoLoc
+    const target: RelayProject | null = this.videoProject
+    this.videoLoc = null
+    this.videoProject = null
+    if (this.alive) this.recordingVideo = false
     this.camera.stopVideo().then((path: string): Promise<CaptureItem> =>
-      AppModel.shared.store(MediaKind.video, path, at, loc)
+      AppModel.shared.store(MediaKind.video, path, at, loc, target)
     ).catch((e: Object): void => {
       hilog.error(DOMAIN, TAG, 'stopVideo failed: %{public}s', `${e}`)
     })
@@ -586,6 +632,7 @@ export struct Home {
     abilityAccessCtrl.createAtManager().requestPermissionsFromUser(ServiceLocator.ctx, wanted)
       .then((res: PermissionRequestResult): void => {
         hilog.info(DOMAIN, TAG, 'permissions answered: %{public}d', res.authResults.length)
+        if (!this.alive) return
         this.readPermissions()
         this.openCamera()
       })
@@ -631,7 +678,7 @@ export struct Home {
   /** 拿不到新定位就留着上一次的，不清空——上一次的坐标仍然说明「在这栋楼」。 */
   private refreshLocation(): void {
     this.stamper.current().then((at: Loc | null): void => {
-      if (at === null) return
+      if (at === null || !this.alive) return
       this.locSnapshot = at
       this.refreshGps()
       this.refreshStamp()
@@ -681,14 +728,6 @@ export struct Home {
     this.interrupted = st.interrupted
     if (st.isRecording || !this.recordingVideo) this.elapsedText = formatClock(st.elapsedSec)
   }
-}
-
-/** 归档路径里的日期。与 `archive.path` 的 `{date}` 占位配套，格式 yyyy-MM-dd。 */
-function today(): string {
-  const d: Date = new Date()
-  const m: number = d.getMonth() + 1
-  const day: number = d.getDate()
-  return `${d.getFullYear()}-${m < 10 ? '0' : ''}${m}-${day < 10 ? '0' : ''}${day}`
 }
 
 /** 三桶计数一句话。失败件不单列一桶，它是「上传中」桶里的异常，追加在上传中后面。 */

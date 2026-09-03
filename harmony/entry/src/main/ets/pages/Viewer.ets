@@ -228,7 +228,7 @@ export struct Viewer {
 
   private dotColor(): string {
     const it: CaptureItem | null = this.current()
-    return it === null ? Tk.D.rule : Tk.color(TransferStateOps.dotToken(it.state))
+    return it === null ? Tk.D.rule : Tk.color(TransferStateOps.dotToken(it.state), true)
   }
 
   private detail(): string {

@@ -54,11 +54,15 @@ export struct Library {
   /** 顶栏高度实测。内容用它让开——玻璃条压在影像上，让开的量不能靠猜。 */
   @State barHeight: number = 0
   private token: number = -1
+  /** 这一屏还在不在。异步回调回来时组件可能已经销毁，往里写 @State 是错误日志甚至崩溃。 */
+  private alive: boolean = false
 
   aboutToAppear(): void {
+    this.alive = true
     this.token = AppModel.shared.subscribe((): void => this.syncModel())
     this.syncModel()
     ServiceLocator.prefs.libraryView().then((v: string): void => {
+      if (!this.alive) return
       this.isGrid = v !== LIBRARY_VIEW_LIST
     }).catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'libraryView failed: %{public}s', `${e}`)
@@ -66,6 +70,7 @@ export struct Library {
   }
 
   aboutToDisappear(): void {
+    this.alive = false
     if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
   }
 
@@ -297,7 +302,7 @@ export struct Library {
       .width('100%')
       .height('100%')
 
-      StatusDot({ color: Tk.color(TransferStateOps.dotToken(item.state)) })
+      StatusDot({ color: Tk.color(TransferStateOps.dotToken(item.state), true) })
         .margin(CELL_INSET)
     }
     .width('100%')
@@ -330,7 +335,7 @@ export struct Library {
 
       Column({ space: Tk.Sp.s1 }) {
         Row({ space: Tk.Sp.s1 }) {
-          StatusDot({ color: Tk.color(TransferStateOps.dotToken(item.state)) })
+          StatusDot({ color: Tk.color(TransferStateOps.dotToken(item.state), true) })
           Text(TransferStateOps.caption(item.state))
             .fontSize(Tk.Ty.small)
             .fontColor(Tk.D.fg)
