@@ -15,7 +15,8 @@ import { getSession, getSelectedProject, type RelayProject } from '../../utils/a
 import { listItems, tallyFor, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
 import { dotClass, projectId, tallyTotal, PHASE_LABEL, type Tally } from '../../utils/phase'
 import { t } from '../../utils/i18n'
-import { startRecording, stopRecording, isRecording } from '../../utils/recorder'
+import { startRecording, stopRecording, isRecording, resumeIfInterrupted } from '../../utils/recorder'
+import { CAPS, DEGRADED_NOTICE } from '../../utils/contract/capabilities'
 import { thumbFor, setVideoThumb, markThumbBroken } from '../../utils/thumbs'
 
 interface AppGlobal {
@@ -100,6 +101,11 @@ Page({
     recording: false,
     recordElapsed: '00:00',
     recordSegment: 1,
+    /** 录音被系统中断（通话等），中断结束自动续录 */
+    recordInterrupted: false,
+    recordInterruptedText: '',
+    /** 能力降级提示：小程序不承诺后台续录时显示，否则空 */
+    audioNote: '',
     wmTime: '',
     saveToAlbum: false,
   },
@@ -120,6 +126,8 @@ Page({
     this.setData({
       metrics: app.globalData.metrics,
       saveToAlbum: wx.getStorageSync(KEY_SAVE_ALBUM) === true,
+      recordInterruptedText: t('rec.paused.interrupted'),
+      audioNote: CAPS.backgroundRecording === false ? t(DEGRADED_NOTICE.backgroundRecording) : '',
     })
   },
 
@@ -144,6 +152,8 @@ Page({
     if (this.data.mode === 'audio' && this.data.recording && !isRecording()) {
       this.stopRecordUi()
     }
+    // 通话结束事件没送到时，回前台补一次续录
+    resumeIfInterrupted()
 
     this.refresh()
     if (!this.unsubscribe) {
@@ -457,6 +467,7 @@ Page({
         this.stopRecordUi()
         wx.showToast({ title: message, icon: 'none' })
       },
+      onInterrupted: (recordInterrupted) => this.setData({ recordInterrupted }),
     })
     if (!started) return
 
@@ -474,7 +485,7 @@ Page({
 
   stopRecordUi() {
     this.stopRecordTimer()
-    this.setData({ recording: false, recordElapsed: '00:00', recordSegment: 1 })
+    this.setData({ recording: false, recordElapsed: '00:00', recordSegment: 1, recordInterrupted: false })
   },
 
   startRecordTimer() {

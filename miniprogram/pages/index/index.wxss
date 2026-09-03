@@ -193,6 +193,15 @@ page {
   color: var(--dk-fg-muted);
 }
 
+/* 能力降级提示：比 hint 再小一号、再淡一些，不抢录音状态 */
+.finder__audio-note {
+  font-size: var(--t-micro);
+  color: var(--dk-fg-muted);
+  opacity: 0.7;
+  padding: 0 var(--gutter);
+  text-align: center;
+}
+
 /* ---- 左下角淡水印：白字约 55% 透明度、等宽、微阴影，深色半透明衬底 -------- */
 .wm {
   position: absolute;

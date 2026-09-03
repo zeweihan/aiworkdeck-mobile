@@ -8,6 +8,11 @@
  * 时长到顶 onStop 自动开下一段；手动停止用 manualStop 意图标志区分，
  * 避免 onStop 的「到顶还是用户停」二义。每段经 enqueueCapture 入上传队列，
  * 段号从 1 递增，文件名形如 录音_yyyyMMdd_HHmmss_段N.mp3。
+ *
+ * 系统中断（dev-board#406）：微信语音/视频通话会触发 onInterruptionBegin，录音被系统
+ * 暂停；onInterruptionEnd 时 resume() 续录进同一段，onResume 到达才算真正续上。
+ * resume 失败走 onError 既有路径。页面 onShow 时若仍 interrupted，可用
+ * resumeIfInterrupted 再补一次 resume。
  */
 
 import type { RelayProject } from './api'
@@ -23,12 +28,16 @@ export interface RecorderCallbacks {
   onFinish: () => void
   /** 录音出错（含续录失败），会话已结束 */
   onError: (message: string) => void
+  /** 系统中断开始（true）/ 中断后已续录（false） */
+  onInterrupted?: (interrupted: boolean) => void
 }
 
 interface Session extends RecorderCallbacks {
   project: RelayProject
   segmentIndex: number
   manualStop: boolean
+  /** 被系统中断（通话等）且尚未续上 */
+  interrupted: boolean
 }
 
 let manager: WechatMiniprogram.RecorderManager | null = null
@@ -60,6 +69,27 @@ function getManager(): WechatMiniprogram.RecorderManager {
     if (!s) return
     session = null
     s.onError('录音出错，已停止；已录内容会照常上传')
+  })
+
+  // 系统中断（微信通话等）：开始时记 interrupted 让 UI 显示暂停态；
+  // 结束时 resume 续录同一段，onResume 到达才清 interrupted。这三个也只绑一次。
+  manager.onInterruptionBegin(() => {
+    const s = session
+    if (!s) return
+    s.interrupted = true
+    s.onInterrupted?.(true)
+  })
+
+  manager.onInterruptionEnd(() => {
+    if (!session) return
+    manager?.resume()
+  })
+
+  manager.onResume(() => {
+    const s = session
+    if (!s || !s.interrupted) return
+    s.interrupted = false
+    s.onInterrupted?.(false)
   })
 
   return manager
@@ -117,7 +147,7 @@ export async function startRecording(project: RelayProject, callbacks: RecorderC
   if (session) return false
   const ok = await ensureRecordAuth()
   if (!ok) return false
-  session = { project, segmentIndex: 1, manualStop: false, ...callbacks }
+  session = { project, segmentIndex: 1, manualStop: false, interrupted: false, ...callbacks }
   startSegment()
   return true
 }
@@ -127,4 +157,10 @@ export function stopRecording(): void {
   if (!session) return
   session.manualStop = true
   getManager().stop()
+}
+
+/** 页面 onShow 兜底：中断结束事件没送到时，回到前台再补一次 resume。 */
+export function resumeIfInterrupted(): void {
+  if (!session || !session.interrupted) return
+  getManager().resume()
 }

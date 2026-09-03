@@ -59,7 +59,9 @@
     <!-- 录音档：无取景画面，深色面板 + 麦克风 -->
     <view wx:if="{{mode === 'audio'}}" class="finder__audio">
       <image class="finder__audio-icon {{recording ? 'finder__audio-icon--live' : ''}}" src="{{Icon.micWhite}}" mode="aspectFit" />
-      <text class="finder__audio-hint">{{recording ? '录音中，每段录满 10 分钟自动续录下一段' : '按下方按钮开始录音'}}</text>
+      <text wx:if="{{recording && recordInterrupted}}" class="finder__audio-hint">{{recordInterruptedText}}</text>
+      <text wx:else class="finder__audio-hint">{{recording ? '录音中，每段录满 10 分钟自动续录下一段' : '按下方按钮开始录音'}}</text>
+      <text wx:if="{{audioNote}}" class="finder__audio-note">{{audioNote}}</text>
     </view>
 
     <!-- 左下角淡水印：仅界面叠加，不写入影像（保护取证哈希链的刻意决策） -->
