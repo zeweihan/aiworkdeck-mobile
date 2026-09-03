@@ -17,6 +17,7 @@ Play 商店各写一份人话版本。
 | `android.permission.POST_NOTIFICATIONS` | 运行时权限（仅 Android 13 / API 33+） | 同上，一次性弹窗（API<33 无需请求，通知默认可发） | 上传中的前台任务需要举一条「正在上传现场影像」的进度通知。 | 是，非阻塞 | 上传队列照常在后台跑完，只是看不到系统通知栏里的进度提示（`android/README.md` 已记录的已知限制，Android 12+ 后台启动前台服务通知本身还会被系统进一步限制） |
 | `android.permission.FOREGROUND_SERVICE` | install-time / 普通权限，无用户弹窗 | 安装时系统自动授予 | 支撑上传队列在应用退到后台后继续跑（`androidx.work` 前台任务） | 不适用 | 不适用（用户无法拒绝） |
 | `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | install-time / 普通权限，无用户弹窗 | 安装时系统自动授予 | 声明前台服务类型为「数据同步」，即退到后台后继续把已拍摄的取证影像上传到中转服务器 | 不适用 | 不适用；Play 「权限声明」表单需要为此类型单独写一段用途说明，见下方 |
+| `android.permission.FOREGROUND_SERVICE_MICROPHONE` | install-time / 普通权限，无用户弹窗 | 安装时系统自动授予 | 声明前台服务类型为「麦克风」：用户按下开始录音后切到后台、锁屏，录音继续（`RecordingService`，常驻通知带计时与「停止录音」）。只在用户主动开录期间运行，按停即退出 | 不适用 | 不适用；Play 「权限声明」表单需要为此类型单独写用途说明并上传演示视频，见下方 |
 | `android.permission.INTERNET` | install-time / 普通权限，无用户弹窗 | 安装时系统自动授予 | 上传影像、登录、拉取项目列表等所有网络请求 | 不适用 | 不适用 |
 
 **没有存储/相册写入权限**：iOS 有 `NSPhotoLibraryAddUsageDescription`（用户主动导出时写入系统相册），
@@ -44,6 +45,11 @@ Android 侧的「同时存入系统相册」开关（设置页）在 API 29+ 用
   audio) to the developer's relay server after the app has been backgrounded, so an in-progress
   transfer is not interrupted when the user switches away from the app. The relay copy is deleted
   as soon as the desktop app confirms the file has been written to disk.」
+- `FOREGROUND_SERVICE_MICROPHONE`：用途说明填「Continuing an audio recording the user has explicitly
+  started (evidence capture at meetings and site visits) while the app is in the background or the
+  screen is locked. The service runs only between the user tapping Start and Stop, shows a persistent
+  notification with a timer and a Stop action, and exits as soon as recording stops.」Play 还要求上传
+  一段演示视频：开始录音 → 按 Home 键 → 通知栏可见计时 → 回到应用 → 停止。
 - `CAMERA` / `RECORD_AUDIO` / `ACCESS_FINE_LOCATION`：这三项是 Play 标准运行时权限，通常不需要在
   Permissions declaration 表单里单独申报用途（该表单主要针对后台位置、通话记录、短信等敏感权限组），
   但 Data safety 表单（见 `data-safety.md`）里仍要如实申报「位置」类数据的采集与用途。

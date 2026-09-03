@@ -8,6 +8,7 @@ import com.aiworkdeck.mobile.services.Backend
 import com.aiworkdeck.mobile.services.BackendUploader
 import com.aiworkdeck.mobile.services.EvidenceStore
 import com.aiworkdeck.mobile.services.Prefs
+import com.aiworkdeck.mobile.services.RecordingService
 import com.aiworkdeck.mobile.services.ServiceLocator
 import com.aiworkdeck.mobile.services.SessionStores
 import com.aiworkdeck.mobile.services.UploadQueue
@@ -38,6 +39,7 @@ class App : Application() {
         // 通知渠道先建好：Worker 要举前台通知，渠道不存在时通知不显示，任务会被系统当作
         // 无前台的长任务掐掉。
         UploadWorker.ensureChannel(this)
+        RecordingService.ensureChannel(this)
         // 缩略图：录像要抽首帧，Coil 默认的解码器组里没有视频解码器，装一次给全局用
         SingletonImageLoader.setSafe { ctx ->
             ImageLoader.Builder(ctx).components { add(VideoFrameDecoder.Factory()) }.build()

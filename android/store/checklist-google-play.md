@@ -25,6 +25,9 @@
 - [ ] Privacy policy URL：`https://www.aiworkdeck.com/en/legal/privacy`
 - [ ] Data safety 表单：按 `data-safety.md` 逐项填写，标「待核」的先去核实再提交。
 - [ ] Permissions 相关说明：按 `permissions.md` 末尾「Google Play Permissions declaration 填写要点」。
+- [ ] 前台服务类型申报（待核）：`microphone`（录音切后台继续录，`RecordingService`）与 `dataSync`
+      （上传）。需在 Play Console 应用内容 → 前台服务权限 逐类型填写用途说明（文案见 `permissions.md`），
+      `microphone` 类型还要上传演示视频（录音 → 按 Home → 通知栏计时 → 回来 → 停止）。
 - [ ] Account deletion 要求（Play 2023 起强制）：应用内设置页提供注销入口；是否需要额外网页入口
       见 `data-safety.md` §5，标待核。
 
