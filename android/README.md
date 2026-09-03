@@ -38,6 +38,16 @@ signing.intl.keyPassword=...
 
 也可用环境变量 `SIGNING_CN_STOREFILE` / `SIGNING_CN_STOREPASSWORD` / `SIGNING_CN_KEYALIAS` / `SIGNING_CN_KEYPASSWORD`（`SIGNING_INTL_*` 同）代替。
 
+## 版本号
+
+唯一来源是 `android/version.properties`（`versionName` / `versionCode`），两个 flavor 共用同一份，
+`app/build.gradle.kts` 从里面读，不要改 build.gradle.kts 里的字面量。CI 需要临时指定时可用
+`-PversionCode=` / `-PversionName=` 覆盖（不落盘、不影响仓库里的文件）。
+
+发版前手动把 `version.properties` 里的号提一格再跑 `scripts/android-release.sh`（该脚本不会自己
+帮你改版本号）。国内商店（华为/小米/OPPO/vivo 等）要求新包的 `versionCode` 严格大于上一次通过审
+核的包，单调递增，不能跳号也不能不变；`versionName` 无此限制，跟产品版本走即可。
+
 ## 模拟器
 
 ```bash

@@ -13,14 +13,24 @@ val localProps = Properties().apply {
 }
 fun prop(name: String): String? = localProps.getProperty(name) ?: System.getenv(name.uppercase().replace('.', '_'))
 
+// 版本号唯一来源：android/version.properties（CI 打包/复测各端读同一份，不在此文件里改字面量）。
+// -PversionCode=/-PversionName= 可覆盖，供 CI 临时打点用（不落盘）。
+val versionProps = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val appVersionCode = (project.findProperty("versionCode") as String?)?.toInt()
+    ?: versionProps.getProperty("versionCode").toInt()
+val appVersionName = project.findProperty("versionName") as String?
+    ?: versionProps.getProperty("versionName")
+
 android {
     namespace = "com.aiworkdeck.mobile"
     compileSdk = 37
     defaultConfig {
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         vectorDrawables.useSupportLibrary = true
     }
     flavorDimensions += "market"
@@ -54,11 +64,15 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            resValue("string", "app_label", "AI WorkDeck")
             productFlavors.getByName("cn").signingConfig = signingConfigs.findByName("release-cn")
             productFlavors.getByName("intl").signingConfig = signingConfigs.findByName("release-intl")
         }
+        debug {
+            resValue("string", "app_label", "AI WorkDeck Dev")
+        }
     }
-    buildFeatures { compose = true; buildConfig = true }
+    buildFeatures { compose = true; buildConfig = true; resValues = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
     kotlin { jvmToolchain(21) }
     testOptions.unitTests.isIncludeAndroidResources = false
