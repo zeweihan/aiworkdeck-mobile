@@ -38,6 +38,49 @@ signing.intl.keyPassword=...
 
 也可用环境变量 `SIGNING_CN_STOREFILE` / `SIGNING_CN_STOREPASSWORD` / `SIGNING_CN_KEYALIAS` / `SIGNING_CN_KEYPASSWORD`（`SIGNING_INTL_*` 同）代替。
 
+## 版本号
+
+唯一来源是 `android/version.properties`（`versionName` / `versionCode`），两个 flavor 共用同一份，
+`app/build.gradle.kts` 从里面读，不要改 build.gradle.kts 里的字面量。CI 需要临时指定时可用
+`-PversionCode=` / `-PversionName=` 覆盖（不落盘、不影响仓库里的文件）。
+
+发版前手动把 `version.properties` 里的号提一格再跑 `scripts/android-release.sh`（该脚本不会自己
+帮你改版本号）。国内商店（华为/小米/OPPO/vivo 等）要求新包的 `versionCode` 严格大于上一次通过审
+核的包，单调递增，不能跳号也不能不变；`versionName` 无此限制，跟产品版本走即可。
+
+## 应用名 / 图标
+
+- 商店与桌面显示名唯一来源是 `app/build.gradle.kts` 里 `release` buildType 的
+  `resValue("string", "app_label", "AI WorkDeck")`——发版本必须是这个（`beian-android.txt` 备案
+  绑定的就是这个名字）；`debug` buildType 是 `"AI WorkDeck Dev"`，用来在桌面上跟正式版区分。
+- 图标源是 iOS 图标 `ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png`，
+  `scripts/android-icon.sh` 用 ImageMagick 从它生成安卓自适应图标（`mipmap-*/ic_launcher_foreground.png`
+  / `ic_launcher_monochrome.png` + `mipmap-anydpi-v26/ic_launcher*.xml` + 白色背景色）和商店大图
+  `android/store/icon-512.png`。iOS 图标换了之后重跑一次这个脚本、把生成物一起提交。
+
+## 出签名包
+
+```bash
+scripts/android-release.sh
+```
+
+做的事：
+1. 从 `~/.aiworkdeck/android/keystore-passwords.txt` 读密码，写入/更新
+   `android/local.properties` 里的六行 `signing.*`（幂等，不回显口令、不动已有的 `sdk.dir`）。
+2. 按 `version.properties` 打印本次 versionName/versionCode。
+3. `./gradlew :app:bundleIntlRelease :app:assembleCnRelease`。
+4. 用 `apksigner verify --print-certs`（cn APK）和 `keytool -printcert -jarfile`（intl AAB）
+   取出签名的 SHA-1 / MD5，和 `~/.aiworkdeck/android/beian-android.txt`（cn）、
+   `aiworkdeck-intl.cer`（intl）里备案登记的指纹逐一比对——**任何一项不一致就非零退出**，因为
+   备案一旦通过，包名与签名指纹就被锁定（性质与 iOS Distribution 证书绑定备案完全相同）；
+   换了 keystore 却继续发包，用户端安装会被判定为「与已备案版本不一致」。
+5. 产物连同 `SHA256SUMS` 拷到 `~/.aiworkdeck/android/releases/<versionName>-<versionCode>/`
+   （不进仓库）。
+6. 打印产物大小与指纹（指纹本身是公开信息，可以打印；口令绝不打印）。
+
+v1 里 `isMinifyEnabled = false`（R8 关闭）是维护者的明确决定，不要顺手打开——真要开启混淆/
+压缩是另一张卡的事，牵涉 keep 规则梳理和逐条验证，不能在这个任务里顺带做。
+
 ## 模拟器
 
 ```bash
@@ -89,6 +132,10 @@ EOF
 5. 查看器：全屏、左右滑动、状态点 + sha 前 12 位
 6. 设置：存相册开关、中转区归档路径、当前账号、用量
 7. 注销登录 → 回登录页
+
+装过 debug 包（`installCnDebug` 等）再装签名 release 包会因为签名不一致被系统拒装
+（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`），两者 `applicationId` 相同、签名不同——这是预期行为，
+先 `adb uninstall <applicationId>` 再装即可，不是 bug。
 
 ## 已知限制
 
