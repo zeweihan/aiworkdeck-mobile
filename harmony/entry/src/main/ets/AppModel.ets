@@ -4,14 +4,18 @@ import { TransferState } from './model/TransferState'
 import { Tally, tallyOf } from './model/TransferTally'
 import { isDesktopOnline, otherPendingCount } from './model/AppModelLogic'
 import { Unauthorized } from './model/Envelope'
+import { AlbumSaver } from './services/AlbumSaver'
 import { AccountUser, MediaUsage } from './services/ApiTypes'
-import { Loc } from './services/EvidenceStore'
+import { Loc } from './model/Loc'
 import { RecorderService } from './services/RecorderService'
 import { ServiceLocator } from './services/ServiceLocator'
 
 const DOMAIN: number = 0x0000
 const TAG: string = 'AppModel'
 const HEARTBEAT_MS: number = 60000
+
+/** 存相册无状态，一份就够。 */
+const ALBUM: AlbumSaver = new AlbumSaver()
 
 /** 根路由的四态，互斥、按顺序判定。boot 是「还没恢复完」，不画任何一屏。 */
 export enum Route {
@@ -50,6 +54,9 @@ export class AppModel {
   private refreshPending: boolean = false
   private nextToken: number = 1
   private readonly listeners: Map<number, () => void> = new Map<number, () => void>()
+  private nextLifeToken: number = 1
+  private readonly lifeListeners: Map<number, (foreground: boolean) => void> =
+    new Map<number, (foreground: boolean) => void>()
 
   /** 订阅状态变化。返回的号用来退订（页面 aboutToDisappear 里退，免得回调打在已销毁的组件上）。 */
   subscribe(cb: () => void): number {
@@ -61,6 +68,21 @@ export class AppModel {
 
   unsubscribe(token: number): void {
     this.listeners.delete(token)
+  }
+
+  /**
+   * 订阅前后台切换。取景页要在退后台时停录像、放开相机，回前台再把预览重开——
+   * 摄像头在后台留不住，而这两个事件只有 UIAbility 收得到。
+   */
+  subscribeLifecycle(cb: (foreground: boolean) => void): number {
+    const token: number = this.nextLifeToken
+    this.nextLifeToken = token + 1
+    this.lifeListeners.set(token, cb)
+    return token
+  }
+
+  unsubscribeLifecycle(token: number): void {
+    this.lifeListeners.delete(token)
   }
 
   // MARK: - 启动
@@ -212,7 +234,11 @@ export class AppModel {
     const item: CaptureItem = await ServiceLocator.store.save(
       kind, tempPath, capturedAtMs, loc, this.selectedProject)
     await this.refresh()
-    // 存相册（AlbumSaver）挂在这里，Task 6 接相机时装上：它与上传是两条互不影响的链
+    // 存相册与上传是两条互不影响的链，都不 await：存相册要弹系统确认（spec H8），
+    // 等用户点完再排上传等于让网络传输迁就一次点击
+    ALBUM.saveIfEnabled(item).then((): void => this.scheduleRefresh()).catch((e: Object): void => {
+      hilog.warn(DOMAIN, TAG, 'album save failed: %{public}s', messageOf(e))
+    })
     ServiceLocator.queue.kick().catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'kick failed: %{public}s', messageOf(e))
     })
@@ -251,6 +277,7 @@ export class AppModel {
 
   /** 回到前台：磁盘可能被后台上传任务改过，队列也可能停在半路。 */
   onForeground(): void {
+    this.emitLifecycle(true)
     if (!this.booted) return
     this.refresh().catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'foreground refresh failed: %{public}s', messageOf(e))
@@ -292,8 +319,20 @@ export class AppModel {
     }, 0)
   }
 
+  /**
+   * 退到后台。**不停录音**——录音靠 AUDIO_RECORDING 长时任务继续录（#407）；
+   * 相机与录像的停止由取景页在这个广播里自己做。
+   */
+  onBackground(): void {
+    this.emitLifecycle(false)
+  }
+
   private emit(): void {
     for (const cb of this.listeners.values()) cb()
+  }
+
+  private emitLifecycle(foreground: boolean): void {
+    for (const cb of this.lifeListeners.values()) cb(foreground)
   }
 }
 

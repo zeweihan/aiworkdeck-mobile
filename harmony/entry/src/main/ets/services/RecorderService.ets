@@ -6,7 +6,7 @@ import { media } from '@kit.MediaKit'
 import { util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { CaptureItem, MediaKind, RelayProject } from '../model/Capture'
-import { Loc } from './EvidenceStore'
+import { Loc } from '../model/Loc'
 import { RecordingState } from './RecordingState'
 import { ServiceLocator } from './ServiceLocator'
 

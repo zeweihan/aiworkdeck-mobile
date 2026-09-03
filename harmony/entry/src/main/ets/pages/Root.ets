@@ -1,11 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppModel, Route } from '../AppModel'
-import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
-import { RelayProject } from '../model/Capture'
-import { formatClock } from '../model/Format'
-import { RecorderService } from '../services/RecorderService'
-import { RecordingState } from '../services/RecordingState'
+import { Home } from './Home'
 import { Login } from './Login'
 import { ProjectPicker } from './ProjectPicker'
 import { Settings } from './Settings'
@@ -19,6 +15,10 @@ const PAGE_PROJECTS: string = 'ProjectPicker'
 const PAGE_PROJECTS_SWITCH: string = 'ProjectPickerSwitch'
 const PAGE_HOME: string = 'Home'
 const PAGE_SETTINGS: string = 'Settings'
+/** Task 7 / 8 的三屏。先占住名字，取景页的三个入口才有地方去。 */
+const PAGE_LIBRARY: string = 'Library'
+const PAGE_QUEUE: string = 'Queue'
+const PAGE_VIEWER: string = 'Viewer'
 
 /**
  * 根路由。四态互斥、按顺序判定：还没恢复完（boot）→ 没登录 → 没选项目 → 主界面，
@@ -67,8 +67,10 @@ struct Root {
       ProjectPicker({ stack: this.stack, switching: true })
     } else if (name === PAGE_SETTINGS) {
       Settings({ stack: this.stack })
+    } else if (name === PAGE_LIBRARY || name === PAGE_QUEUE || name === PAGE_VIEWER) {
+      Placeholder({ name: name })
     } else {
-      HomeStub({ stack: this.stack })
+      Home({ stack: this.stack })
     }
   }
 
@@ -87,98 +89,21 @@ struct Root {
   }
 }
 
-/**
- * 取景首页的占位。Task 6 用真正的取景器（相机预览 + 三档 + 水印）整个换掉这一屏，
- * 这里只留两条出口，好让登录 → 选项目 → 设置 → 退出这条链在模拟器上能走通。
- */
+/** Task 7 / 8 未建的三屏。名字先占住，那两个任务把它换成真页面。 */
 @Component
-struct HomeStub {
-  stack: NavPathStack = new NavPathStack()
-  @State projectName: string = ''
-  @State recording: boolean = false
-  @State interrupted: boolean = false
-  @State elapsed: string = '00:00'
-  private token: number = -1
-  private recToken: number = -1
-
-  aboutToAppear(): void {
-    this.token = AppModel.shared.subscribe((): void => this.sync())
-    this.recToken = RecorderService.shared.state.subscribe((): void => this.syncRecording())
-    this.sync()
-    this.syncRecording()
-  }
-
-  aboutToDisappear(): void {
-    if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
-    if (this.recToken >= 0) RecorderService.shared.state.unsubscribe(this.recToken)
-  }
+struct Placeholder {
+  @Prop name: string = ''
 
   build() {
     NavDestination() {
-      Column({ space: Tk.Sp.s4 }) {
-        Text(tr('home.eyebrow'))
-          .fontSize(Tk.Ty.nano)
-          .fontColor(Tk.L.fgMuted)
-        Text(this.projectName)
-          .fontSize(Tk.Ty.display)
-          .fontColor(Tk.L.fg)
-        Text(this.recording ? this.elapsed : '')
-          .fontSize(Tk.Ty.title)
-          .fontColor(Tk.L.fg)
-        Text(this.recording ? (this.interrupted ? tr('rec.paused.interrupted') : tr('home.audio.backgroundOk')) : '')
-          .fontSize(Tk.Ty.micro)
-          .fontColor(Tk.L.fgMuted)
-        Text(this.recording ? tr('home.shutter.stopAudio') : tr('home.shutter.startAudio'))
-          .fontSize(Tk.Ty.body)
-          .fontColor(Tk.L.accent)
-          .height(Tk.touchMin)
-          .onClick((): void => this.toggleRecording())
-        Text(tr('home.settings'))
-          .fontSize(Tk.Ty.small)
-          .fontColor(Tk.L.accent)
-          .height(Tk.touchMin)
-          .onClick((): void => {
-            this.stack.pushPath(new NavPathInfo(PAGE_SETTINGS, ''))
-          })
-        Text(tr('common.signOut'))
-          .fontSize(Tk.Ty.small)
-          .fontColor(Tk.L.fgMuted)
-          .height(Tk.touchMin)
-          .onClick((): void => {
-            AppModel.shared.signOut().catch((): void => {})
-          })
-      }
-      .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
+      Text(this.name)
+        .fontSize(Tk.Ty.body)
+        .fontColor(Tk.D.fgMuted)
+        .width('100%')
+        .height('100%')
+        .textAlign(TextAlign.Center)
     }
     .hideTitleBar(true)
-    .backgroundColor(Tk.L.bg)
-  }
-
-  private sync(): void {
-    const p: RelayProject | null = AppModel.shared.selectedProject
-    this.projectName = p === null ? '' : p.name
-  }
-
-  private syncRecording(): void {
-    const st: RecordingState = RecorderService.shared.state
-    this.recording = st.isRecording
-    this.interrupted = st.interrupted
-    this.elapsed = formatClock(st.elapsedSec)
-  }
-
-  /** 位置留空：定位在 Task 6 接上，那之前录音件的 manifest 没有坐标。 */
-  private toggleRecording(): void {
-    const svc: RecorderService = RecorderService.shared
-    if (svc.state.isRecording) {
-      svc.stop().catch((e: Object): void => {
-        hilog.error(DOMAIN, TAG, 'stop recording failed: %{public}s', `${e}`)
-      })
-    } else {
-      svc.start(AppModel.shared.selectedProject, null).catch((e: Object): void => {
-        hilog.error(DOMAIN, TAG, 'start recording failed: %{public}s', `${e}`)
-      })
-    }
+    .backgroundColor(Tk.D.bg)
   }
 }

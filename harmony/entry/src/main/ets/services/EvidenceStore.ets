@@ -6,19 +6,13 @@ import {
 } from '../model/Capture'
 import { TransferState, TransferStateOps } from '../model/TransferState'
 import { formatIso } from '../model/IsoTime'
+import { Loc } from '../model/Loc'
 import { DeviceFacts } from './DeviceFacts'
 import { asRecord, decodeRelayProject, getBoolean, getNumber, getString } from './ApiTypes'
 
 const DOMAIN: number = 0x0000
 const TAG: string = 'EvidenceStore'
 const KINDS: MediaKind[] = [MediaKind.photo, MediaKind.video, MediaKind.audio]
-
-/** 拍摄时的定位信息，精度可能拿不到（例如室内）。 */
-export interface Loc {
-  lat: number
-  lon: number
-  accuracy: number | null
-}
 
 function parseKind(s: string): MediaKind | null {
   for (const k of KINDS) {
