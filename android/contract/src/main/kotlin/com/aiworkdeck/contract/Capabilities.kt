@@ -9,5 +9,5 @@ object ContractCapabilities {
     /** "true" / "false" / "runtime" */
     const val glassBlur: String = "false"
     const val deviceAttestation: Boolean = false
-    val degradedNotice: Map<String, String> = mapOf("backgroundUpload" to "cap.noBackgroundUpload", "continuousSegments" to "cap.segmentedRecording")
+    val degradedNotice: Map<String, String> = mapOf("backgroundUpload" to "cap.noBackgroundUpload", "continuousSegments" to "cap.segmentedRecording", "backgroundRecording" to "cap.noBackgroundRecording")
 }

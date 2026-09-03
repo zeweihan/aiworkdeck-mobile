@@ -8,6 +8,8 @@
     "continuousSegments": { "ios": false, "miniprogram": true,      "android": false, "harmony": false,
                             "degradedNotice": "cap.segmentedRecording" },
     "glassBlur":          { "ios": true,  "miniprogram": "runtime", "android": false, "harmony": true },
-    "deviceAttestation":  { "ios": true,  "miniprogram": false,     "android": false, "harmony": false }
+    "deviceAttestation":  { "ios": true,  "miniprogram": false,     "android": false, "harmony": false },
+    "backgroundRecording": { "ios": true, "miniprogram": false,     "android": true,  "harmony": true,
+                            "degradedNotice": "cap.noBackgroundRecording" }
   }
 }

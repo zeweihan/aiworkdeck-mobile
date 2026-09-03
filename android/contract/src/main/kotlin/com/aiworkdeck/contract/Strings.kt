@@ -32,6 +32,9 @@ object ContractStrings {
         "delete.warn.landed" to mapOf("zh-Hans" to "删除 {n} 件本地原图？电脑上已有副本。", "en" to "Delete {n} local originals? Your computer already has copies."),
         "cap.noBackgroundUpload" to mapOf("zh-Hans" to "本端不支持后台上传，请保持页面打开直到上传完成", "en" to "This client cannot upload in the background. Keep the page open until uploads finish."),
         "cap.segmentedRecording" to mapOf("zh-Hans" to "本端录像为记录用途，证据用途请用 iOS 端", "en" to "Video on this client is for record-keeping. Use the iOS app for evidentiary recording."),
+        "cap.noBackgroundRecording" to mapOf("zh-Hans" to "小程序切到后台或锁屏后录音可能中断，请保持微信在前台", "en" to "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground."),
+        "home.audio.backgroundOk" to mapOf("zh-Hans" to "切到后台、锁屏也会继续录音", "en" to "Keeps recording in the background and when locked"),
+        "rec.paused.interrupted" to mapOf("zh-Hans" to "通话中，录音已暂停，结束后自动继续", "en" to "Paused for a call. Recording resumes automatically when it ends."),
         "empty.projects" to mapOf("zh-Hans" to "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里", "en" to "Sign in to the desktop app with the same phone number and keep it running. Projects appear here within about a minute."),
         "login.title" to mapOf("zh-Hans" to "登录", "en" to "Sign in"),
         "login.codeTitle" to mapOf("zh-Hans" to "验证码", "en" to "Code"),
@@ -115,6 +118,7 @@ object ContractStrings {
         "settings.package" to mapOf("zh-Hans" to "应用包名", "en" to "Package"),
         "notify.channel.upload" to mapOf("zh-Hans" to "上传", "en" to "Uploads"),
         "notify.uploading" to mapOf("zh-Hans" to "正在上传现场影像", "en" to "Uploading field media"),
+        "notify.channel.recording" to mapOf("zh-Hans" to "录音", "en" to "Recording"),
         "file.prefix.media" to mapOf("zh-Hans" to "现场影像", "en" to "Field media"),
         "file.prefix.audio" to mapOf("zh-Hans" to "现场录音", "en" to "Field audio"),
     )

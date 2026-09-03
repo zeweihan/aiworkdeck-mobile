@@ -7,5 +7,5 @@ enum ContractCapabilities {
     /// true / false，或 "runtime" 表示运行时探测
     static let glassBlur: String = "true"
     static let deviceAttestation: Bool = true
-    static let degradedNotice: [String: String] = ["backgroundUpload": "cap.noBackgroundUpload", "continuousSegments": "cap.segmentedRecording"]
+    static let degradedNotice: [String: String] = ["backgroundUpload": "cap.noBackgroundUpload", "continuousSegments": "cap.segmentedRecording", "backgroundRecording": "cap.noBackgroundRecording"]
 }
