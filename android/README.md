@@ -48,6 +48,16 @@ signing.intl.keyPassword=...
 帮你改版本号）。国内商店（华为/小米/OPPO/vivo 等）要求新包的 `versionCode` 严格大于上一次通过审
 核的包，单调递增，不能跳号也不能不变；`versionName` 无此限制，跟产品版本走即可。
 
+## 应用名 / 图标
+
+- 商店与桌面显示名唯一来源是 `app/build.gradle.kts` 里 `release` buildType 的
+  `resValue("string", "app_label", "AI WorkDeck")`——发版本必须是这个（`beian-android.txt` 备案
+  绑定的就是这个名字）；`debug` buildType 是 `"AI WorkDeck Dev"`，用来在桌面上跟正式版区分。
+- 图标源是 iOS 图标 `ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png`，
+  `scripts/android-icon.sh` 用 ImageMagick 从它生成安卓自适应图标（`mipmap-*/ic_launcher_foreground.png`
+  / `ic_launcher_monochrome.png` + `mipmap-anydpi-v26/ic_launcher*.xml` + 白色背景色）和商店大图
+  `android/store/icon-512.png`。iOS 图标换了之后重跑一次这个脚本、把生成物一起提交。
+
 ## 模拟器
 
 ```bash
