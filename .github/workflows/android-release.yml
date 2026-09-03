@@ -10,6 +10,8 @@ on:
         description: "覆盖 versionName（留空则用 android/version.properties 里的默认值）"
         required: false
         type: string
+permissions:
+  contents: read
 jobs:
   release:
     runs-on: ubuntu-latest
