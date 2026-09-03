@@ -11,6 +11,8 @@ import { RecordingClock } from '../model/RecordingClock'
 import { Backoff } from '../model/Backoff'
 import { isDesktopOnline, otherPendingCount } from '../model/AppModelLogic'
 import { checkEnvelope } from '../model/Envelope'
+import { BASE_URL, ServiceLocator } from '../services/ServiceLocator'
+import { KickResult } from '../services/UploadQueue'
 
 /**
  * 临时探针：领域层与设计层还没接页面，在这里各引一次，好让 hvigor 的 ArkTS 检查覆盖到它们。
@@ -38,8 +40,12 @@ function probe(): number {
     uploadFileName(item.kind, item.capturedAtMs(), item.id),
     TransferStateOps.caption(item.state),
   ]
+  // 服务层：只引，不调用需要 context 的方法（装配在 EntryAbility.onCreate）
+  const wired: number = ServiceLocator.isReady() ? 1 : 0
+  const kicked: string = KickResult.done
   return tally.total + sections.length + names.length + clock.elapsed(now) +
-    backoff.seconds + otherPendingCount([item], null) + (isDesktopOnline(null, now) ? 1 : 0)
+    backoff.seconds + otherPendingCount([item], null) + (isDesktopOnline(null, now) ? 1 : 0) +
+    wired + BASE_URL.length + kicked.length
 }
 
 @Entry
