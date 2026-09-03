@@ -17,3 +17,18 @@ export function formatBytes(bytes: number): string {
   const n: string = i === 0 ? `${Math.floor(v)}` : (v < 10 ? v.toFixed(1) : v.toFixed(0))
   return `${n} ${UNITS[i]}`
 }
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`
+}
+
+/**
+ * 录制计时 mm:ss。超过一小时也继续往上加分钟，不进位到小时——现场没有那么长的单段，
+ * 「61:01」比「01:01:01」少一次心算。与安卓 `WatermarkFormat.duration` 同口径。
+ *
+ * 秒数向下取整：秒表跳到 1 应该是录满 1 秒之后，不是 0.6 秒就跳。
+ */
+export function formatClock(seconds: number): string {
+  const s: number = seconds > 0 ? Math.floor(seconds) : 0
+  return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
+}

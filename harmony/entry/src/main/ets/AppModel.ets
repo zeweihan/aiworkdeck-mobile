@@ -6,6 +6,7 @@ import { isDesktopOnline, otherPendingCount } from './model/AppModelLogic'
 import { Unauthorized } from './model/Envelope'
 import { AccountUser, MediaUsage } from './services/ApiTypes'
 import { Loc } from './services/EvidenceStore'
+import { RecorderService } from './services/RecorderService'
 import { ServiceLocator } from './services/ServiceLocator'
 
 const DOMAIN: number = 0x0000
@@ -86,6 +87,10 @@ export class AppModel {
     this.emit()
     await this.refresh()
     ServiceLocator.queue.onChange = (): void => {
+      this.scheduleRefresh()
+    }
+    // 录音落库走的是录音服务自己那条链（它可能在页面已经销毁时完成），库变了就得重读
+    RecorderService.shared.onStored = (): void => {
       this.scheduleRefresh()
     }
     this.startHeartbeat()
@@ -252,6 +257,10 @@ export class AppModel {
     })
     ServiceLocator.queue.autoKick().catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'foreground autoKick failed: %{public}s', messageOf(e))
+    })
+    // 通话结束后用户直接切回应用的那条路上不一定有状态事件，回前台补问一次续录
+    RecorderService.shared.resumeIfInterrupted().catch((e: Object): void => {
+      hilog.warn(DOMAIN, TAG, 'foreground resume failed: %{public}s', messageOf(e))
     })
   }
 

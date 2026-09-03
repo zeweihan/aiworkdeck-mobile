@@ -3,6 +3,9 @@ import { AppModel, Route } from '../AppModel'
 import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
 import { RelayProject } from '../model/Capture'
+import { formatClock } from '../model/Format'
+import { RecorderService } from '../services/RecorderService'
+import { RecordingState } from '../services/RecordingState'
 import { Login } from './Login'
 import { ProjectPicker } from './ProjectPicker'
 import { Settings } from './Settings'
@@ -92,15 +95,22 @@ struct Root {
 struct HomeStub {
   stack: NavPathStack = new NavPathStack()
   @State projectName: string = ''
+  @State recording: boolean = false
+  @State interrupted: boolean = false
+  @State elapsed: string = '00:00'
   private token: number = -1
+  private recToken: number = -1
 
   aboutToAppear(): void {
     this.token = AppModel.shared.subscribe((): void => this.sync())
+    this.recToken = RecorderService.shared.state.subscribe((): void => this.syncRecording())
     this.sync()
+    this.syncRecording()
   }
 
   aboutToDisappear(): void {
     if (this.token >= 0) AppModel.shared.unsubscribe(this.token)
+    if (this.recToken >= 0) RecorderService.shared.state.unsubscribe(this.recToken)
   }
 
   build() {
@@ -112,6 +122,17 @@ struct HomeStub {
         Text(this.projectName)
           .fontSize(Tk.Ty.display)
           .fontColor(Tk.L.fg)
+        Text(this.recording ? this.elapsed : '')
+          .fontSize(Tk.Ty.title)
+          .fontColor(Tk.L.fg)
+        Text(this.recording ? (this.interrupted ? tr('rec.paused.interrupted') : tr('home.audio.backgroundOk')) : '')
+          .fontSize(Tk.Ty.micro)
+          .fontColor(Tk.L.fgMuted)
+        Text(this.recording ? tr('home.shutter.stopAudio') : tr('home.shutter.startAudio'))
+          .fontSize(Tk.Ty.body)
+          .fontColor(Tk.L.accent)
+          .height(Tk.touchMin)
+          .onClick((): void => this.toggleRecording())
         Text(tr('home.settings'))
           .fontSize(Tk.Ty.small)
           .fontColor(Tk.L.accent)
@@ -138,5 +159,26 @@ struct HomeStub {
   private sync(): void {
     const p: RelayProject | null = AppModel.shared.selectedProject
     this.projectName = p === null ? '' : p.name
+  }
+
+  private syncRecording(): void {
+    const st: RecordingState = RecorderService.shared.state
+    this.recording = st.isRecording
+    this.interrupted = st.interrupted
+    this.elapsed = formatClock(st.elapsedSec)
+  }
+
+  /** 位置留空：定位在 Task 6 接上，那之前录音件的 manifest 没有坐标。 */
+  private toggleRecording(): void {
+    const svc: RecorderService = RecorderService.shared
+    if (svc.state.isRecording) {
+      svc.stop().catch((e: Object): void => {
+        hilog.error(DOMAIN, TAG, 'stop recording failed: %{public}s', `${e}`)
+      })
+    } else {
+      svc.start(AppModel.shared.selectedProject, null).catch((e: Object): void => {
+        hilog.error(DOMAIN, TAG, 'start recording failed: %{public}s', `${e}`)
+      })
+    }
   }
 }

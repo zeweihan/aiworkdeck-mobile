@@ -37,6 +37,10 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'workdeck', '%{public}s', 'EntryAbility onForeground');
   }
 
+  /**
+   * 退到后台。**不停录音**——录音靠 AUDIO_RECORDING 长时任务在后台继续，这正是 #407 要的。
+   * 相机与录像的停止是 Task 6 的事（摄像头在后台留不住）。
+   */
   onBackground(): void {
     hilog.info(DOMAIN, 'workdeck', '%{public}s', 'EntryAbility onBackground');
   }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatBytes } from '../../harmony/entry/src/main/ets/model/Format.ets'
+import { formatBytes, formatClock } from '../../harmony/entry/src/main/ets/model/Format.ets'
 
 test('小于 1 KB 直接给整数字节', () => {
   assert.equal(formatBytes(0), '0 B')
@@ -25,4 +25,22 @@ test('封顶在 TB，负数按 0 算', () => {
   assert.equal(formatBytes(3 * 1024 ** 4), '3.0 TB')
   assert.equal(formatBytes(2048 * 1024 ** 4), '2048 TB')
   assert.equal(formatBytes(-1), '0 B')
+})
+
+test('录制计时 mm:ss，与安卓 WatermarkFormat.duration 同口径', () => {
+  assert.equal(formatClock(0), '00:00')
+  assert.equal(formatClock(9), '00:09')
+  assert.equal(formatClock(59), '00:59')
+  assert.equal(formatClock(60), '01:00')
+  assert.equal(formatClock(605), '10:05')
+})
+
+test('超过一小时继续加分钟，不进位到小时', () => {
+  assert.equal(formatClock(3600), '60:00')
+  assert.equal(formatClock(3661), '61:01')
+})
+
+test('秒数向下取整，负数按 0 算', () => {
+  assert.equal(formatClock(12.9), '00:12')
+  assert.equal(formatClock(-5), '00:00')
 })
