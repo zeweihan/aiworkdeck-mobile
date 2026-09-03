@@ -1,0 +1,97 @@
+name: android-release
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: "覆盖 versionCode（留空则用 android/version.properties 里的默认值）"
+        required: false
+        type: string
+      versionName:
+        description: "覆盖 versionName（留空则用 android/version.properties 里的默认值）"
+        required: false
+        type: string
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: android } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 密钥库明文只落在 runner 的临时目录（$RUNNER_TEMP，job 结束即回收），不进工作区、不进产物。
+      - name: 写入签名密钥库
+        env:
+          CN_KEYSTORE_B64: ${{ secrets.ANDROID_CN_KEYSTORE_B64 }}
+          INTL_KEYSTORE_B64: ${{ secrets.ANDROID_INTL_KEYSTORE_B64 }}
+        run: |
+          set +x
+          echo "$CN_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/cn.jks"
+          echo "$INTL_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/intl.jks"
+
+      # local.properties 是 gitignored 文件，签名口令只写在这里，CI 日志不打印它的内容。
+      - name: 写入 local.properties（sdk.dir + 双签名配置）
+        env:
+          CN_STORE_PASSWORD: ${{ secrets.ANDROID_CN_STORE_PASSWORD }}
+          CN_KEY_PASSWORD: ${{ secrets.ANDROID_CN_KEY_PASSWORD }}
+          INTL_STORE_PASSWORD: ${{ secrets.ANDROID_INTL_STORE_PASSWORD }}
+          INTL_KEY_PASSWORD: ${{ secrets.ANDROID_INTL_KEY_PASSWORD }}
+        run: |
+          set +x
+          {
+            echo "sdk.dir=$ANDROID_HOME"
+            echo "signing.cn.storeFile=$RUNNER_TEMP/cn.jks"
+            echo "signing.cn.storePassword=$CN_STORE_PASSWORD"
+            echo "signing.cn.keyAlias=aiworkdeck-cn"
+            echo "signing.cn.keyPassword=$CN_KEY_PASSWORD"
+            echo "signing.intl.storeFile=$RUNNER_TEMP/intl.jks"
+            echo "signing.intl.storePassword=$INTL_STORE_PASSWORD"
+            echo "signing.intl.keyAlias=aiworkdeck-intl"
+            echo "signing.intl.keyPassword=$INTL_KEY_PASSWORD"
+          } > local.properties
+
+      - name: 组装（国际版 AAB + 国内版 APK）
+        run: |
+          set +x
+          args=()
+          if [ -n "${{ inputs.versionCode }}" ]; then args+=("-PversionCode=${{ inputs.versionCode }}"); fi
+          if [ -n "${{ inputs.versionName }}" ]; then args+=("-PversionName=${{ inputs.versionName }}"); fi
+          ./gradlew :app:bundleIntlRelease :app:assembleCnRelease --console=plain "${args[@]}"
+
+      - name: 定位产物、校验签名、打印指纹
+        run: |
+          set +x
+          intl_aab=$(find app/build/outputs/bundle -name "*.aab" | head -1)
+          cn_apk=$(find app/build/outputs/apk/cn/release -name "*.apk" | grep -v unsigned | head -1)
+          if [ -z "$intl_aab" ] || [ -z "$cn_apk" ]; then
+            echo "构建产物没找到：intl_aab=$intl_aab cn_apk=$cn_apk" >&2
+            exit 1
+          fi
+          cp "$intl_aab" intl-release.aab
+          cp "$cn_apk" cn-release.apk
+
+          build_tools_dir=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          apksigner="$ANDROID_HOME/build-tools/$build_tools_dir/apksigner"
+
+          echo "=== apksigner verify（国内版 APK，$build_tools_dir）==="
+          "$apksigner" verify --print-certs cn-release.apk
+
+          echo "=== keytool -printcert（国际版 AAB）==="
+          keytool -printcert -jarfile intl-release.aab
+
+          echo "=== 产物文件哈希（用于核对上传结果，不是证书指纹）==="
+          shasum -a 1 intl-release.aab cn-release.apk
+          md5sum intl-release.aab cn-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intl-release-aab
+          path: android/intl-release.aab
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cn-release-apk
+          path: android/cn-release.apk
+          retention-days: 30
