@@ -1,0 +1,32 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "AI WorkDeck 现场取证"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "AI WorkDeck 现场取证"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "AI WorkDeck"
+    },
+    {
+      "name": "perm_camera",
+      "value": "用于拍摄现场取证照片与视频，影像仅保存在应用内，不写入系统相册"
+    },
+    {
+      "name": "perm_microphone",
+      "value": "用于现场录音取证，以及录制视频时同步收音，录到的声音仅作为取证记录保存"
+    },
+    {
+      "name": "perm_location",
+      "value": "用于在拍摄时记录该张影像的拍摄地点，写入归档信息；仅在拍摄时读取一次，不进行后台持续定位"
+    },
+    {
+      "name": "perm_background",
+      "value": "用于在你按下开始录音后切到后台或锁屏时继续录音，按停止即结束"
+    }
+  ]
+}

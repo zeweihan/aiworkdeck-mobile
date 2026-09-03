@@ -253,10 +253,99 @@ object ContractCapabilities {
 }
 
 // ---- ArkTS ----
+// ArkTS 严格模式不收 `as const` 与无类型对象字面量：每个常量都要有显式 interface。
+// 字段名与类型都从 JSON 推出，改契约不用回来改渲染器。
+const RECORD_SS = 'Record<string, string>'
+const ETS_IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const etsKey = (k) => (ETS_IDENT.test(k) ? k : q(k))
+
+/** 生成代码里的裸标识符：用来把已经提出去的具名常量塞回字面量 */
+class EtsRaw {
+  constructor(text) { this.text = text }
+}
+
+/**
+ * 对象/数组字面量。接口字面量用标识符键；Record 字面量（quoteKeys）一律加引号——
+ * ArkTS 只把「键全是字符串字面量」的对象字面量当 Record，不然报 arkts-no-untyped-obj-literals。
+ */
+function etsValue(v, indent = '', quoteKeys = false) {
+  if (v instanceof EtsRaw) return v.text
+  if (v === null) return 'null'
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  if (typeof v === 'string') return q(v)
+  const inner = indent + '  '
+  if (Array.isArray(v)) {
+    if (v.length === 0) return '[]'
+    return `[\n${v.map((x) => inner + etsValue(x, inner, quoteKeys)).join(',\n')}\n${indent}]`
+  }
+  const entries = Object.entries(v)
+  if (entries.length === 0) return '{}'
+  const key = (k) => (quoteKeys ? q(k) : etsKey(k))
+  return `{\n${entries.map(([k, x]) => `${inner}${key(k)}: ${etsValue(x, inner, quoteKeys)}`).join(',\n')}\n${indent}}`
+}
+
+/** 值 → ArkTS 类型。null 当「缺席的数」（契约里只有 maxVideoSeconds 一种），字典一律 Record<string, string> */
+function etsTypeOf(v) {
+  if (v === null) return 'number | null'
+  if (typeof v === 'number') return 'number'
+  if (typeof v === 'boolean') return 'boolean'
+  if (typeof v === 'string') return 'string'
+  if (Array.isArray(v)) return v.length === 0 ? 'string[]' : `${etsTypeOf(v[0])}[]`
+  return RECORD_SS
+}
+
+/** 一层对象 → interface；overrides 给推不出来的字段（如对象数组的元素类型）指定类型 */
+function etsIface(name, obj, overrides = {}) {
+  const rows = Object.entries(obj).map(([k, v]) => `  ${etsKey(k)}: ${overrides[k] ?? etsTypeOf(v)}`)
+  return `export interface ${name} {\n${rows.join('\n')}\n}\n`
+}
+
+/** 同构对象数组 → interface；不是每个元素都有的键标成可选 */
+function etsIfaceFromRows(name, rows) {
+  const keys = [...new Set(rows.flatMap((r) => Object.keys(r)))]
+  const fields = keys.map((k) => {
+    const sample = rows.find((r) => r[k] !== undefined)
+    const optional = rows.some((r) => r[k] === undefined)
+    return `  ${etsKey(k)}${optional ? '?' : ''}: ${etsTypeOf(sample[k])}`
+  })
+  return `export interface ${name} {\n${fields.join('\n')}\n}\n`
+}
+
+/**
+ * 类型化常量：ArkTS 不认接口字段里的嵌套 Record 字面量（arkts-no-untyped-obj-literals），
+ * 把每个 Record 字段提成同文件里的具名常量再引用。
+ */
+function etsTypedConst(constName, ifaceName, value, overrides = {}) {
+  const hoisted = []
+  const body = {}
+  for (const [k, v] of Object.entries(value)) {
+    const type = overrides[k] ?? etsTypeOf(v)
+    if (type === RECORD_SS) {
+      const name = `${constName.charAt(0).toLowerCase()}${constName.slice(1)}_${k}`
+      hoisted.push(`const ${name}: ${RECORD_SS} = ${etsValue(v, '', true)}`)
+      body[k] = new EtsRaw(name)
+    } else {
+      body[k] = v
+    }
+  }
+  const pre = hoisted.length > 0 ? hoisted.join('\n') + '\n\n' : ''
+  return `${pre}export const ${constName}: ${ifaceName} = ${etsValue(body)}`
+}
+
 function renderEtsTokens(c) {
   const t = c.tokens
+  const groups = {
+    L: t.L, D: t.D, S: t.S, Sp: t.Sp, Ty: t.Ty,
+    Motion: { fastMs: t.motion.fastMs, baseMs: t.motion.baseMs, slowMs: t.motion.slowMs },
+  }
+  const value = Object.assign({}, groups, { touchMin: t.touchMin, contractVersion: t.version })
+  const ifaceName = (g) => `Tokens${g}`
+  const subs = Object.entries(groups).map(([g, obj]) => etsIface(ifaceName(g), obj)).join('\n')
+  const overrides = Object.fromEntries(Object.keys(groups).map((g) => [g, ifaceName(g)]))
   return H('//') + `/** 颜色为 CSS 字符串；间距单位 vp，字号单位 fp。 */
-export const T = ${JSON.stringify({ L: t.L, D: t.D, S: t.S, Sp: t.Sp, Ty: t.Ty, Motion: { fastMs: t.motion.fastMs, baseMs: t.motion.baseMs, slowMs: t.motion.slowMs }, touchMin: t.touchMin, contractVersion: t.version }, null, 2)} as const
+${subs}
+${etsIface('Tokens', value, overrides)}
+export const T: Tokens = ${etsValue(value)}
 `
 }
 function renderEtsStrings(c) {
@@ -264,7 +353,7 @@ function renderEtsStrings(c) {
 }
 function renderEtsStates(c) {
   const s = c.state
-  return H('//') + `export const ContractStates = ${JSON.stringify({
+  const value = {
     version: s.version, states: s.states, aliases: s.aliases,
     phaseOf: Object.fromEntries(Object.entries(s.phases).flatMap(([p, v]) => v.states.map((st) => [st, p]))),
     phaseLabelKey: Object.fromEntries(Object.entries(s.phases).map(([p, v]) => [p, v.label])),
@@ -272,17 +361,26 @@ function renderEtsStates(c) {
     failedDot: s.failedDot, stateTextKey: s.stateText, stateDetailKey: s.stateDetail, whereKey: s.whereItIs,
     retryDelaysMs: s.retryDelaysMs, maxAutoRetries: s.maxAutoRetries, events: s.events, transitions: s.transitions,
     deleteWarnOrder: s.deleteWarning.order, deleteWarnLevel: s.deleteWarning.levels, deleteWarnKey: s.deleteWarning.keys,
-  }, null, 2)} as const
+  }
+  return H('//') + `${etsIfaceFromRows('Transition', s.transitions)}
+${etsIface('ContractStatesShape', value, { transitions: 'Transition[]' })}
+${etsTypedConst('ContractStates', 'ContractStatesShape', value, { transitions: 'Transition[]' })}
 `
 }
 function renderEtsCaps(c) {
   const caps = c.caps.capabilities
-  return H('//') + `export const ContractCapabilities = ${JSON.stringify({
-    client: 'harmony',
-    ...Object.fromEntries(Object.entries(caps).map(([k, v]) => [k, v.harmony])),
-    degradedNotice: Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])),
-  }, null, 2)} as const
+  const value = Object.assign(
+    { client: 'harmony' },
+    Object.fromEntries(Object.entries(caps).map(([k, v]) => [k, v.harmony])),
+    { degradedNotice: Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])) },
+  )
+  return H('//') + `${etsIface('ContractCapabilitiesShape', value)}
+${etsTypedConst('ContractCapabilities', 'ContractCapabilitiesShape', value)}
 `
+}
+/** HAR 的入口：四个生成物汇总出去 */
+function renderEtsIndex() {
+  return H('//') + ['Tokens', 'Strings', 'States', 'Capabilities'].map((n) => `export * from './src/main/ets/${n}'`).join('\n') + '\n'
 }
 
 /** 全部生成物：相对路径 → 内容 */
@@ -306,5 +404,6 @@ export function outputs(c) {
     [`${ets}/Strings.ets`, renderEtsStrings(c)],
     [`${ets}/States.ets`, renderEtsStates(c)],
     [`${ets}/Capabilities.ets`, renderEtsCaps(c)],
+    ['harmony/contract/Index.ets', renderEtsIndex()],
   ])
 }

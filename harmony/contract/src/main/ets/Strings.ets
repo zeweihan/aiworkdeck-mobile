@@ -308,6 +308,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "没有麦克风权限",
     "en": "No microphone access"
   },
+  "home.permission.location": {
+    "zh-Hans": "需要定位权限才能记录拍摄地点",
+    "en": "Location permission is needed to stamp where this was taken"
+  },
   "home.permission.open": {
     "zh-Hans": "打开设置",
     "en": "Open Settings"
@@ -399,6 +403,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "settings.saveToAlbum.hint": {
     "zh-Hans": "拍完同时存一份到系统相册。关掉则影像只留在本应用内，手机相册里看不到。",
     "en": "Keep a copy in the system album after each capture. Turn it off and captures stay inside this app only."
+  },
+  "settings.saveToAlbum.dialogHint": {
+    "zh-Hans": "开启后每件影像保存时会弹出系统确认",
+    "en": "Each capture will ask for confirmation before saving"
   },
   "settings.archiveTarget": {
     "zh-Hans": "归档目标",

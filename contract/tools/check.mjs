@@ -165,6 +165,7 @@ function checkInline(c, problems) {
     ...walk(join(c.root, 'miniprogram', 'components'), ['.ts', '.wxml'], []),
     ...walk(join(c.root, 'miniprogram', 'utils'), ['.ts'], ['/utils/contract/']),
     ...walk(join(c.root, 'android', 'app', 'src', 'main'), ['.kt'], []),
+    ...walk(join(c.root, 'harmony', 'entry', 'src', 'main'), ['.ets'], []),
   ]
   const appTs = join(c.root, 'miniprogram', 'app.ts')
   if (existsSync(appTs)) files.push(appTs)
@@ -187,6 +188,13 @@ function checkInline(c, problems) {
   }
 }
 
+/** 签名材料不进仓（spec H11）：DevEco 自动签名会往 build-profile.json5 里写口令 */
+function checkHarmonySigning(c, problems) {
+  const p = join(c.root, 'harmony', 'build-profile.json5')
+  if (existsSync(p) && /storePassword|keyPassword/.test(readFileSync(p, 'utf8')))
+    problems.push('harmony/build-profile.json5 含签名口令：signingConfigs 不进仓，改回 []')
+}
+
 export function runChecks(root, { quick = false } = {}) {
   const problems = []
   let c
@@ -195,6 +203,7 @@ export function runChecks(root, { quick = false } = {}) {
   checkReferences(c, problems)
   checkFixtures(c, problems)
   checkGenerated(c, problems)
+  checkHarmonySigning(c, problems)
   checkApiPin(c, problems)
   if (!quick) checkInline(c, problems)
   return { ok: problems.length === 0, problems }
