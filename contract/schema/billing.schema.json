@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "统一账户余额与充值的线上形状黄金向量（dev-board#425）。json 是服务端裸响应原文，expect 是解码后各端应得的值；缺席的可选键必须解成 null，不能是空串或报错（服务端 putIfPresent 对 null 与空串都不出键）。\n\n业务失败一律 HTTP 200 + code:1，判 code 分不出情况；envelope 的 kind 才是**机器可读判别位**，各端一律按 kind 分支——**禁止匹配 message 措辞**（message 经服务端 LangText 在英文部署下会整条变英文，硬编码中文串必然落空），message 只用于兜底展示。code=1 而 kind 缺席的（非 billing 专有的失败）按「读不到」降级，不得当成「没有账户」。\n\nplan 是计费档位（权威侧 lib/wallet.ts 的 getPlan() 只回 paid / free），**不是套餐名，任何一端都不要把它直接渲染给用户**；只有上游没给这个字段时才是 null。\n\nUI 映射（**唯一来源**，四端逐条对齐；要改先改这里再改端）——余额那一行按 kind 分支渲染：\n  NOT_CONNECTED        整行不渲染。不用 balance.notConnected 去解释「为什么没有」：那句话对每一种会触发 NOT_CONNECTED 的服务端条件都给不出有效的补救指引，该键只保留为「需要如实说一句」时的中性表述\n  DISABLED             整行不渲染。本部署没开通这个功能（服务端未配 mobile.billing.* 即此态，也就是四端一发版时的**默认生产状态**），渲染成报错等于给每个用户的设置页永久挂一行「稍后再试」\n  REVIEW_ACCOUNT       整行不渲染。App 审核演示账号一律关掉余额与充值入口，审核员看到的必须是干净的设置页，不是一行报错\n  UNAVAILABLE          显示 balance.unavailable（稍后重试），绝不能显示成没有账户或余额 0\n  NOT_FOUND            显示 balance.unavailable\n  REJECTED             显示 balance.unavailable\n  kind 缺席            显示 balance.unavailable（非 billing 专有的失败走通用 handler），不得当成「没有账户」\n  ALREADY_PAID         与余额无关：只出现在下单/查单路径，走不到余额行\n  IDEMPOTENCY_CONFLICT 同上\n判据是**这一态会不会自己恢复**：DISABLED / REVIEW_ACCOUNT / NOT_CONNECTED 是永远不会自己变好的终态，把它们渲染成「余额暂时读不到，稍后再试」是让用户去重试一句永不改变的报错；其余才是瞬时故障，值得让用户再试一次（dev-board#425 二轮复审 N2）。\n\n金额展示口径（display，四端逐字符一致，**不跟随设备 locale**）：符号 + balanceCents/100 固定两位小数、**不带千分位分隔符**。符号按 currency 取：CNY→¥、USD→$；契约当前只有这两种币种，上游要出第三种先扩这张表再改各端，任何一端都不得写死 ¥。iOS 尤其不要用 NumberFormatter(.decimal)：它带千分位且分隔符跟设备语言走，德语设备上 123456 分会显示成「¥1.234,56」，与安卓/小程序的「¥1234.56」对不上（dev-board#425 二轮复审 N7）。fixtures/billing.json 里 balance 每条用例的 display 就是这条规则的期望输出，三端的格式化函数与它对拍；check.mjs 用参考实现复算，夹具不能自说自话。",
+  "type": "object", "required": ["balance", "recharge", "status", "envelope"], "additionalProperties": false,
+  "properties": {
+    "balance": { "type": "array", "minItems": 1, "items": {
+      "type": "object", "required": ["name", "json", "expect", "display"], "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "json": { "type": "object", "required": ["balanceCents", "currency", "plan"], "additionalProperties": false,
+          "properties": { "balanceCents": { "type": "integer" }, "currency": { "$ref": "#/$defs/currency" },
+                          "plan": { "$ref": "#/$defs/plan" } } },
+        "expect": { "type": "object", "required": ["balanceCents", "currency", "plan"], "additionalProperties": false,
+          "properties": { "balanceCents": { "type": "integer" }, "currency": { "$ref": "#/$defs/currency" },
+                          "plan": { "$ref": "#/$defs/plan" } } },
+        "display": { "$comment": "三端金额格式化的期望输出：符号 + 两位小数、无千分位、不跟设备 locale 走。check.mjs 用参考实现复算，端上各自的格式化函数与它对拍",
+          "type": "string", "pattern": "^(¥|\\$)[0-9]+\\.[0-9]{2}$" }
+      } } },
+    "recharge": { "type": "array", "minItems": 1, "items": {
+      "type": "object", "required": ["name", "json", "expect"], "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "json": { "type": "object", "required": ["present", "outTradeNo", "amountCents"], "additionalProperties": false,
+          "properties": { "present": { "$ref": "#/$defs/present" }, "outTradeNo": { "type": "string" },
+                          "amountCents": { "type": "integer", "exclusiveMinimum": 0 },
+                          "codeUrl": { "type": "string" }, "qrCode": { "type": "string" }, "redirectUrl": { "type": "string" } } },
+        "expect": { "type": "object",
+          "required": ["present", "outTradeNo", "amountCents", "codeUrl", "qrCode", "redirectUrl"], "additionalProperties": false,
+          "properties": { "present": { "$ref": "#/$defs/present" }, "outTradeNo": { "type": "string" },
+                          "amountCents": { "type": "integer", "exclusiveMinimum": 0 },
+                          "codeUrl": { "type": ["string", "null"] }, "qrCode": { "type": ["string", "null"] },
+                          "redirectUrl": { "type": ["string", "null"] } } }
+      },
+      "allOf": [
+        { "$comment": "下面三条把「响应里没有这个键 → 解码结果必须是 null（不是空串）」钉死", "if": { "properties": { "json": { "type": "object", "required": ["codeUrl"] } } },
+          "then": { "properties": { "expect": { "type": "object", "properties": { "codeUrl": { "type": "string" } } } } },
+          "else": { "properties": { "expect": { "type": "object", "properties": { "codeUrl": { "type": "null" } } } } } },
+        { "if": { "properties": { "json": { "type": "object", "required": ["qrCode"] } } },
+          "then": { "properties": { "expect": { "type": "object", "properties": { "qrCode": { "type": "string" } } } } },
+          "else": { "properties": { "expect": { "type": "object", "properties": { "qrCode": { "type": "null" } } } } } },
+        { "if": { "properties": { "json": { "type": "object", "required": ["redirectUrl"] } } },
+          "then": { "properties": { "expect": { "type": "object", "properties": { "redirectUrl": { "type": "string" } } } } },
+          "else": { "properties": { "expect": { "type": "object", "properties": { "redirectUrl": { "type": "null" } } } } } }
+      ] } },
+    "status": { "type": "array", "minItems": 1, "items": {
+      "type": "object", "required": ["name", "json", "expect"], "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "json": { "$ref": "#/$defs/rechargeStatus" },
+        "expect": { "$ref": "#/$defs/rechargeStatus" }
+      } } },
+    "envelope": { "type": "array", "minItems": 1, "items": {
+      "type": "object", "required": ["name", "json", "expect"], "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "json": { "type": "object", "required": ["code"], "additionalProperties": false,
+          "properties": { "code": { "type": "integer" }, "message": { "type": ["string", "null"] },
+                          "kind": { "$ref": "#/$defs/kind" }, "outTradeNo": { "type": "string" } } },
+        "expect": { "type": "object", "required": ["code", "message", "kind", "outTradeNo"], "additionalProperties": false,
+          "properties": { "code": { "type": "integer" }, "message": { "type": ["string", "null"] },
+                          "kind": { "anyOf": [{ "$ref": "#/$defs/kind" }, { "type": "null" }] },
+                          "outTradeNo": { "type": ["string", "null"] } } }
+      },
+      "allOf": [
+        { "$comment": "kind 缺席（非 billing 专有的失败走通用 handler）→ 必须解成 null，不能是空串，更不能猜一个出来",
+          "if": { "properties": { "json": { "type": "object", "required": ["kind"] } } },
+          "then": { "properties": { "expect": { "type": "object", "properties": { "kind": { "$ref": "#/$defs/kind" } } } } },
+          "else": { "properties": { "expect": { "type": "object", "properties": { "kind": { "type": "null" } } } } } },
+        { "$comment": "outTradeNo 只在 ALREADY_PAID / IDEMPOTENCY_CONFLICT 时出现",
+          "if": { "properties": { "json": { "type": "object", "required": ["outTradeNo"] } } },
+          "then": { "properties": {
+            "json": { "type": "object", "required": ["kind"], "properties": { "kind": { "enum": ["ALREADY_PAID", "IDEMPOTENCY_CONFLICT"] } } },
+            "expect": { "type": "object", "properties": { "outTradeNo": { "type": "string" } } } } },
+          "else": { "properties": { "expect": { "type": "object", "properties": { "outTradeNo": { "type": "null" } } } } } }
+      ] } }
+  },
+  "$defs": {
+    "currency": { "enum": ["CNY", "USD"] },
+    "present": { "enum": ["qrcode", "redirect"] },
+    "plan": { "$comment": "计费档位，不是套餐名；各端不得直接渲染", "enum": ["paid", "free", null] },
+    "kind": { "$comment": "与 contract/api/mobile-v1.yaml 的 Envelope.kind 同一套取值；check.mjs 另查夹具是否覆盖全部八个",
+      "enum": ["DISABLED", "UNAVAILABLE", "NOT_CONNECTED", "NOT_FOUND", "REJECTED", "REVIEW_ACCOUNT", "ALREADY_PAID", "IDEMPOTENCY_CONFLICT"] },
+    "rechargeStatus": { "type": "object", "required": ["status", "paid", "amountCents"], "additionalProperties": false,
+      "properties": { "status": { "enum": ["pending", "paid", "closed", "expired"] },
+                      "paid": { "type": "boolean" }, "amountCents": { "type": "integer" } } }
+  }
+}

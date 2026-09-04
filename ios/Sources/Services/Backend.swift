@@ -268,6 +268,86 @@ actor API {
         catch { throw APIError(message: "无法解析服务器响应") }
     }
 
+    // MARK: 账单
+
+    /// 统一账户余额（dev-board#425，GET /api/mobile/billing/balance）。整数分，币种由部署站点决定。
+    /// plan 是计费档位（`paid`/`free`），不是套餐名——不要把它直接渲染给用户。
+    struct BillingBalance: Decodable, Sendable {
+        let balanceCents: Int64
+        let currency: String
+        let plan: String?
+    }
+
+    /// 失败信封携带的机器可读判别位（dev-board#425 契约 `Envelope.kind`）。
+    /// 一律按它分支，**禁止匹配 message 措辞**——message 经服务端 LangText 在英文部署下
+    /// 会整条变成英文，硬编码中文串必然落空；code 也永远是 1，判 code 分不出这几种情况。
+    enum BillingKind: String, Decodable, Sendable, CaseIterable {
+        case disabled = "DISABLED"
+        case unavailable = "UNAVAILABLE"
+        case notConnected = "NOT_CONNECTED"
+        case notFound = "NOT_FOUND"
+        case rejected = "REJECTED"
+        case reviewAccount = "REVIEW_ACCOUNT"
+        case alreadyPaid = "ALREADY_PAID"
+        case idempotencyConflict = "IDEMPOTENCY_CONFLICT"
+    }
+
+    /// 失败信封 {code, message, kind, outTradeNo}。kind/outTradeNo 缺席时 JSONDecoder
+    /// 对可选字段的默认行为就是解成 nil（服务端 putIfPresent 对缺席键本就不出现在响应里）。
+    private struct BillingEnvelope: Decodable {
+        let code: Int
+        let message: String?
+        let kind: BillingKind?
+        let outTradeNo: String?
+    }
+
+    /// 读余额的三种结果，映射表见 contract/schema/billing.schema.json（唯一来源，四端逐条对齐）。
+    /// 本期只有读操作，没有充值界面——ALREADY_PAID / IDEMPOTENCY_CONFLICT 属于下单路径，
+    /// 不会从这个端点出现。
+    enum BillingBalanceResult: Sendable {
+        case ok(BillingBalance)
+        /// kind ∈ {NOT_CONNECTED, DISABLED, REVIEW_ACCOUNT}：三者都是**永远不会自己恢复的终态**
+        /// （没关联 / 本部署没开这个功能 / 审核演示账号），**整行余额都不渲染**——渲染成
+        /// balance.unavailable 等于让用户对着一句永不改变的「稍后再试」反复重试
+        /// （dev-board#425 二轮复审 N2）。不给误导性的补救指引：读余额一律 create=false，
+        /// 服务端不会替用户建号。
+        case hidden
+        /// 其余一切失败（UNAVAILABLE / NOT_FOUND / REJECTED / kind 缺席 / 网络错误 /
+        /// 解码失败）一律收窄成这一态，界面统一显示 balance.unavailable（稍后重试）——
+        /// 绝不能把上游故障显示成「没有账户」或「余额 0」。
+        case unavailable
+    }
+
+    /// 判读裸响应或失败信封——这是 `billingBalance()` 真正在用的判读逻辑，抽成静态函数
+    /// 是为了让契约夹具测试能直接驱动它（二轮复审 N4：以前测试文件里另外声明了一份
+    /// `struct Envelope` 自己解码，这段判读代码一行测试都没有覆盖过，改坏了也不会有测试变红；
+    /// 见 `ContractFixturesTests.testBillingBalanceKindMappingFixtures` 与
+    /// `testBillingBalanceDecodeFixtures`）。
+    static func decodeBillingBalance(status: Int, data: Data) -> BillingBalanceResult {
+        guard (200...299).contains(status) else { return .unavailable }
+        // 先探 code 字段：出现即失败信封，没有才当裸对象解。反过来先按 BillingBalance
+        // 硬解会在信封响应上报「缺字段」解码错误，而不是干净地落到失败分支。
+        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], obj["code"] != nil {
+            switch (try? JSONDecoder().decode(BillingEnvelope.self, from: data))?.kind {
+            case .notConnected, .disabled, .reviewAccount: return .hidden
+            default: return .unavailable
+            }
+        }
+        guard let balance = try? JSONDecoder().decode(BillingBalance.self, from: data) else {
+            return .unavailable
+        }
+        return .ok(balance)
+    }
+
+    /// 裸对象或失败信封共用同一个 200；判读逻辑在 `decodeBillingBalance`（可测）。
+    func billingBalance() async throws -> BillingBalanceResult {
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/mobile/billing/balance"))
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let (data, resp) = try await send(req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+        return Self.decodeBillingBalance(status: status, data: data)
+    }
+
     /// 把 multipart 信封写成磁盘文件，避免整份载荷进内存。
     /// 文本字段在前、文件在后——服务端流式解析时先拿到寻址字段。
     private nonisolated func makeMultipartFile(at dst: URL, boundary: String,

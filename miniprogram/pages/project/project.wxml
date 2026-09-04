@@ -41,6 +41,14 @@
   </view>
 
   <view class="footer" style="padding-bottom: {{metrics.bottomInset}}px;">
+    <!-- 余额行与它下面那条分隔线同进同出：整行隐藏时不能留一条孤立发丝线 -->
+    <block wx:if="{{balanceVisible}}">
+      <view class="account">
+        <text class="account__label">{{balanceTitle}}</text>
+        <text class="account__value">{{balanceText}}</text>
+      </view>
+      <view class="rule"></view>
+    </block>
     <view class="footer__text tappable" bindtap="onLogout">
       <text>{{signOutText}}</text>
     </view>

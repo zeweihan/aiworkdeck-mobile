@@ -1,5 +1,6 @@
 {
-  "serverCommit": "f91a86dc3fecda0ab62a4c88b1b2df186726761f",
-  "sha256": "102fe2034cb0bb37f2aad4fd67d31f4b0b6ba1cf6178550fa41bb8ae973777bb",
-  "pulledAt": "2026-09-02T12:23:40.100Z"
+  "serverCommit": "6f4274b467cf3677b5c0c5e9aed1d5bdd64d1e7f-dirty",
+  "sha256": "c8000def49e4b2a19f8293ce610690751062d8f6c3d1cd871883c6a0f3bef61d",
+  "pulledAt": "2026-09-04T04:30:45.079Z",
+  "note": "钉的是 /Users/zewei/Documents/2024-2044/5-Tech/1-2 checkba_cloud/.claude/worktrees/mobile-recharge-bridge 工作区里尚未提交的内容：serverCommit 只是该工作区的 HEAD，那个 commit 里并没有这份 yaml，照 commit 拉不出同样的 sha256。服务端改动合并后必须重跑 contract/tools/pull-api.mjs 重新钉版。"
 }

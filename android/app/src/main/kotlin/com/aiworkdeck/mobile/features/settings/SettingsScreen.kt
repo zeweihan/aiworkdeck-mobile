@@ -45,6 +45,8 @@ import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.features.auth.Eyebrow
 import com.aiworkdeck.mobile.features.queue.TextAction
 import com.aiworkdeck.mobile.features.queue.noRipple
+import com.aiworkdeck.mobile.services.ApiError
+import com.aiworkdeck.mobile.services.BillingBalance
 import com.aiworkdeck.mobile.services.MediaUsage
 import com.aiworkdeck.mobile.services.ServiceLocator
 import kotlinx.coroutines.launch
@@ -65,12 +67,37 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
 
     var saveToAlbum by remember { mutableStateOf(prefs.saveToAlbum) }
     var usage by remember { mutableStateOf<MediaUsage?>(null) }
+    var balance by remember { mutableStateOf<BillingBalance?>(null) }
+    var balanceErrorKey by remember { mutableStateOf<String?>(null) }
+    // 未知态（还没拉完）默认就是「不渲染」，跟 NOT_CONNECTED/DISABLED/REVIEW_ACCOUNT 那三个终态
+    // 共用同一副呈现——这三个本来就要整行不渲染，未知态借它们的默认值天然不会闪一下「—」
+    // 再消失（dev-board#425 二轮复审 N6）。只有查到「该显示金额」或「该显示错误文案」两条路径
+    // 才会把它翻成 false。
+    var hideBalanceRow by remember { mutableStateOf(true) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
 
     // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量。
     LaunchedEffect(Unit) { usage = try { model.mediaUsage() } catch (_: Exception) { null } }
+    // 同上，余额读不到时不能拖垮整个设置页；两种业务失败态分别降级显示。
+    LaunchedEffect(Unit) {
+        try {
+            balance = model.billingBalance()
+            hideBalanceRow = false
+        } catch (e: ApiError) {
+            val key = balanceFailureKey(e.kind)
+            if (key == null) {
+                hideBalanceRow = true
+            } else {
+                balanceErrorKey = key
+                hideBalanceRow = false
+            }
+        } catch (_: Exception) {
+            balanceErrorKey = "balance.unavailable"
+            hideBalanceRow = false
+        }
+    }
 
     WorkdeckTheme(dark = false) {
         Column(Modifier.fillMaxSize().background(Tk.L.bg).safeDrawingPadding()) {
@@ -114,6 +141,14 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                 Group(tr("settings.account")) {
                     InfoRow(tr("settings.signedIn"), account?.displayName ?: DASH)
                     InfoRow(tr("settings.server"), Uri.parse(BuildConfig.BASE_URL).host ?: DASH)
+                    // 本期只展示余额：不放充值入口、不放任何指向官网充值的文案或链接
+                    // （App Store 3.1.3 一旦出现站外购买行动号召就会触发强制内购）。
+                    // NOT_CONNECTED/DISABLED/REVIEW_ACCOUNT 与「还没拉完」共用 hideBalanceRow
+                    // 默认 true：这三个终态整行不渲染，不给任何误导性的补救指引；未知态借同一
+                    // 默认值不闪烁（N6）。
+                    if (!hideBalanceRow) {
+                        InfoRow(tr("balance.title"), balanceCaption(balance, balanceErrorKey))
+                    }
                     TextAction(tr("common.signOut"), color = Tk.S.failed) { model.signOut(); onClose() }
                     // 各应用商店的账号删除要求（与 App Store 5.1.1(v)）都指向这个入口。
                     // 放在退出登录下面、字号更小：它比退出重得多，不该长得一样容易误点。
@@ -172,6 +207,17 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
 private fun usageCaption(usage: MediaUsage?): String {
     val u = usage ?: return DASH
     return tr("settings.usage", mapOf("used" to formatBytes(u.usedBytes), "quota" to formatBytes(u.quotaBytes)))
+}
+
+/**
+ * 余额行文案：拿到值就格式化金额（币种符号跟响应里的 currency 走，不写死 ¥）；
+ * 读不到就按 [balanceFailureKey] 分类好的错误键降级（本期只会是 balance.unavailable——
+ * NOT_CONNECTED/DISABLED/REVIEW_ACCOUNT 与「还没拉完」都由调用方整行不渲染，走不到这个
+ * 函数；DASH 分支因此在当前调用点不可达，留着只为防御式兜底）。
+ */
+private fun balanceCaption(balance: BillingBalance?, errorKey: String?): String {
+    balance?.let { return tr("balance.amount", mapOf("amount" to formatMoney(it.balanceCents, it.currency))) }
+    return errorKey?.let { tr(it) } ?: DASH
 }
 
 /** 细条。配额本身不是状态，所以用中性的强调色而不是状态点那三色。 */

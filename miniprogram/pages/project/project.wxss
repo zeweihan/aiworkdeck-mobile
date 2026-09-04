@@ -78,6 +78,26 @@
   text-align: center;
 }
 
+/* ---- 账户区域：余额 + 退出登录同一块 ---------------------------------- */
+.account {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 var(--s1) var(--s4);
+}
+
+.account__label {
+  font-size: var(--t-micro);
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+}
+
+.account__value {
+  font-size: var(--t-body);
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
 .footer__text {
   display: inline-flex;
   font-size: var(--t-small);

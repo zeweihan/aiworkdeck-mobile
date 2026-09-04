@@ -325,3 +325,12 @@ iOS 排第三是因为它依赖三项用户侧开通动作，其中小企业计�
 
 **第一期是无条件可做的**：只展示余额不放充值入口，四端都合规（iOS 落在「免费 App 零购买」现状，
 小程序不触发虚拟支付强制条款），而且它是后面每一期的共同地基。
+
+### 第二期开工清单（第一期留下的记号）
+
+- **补 `RechargeOrder` / `RechargeStatus` 的三端夹具适配测试**。`contract/fixtures/billing.json`
+  的 `recharge` / `status` 两段第一期没有任何一端消费（一期四端都没有充值界面），
+  等于这两段在契约层没有约束力：`present=redirect` 却把 `codeUrl` 解成空串这类错误现在拦不住。
+  三端各写一个走**生产解码路径**的适配测试（不要在测试文件里另抄一份结构体自测自己），
+  补完把端名填进 `contract/tools/check.mjs` 的 `FIXTURE_CONSUMERS`——在那之前
+  `node contract/tools/check.mjs` 每次都会打一条 ℹ 提示（dev-board#425 二轮复审 N3）。

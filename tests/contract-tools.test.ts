@@ -4,7 +4,7 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, existsSync, mkdirSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { loadContract, sha256, DATA_FILES, outputs } from '../contract/tools/lib.mjs'
-import { runChecks } from '../contract/tools/check.mjs'
+import { runChecks, referenceMoneyDisplay } from '../contract/tools/check.mjs'
 
 const ROOT = join(import.meta.dirname, '..')
 
@@ -191,4 +191,73 @@ test('check：Android Kotlin 内联文案要红', () => {
   writeFileSync(p, 'val x = "已落盘"\n')
   const r = runChecks(dir, { quick: false })
   assert.ok(r.problems.some((m) => m.includes('Foo.kt') && m.includes('内联')), r.problems.join('\n'))
+})
+
+test('check：capabilities 端名打错要红（改之前 gen 出 "undefined" 而 check 全绿）', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'capabilities.json')
+  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "wxpay-app"', '"andriod": "wxpay-app"'))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('capabilities.json') && m.includes('android')), r.problems.join('\n'))
+})
+
+test('check：capabilities 取值越界要红', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'capabilities.json')
+  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "wxpay-app"', '"android": "wxpay-ap"'))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('capabilities.json') && m.includes('recharge')), r.problems.join('\n'))
+})
+
+test('check：billing 夹具漏一个 kind 要红', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'fixtures', 'billing.json')
+  const f = JSON.parse(readFileSync(p, 'utf8'))
+  f.envelope = f.envelope.filter((k: { json: { kind?: string } }) => k.json.kind !== 'ALREADY_PAID')
+  writeFileSync(p, JSON.stringify(f))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('billing.json') && m.includes('ALREADY_PAID')), r.problems.join('\n'))
+})
+
+test('check：billing 夹具的 expect 与 json 对不上要红', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'fixtures', 'billing.json')
+  const f = JSON.parse(readFileSync(p, 'utf8'))
+  f.envelope.find((k: { json: { kind?: string } }) => k.json.kind === 'ALREADY_PAID').expect.outTradeNo = null
+  writeFileSync(p, JSON.stringify(f))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('billing.json') && m.includes('outTradeNo')), r.problems.join('\n'))
+})
+
+test('金额展示口径：无千分位、两位小数、符号按 currency 取，不跟设备 locale', () => {
+  // 参考实现本身也要钉住：123456 分带千分位会是 ¥1,234.56，iOS 的 NumberFormatter(.decimal)
+  // 在德语设备上还会给出 ¥1.234,56 —— 两者都与这条口径不符（dev-board#425 二轮复审 N7）
+  assert.equal(referenceMoneyDisplay(123456, 'CNY'), '¥1234.56')
+  assert.equal(referenceMoneyDisplay(0, 'CNY'), '¥0.00')
+  assert.equal(referenceMoneyDisplay(990, 'USD'), '$9.90')
+  assert.equal(referenceMoneyDisplay(5, 'CNY'), '¥0.05')
+  assert.equal(referenceMoneyDisplay(100, 'EUR'), null, '没约定符号的币种不许猜一个出来')
+})
+
+test('check：billing 夹具的 display 与展示口径对不上要红', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'fixtures', 'billing.json')
+  const f = JSON.parse(readFileSync(p, 'utf8'))
+  // 千分位版本：三端里只有 iOS 的 NumberFormatter 会这么给
+  f.balance.find((k: { json: { balanceCents: number } }) => k.json.balanceCents === 123456).display = '¥1,234.56'
+  writeFileSync(p, JSON.stringify(f))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('billing.json') && m.includes('display')), r.problems.join('\n'))
+})
+
+test('check：没有任何一端消费的夹具段要留下提示（不报错）', () => {
+  const r = runChecks(ROOT, { quick: true })
+  assert.deepEqual(r.problems, [])
+  for (const section of ['recharge', 'status']) {
+    assert.ok(r.notes.some((m) => m.includes('billing.json') && m.includes(section)), r.notes.join('\n'))
+  }
+  // 已被三端消费的两段不该出现在提示里
+  for (const section of ['balance', 'envelope']) {
+    assert.ok(!r.notes.some((m) => m.includes(`「${section}」`)), r.notes.join('\n'))
+  }
 })
