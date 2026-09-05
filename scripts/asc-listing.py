@@ -14,13 +14,16 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
   rating        年龄分级问卷（全部答「无」）
   contentrights 内容版权声明（不含第三方内容）
   price         价格表设为免费
-  availability  上架区域（国际版排除中国大陆，大陆版只留中国大陆）
+  availability  上架区域（全球所有区）
   status        只读：把提审前的必填项逐条列出来，缺哪项一目了然
+
+flavor 参数只有 cn 一个取值：2026-09-05 起 iOS 只剩这一个 App（国际版 App 记录
+已删，dev-board#445/#446）。保留这个位置是因为 metadata / screenshots 目录按它分层。
 
 用法（凭据从 fastlane/.env 读，见 5-Tech/EXTERNAL_SERVICES.md §6）：
 
     set -a; . fastlane/.env; set +a
-    .venv/bin/python scripts/asc-listing.py status intl
+    .venv/bin/python scripts/asc-listing.py status cn
     .venv/bin/python scripts/asc-listing.py rating cn
 
 年龄分级的字段类型 Apple 改过不止一次（2026 版把 messagingAndChat、gambling
@@ -44,9 +47,7 @@ BASE = "https://api.appstoreconnect.apple.com/v1"
 BASE_V2 = "https://api.appstoreconnect.apple.com/v2"
 
 APPS = {
-    # 国际版：真善美承澤（香港，Team X9B97KVA84）
-    "intl": {"app_id": "6802233845", "env": ("ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_KEY_PATH")},
-    # 大陆版：北京京微资易（Team 8WKHZVR2W8）
+    # 北京京微资易（Team 8WKHZVR2W8）。全球上架，iOS 唯一的一条 App 记录。
     "cn": {"app_id": "6803309103", "env": ("ASC_CN_KEY_ID", "ASC_CN_ISSUER_ID", "ASC_CN_KEY_PATH")},
 }
 
@@ -191,7 +192,7 @@ def cmd_price(tok, app_id):
 
 
 # fastlane 的 deliver 本来该管文案，但 2.235.0 上 spaceship 解析回包会抛
-# "No data"（上游已知问题），而升 fastlane 会连带动到现役的 beta / beta_cn。
+# "No data"（上游已知问题），而升 fastlane 会连带动到现役的 beta_cn。
 # 文案这几个字段就是几条 PATCH，自己打反而稳，构建与上传仍旧交给 fastlane。
 #
 # 分两处存放，别搞混：随版本走的（描述、关键词、更新说明）在
@@ -371,7 +372,7 @@ def cmd_submit(tok, app_id, flavor, confirmed):
 
 
 def cmd_category(tok, app_id, flavor):
-    """主/次类目。是提审必填项，且**建 App 时不会自动带**——国际版就是这么空着的。
+    """主/次类目。是提审必填项，且**建 App 时不会自动带**，新建的 App 一律空着。
 
     类目是 appInfo 上的关系，不是本地化字段，所以不在 text 那条路里。
     """
@@ -510,20 +511,19 @@ def cmd_screenshots(tok, app_id, flavor):
             print(f"  {locale}  {fn}  已上传")
 
 
-def cmd_availability(tok, app_id, flavor):
-    """上架区域。
+def cmd_availability(tok, app_id):
+    """上架区域：全球所有区。
 
-    2026-09-05 起大陆版（北京主体）就是全球版：国际版被 4.3(a) 判定与它重复，
-    iOS 整体并入北京主体。intl 分支只留到那条 App 记录删除为止，仍是「中国大陆除外」
-    （它没有 ICP 备案号，那个区本来就不可选）。
+    2026-09-05 起北京主体这条 App 记录就是全球版：国际版被 4.3(a) 判定与它重复，
+    iOS 整体并入北京主体，那条 App 记录已删（dev-board#445/#446）。
 
     已有 appAvailabilities 记录的 App（上架过的都有）再 POST v2/appAvailabilities 会 409
     「already exists」，只能逐区 PATCH v1/territoryAvailabilities/{id}；从未设过的才 POST，
     且 POST 必须把所有区列全，少一个就 409 说那个区没被 included。
     """
-    global_app = flavor == "cn"
-    want = (lambda t: True) if global_app else (lambda t: t != "CHN")
-    label = "全球" if global_app else "中国大陆除外"
+    def want(_territory):
+        return True
+    label = "全球"
 
     existing = call(tok, "GET", BASE_V2 + f"/appAvailabilities/{app_id}/territoryAvailabilities?limit=200")
     if "ERROR" not in existing:
@@ -568,7 +568,7 @@ def cmd_availability(tok, app_id, flavor):
             "relationships": {"territory": {"data": {"type": "territories", "id": t}}}})
 
     body = {"data": {"type": "appAvailabilities",
-                     "attributes": {"availableInNewTerritories": global_app},
+                     "attributes": {"availableInNewTerritories": True},
                      "relationships": {
                          "app": {"data": {"type": "apps", "id": app_id}},
                          "territoryAvailabilities": {"data": refs}}},
@@ -658,7 +658,7 @@ def main():
     elif cmd == "price":
         cmd_price(tok, app_id)
     elif cmd == "availability":
-        cmd_availability(tok, app_id, flavor)
+        cmd_availability(tok, app_id)
     elif cmd == "status":
         cmd_status(tok, app_id, flavor)
     else:
