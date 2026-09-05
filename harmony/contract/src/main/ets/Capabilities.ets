@@ -7,6 +7,7 @@ export const ContractCapabilities = {
   "glassBlur": true,
   "deviceAttestation": false,
   "backgroundRecording": true,
+  "recharge": false,
   "degradedNotice": {
     "backgroundUpload": "cap.noBackgroundUpload",
     "continuousSegments": "cap.segmentedRecording",

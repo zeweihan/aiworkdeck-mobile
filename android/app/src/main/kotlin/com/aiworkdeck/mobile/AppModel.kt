@@ -10,6 +10,7 @@ import com.aiworkdeck.mobile.model.RelayProject
 import com.aiworkdeck.mobile.model.TransferState
 import com.aiworkdeck.mobile.model.TransferTally
 import com.aiworkdeck.mobile.services.AccountUser
+import com.aiworkdeck.mobile.services.BillingBalance
 import com.aiworkdeck.mobile.services.Loc
 import com.aiworkdeck.mobile.services.LoginResult
 import com.aiworkdeck.mobile.services.MediaUsage
@@ -209,6 +210,9 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     /** 云端中转区用量。设置页进页面拉一次；失败让调用方自己决定怎么显示（那里用「—」占位）。 */
     suspend fun mediaUsage(): MediaUsage = backend.mediaUsage()
+
+    /** 统一账户余额。同样交调用方决定失败态怎么显示（读不到 vs 未关联账户）。 */
+    suspend fun billingBalance(): BillingBalance = backend.billingBalance()
 
     // MARK: - 影像
 

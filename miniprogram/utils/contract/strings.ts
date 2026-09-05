@@ -452,6 +452,26 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "应用包名",
     "en": "Package"
   },
+  "balance.title": {
+    "zh-Hans": "账户余额",
+    "en": "Account balance"
+  },
+  "balance.amount": {
+    "zh-Hans": "{amount}",
+    "en": "{amount}"
+  },
+  "balance.unavailable": {
+    "zh-Hans": "余额暂时读不到，稍后再试",
+    "en": "Balance unavailable right now. Try again shortly."
+  },
+  "balance.notConnected": {
+    "zh-Hans": "这个账号还没有统一账户",
+    "en": "This account doesn't have a unified account yet."
+  },
+  "recharge.entry": {
+    "zh-Hans": "充值",
+    "en": "Top up"
+  },
   "notify.channel.upload": {
     "zh-Hans": "上传",
     "en": "Uploads"

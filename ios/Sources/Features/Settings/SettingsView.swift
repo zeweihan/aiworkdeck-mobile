@@ -10,6 +10,18 @@ struct SettingsView: View {
     @State private var saveToAlbum = Prefs.saveToAlbum
     @State private var albumError: String?
     @State private var usage: API.MediaUsage?
+    @State private var balanceState: BalanceState = .unknown
+
+    /// 还没读完时（`.unknown`）与 `.hidden`（NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT）
+    /// 都不渲染余额那一行——前者避免加载中的一瞬间闪一下无意义占位再消失（N6：三态统一成
+    /// 「未知态不渲染」，不是先显示占位再消失），后者是三个永远不会自己恢复的终态，
+    /// 渲染成「稍后再试」是让用户对一句永不改变的报错反复重试（dev-board#425 二轮复审 N2）。
+    private enum BalanceState {
+        case unknown
+        case ok(API.BillingBalance)
+        case hidden
+        case unavailable
+    }
 
     var body: some View {
         NavigationStack {
@@ -61,6 +73,10 @@ struct SettingsView: View {
 
                     group(tr("settings.account")) {
                         infoRow(tr("settings.signedIn"), model.account?.displayName ?? "—")
+                        // 还没读完 / .hidden 时整行不渲染，见 BalanceState 上的注释。
+                        if let caption = balanceCaption {
+                            infoRow(tr("balance.title"), caption)
+                        }
                         infoRow(tr("settings.server"), Backend.baseURL.host ?? "—")
                         Button(tr("common.signOut")) { model.signOut(); onClose() }
                             .font(T.F.small())
@@ -87,6 +103,21 @@ struct SettingsView: View {
             .background(T.L.bg)
             // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量
             .task { usage = try? await API.shared.mediaUsage() }
+            // 读余额永不建号（C1）：这是一次纯读，未关联时服务端也不会替用户建号。
+            // 按 kind 分支，不匹配 message 措辞（C2）；网络错误或解码失败一并落到
+            // .unavailable。NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT 归并成 .hidden——
+            // 三者都不会自己恢复，整行不渲染（N2）；映射表见 API.decodeBillingBalance。
+            .task {
+                if let result = try? await API.shared.billingBalance() {
+                    switch result {
+                    case .ok(let b): balanceState = .ok(b)
+                    case .hidden: balanceState = .hidden
+                    case .unavailable: balanceState = .unavailable
+                    }
+                } else {
+                    balanceState = .unavailable
+                }
+            }
             .navigationTitle(tr("home.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -159,6 +190,34 @@ struct SettingsView: View {
         let f = ByteCountFormatter()
         f.countStyle = .binary
         return "\(f.string(fromByteCount: usage.usedBytes)) / \(f.string(fromByteCount: usage.quotaBytes))"
+    }
+
+    /// 统一账户余额展示。`nil` 表示这一行整个不渲染——`.unknown` 还没读完（N6：未知态不渲染，
+    /// 不是先显示占位再消失），`.hidden` 是 N2 的修法本身（不给「用同一手机号登录一次桌面端即可
+    /// 关联」这类对多数触发条件都无效的补救指引）；其余一切失败都归并成 balance.unavailable。
+    private var balanceCaption: String? {
+        switch balanceState {
+        case .unknown, .hidden: return nil
+        case .ok(let balance):
+            return tr("balance.amount", ["amount": Self.formatAmount(cents: balance.balanceCents, currency: balance.currency)])
+        case .unavailable: return tr("balance.unavailable")
+        }
+    }
+
+    /// 金额展示口径唯一来源：contract/schema/billing.schema.json 的展示口径说明段，
+    /// fixtures/billing.json 的 balance.display 是期望输出，与 ContractFixturesTests 对拍。
+    /// **不用 `NumberFormatter`**：它默认带千分位、小数点字符跟设备 locale 走——德语设备上
+    /// 123456 分会被格式化成「¥1.234,56」，与安卓/小程序的「¥1234.56」对不上
+    /// （dev-board#425 二轮复审 N7）。整数除法/取余手动拼字符串，不经过任何 locale。
+    /// 去掉 `private` 是为了让测试能直接调这个函数验证展示口径，不是为了给外部调用方开放。
+    static func formatAmount(cents: Int64, currency: String) -> String {
+        let symbol = currency == "USD" ? "$" : "¥"
+        let sign = cents < 0 ? "-" : ""
+        let absCents = cents.magnitude
+        let whole = absCents / 100
+        let frac = absCents % 100
+        let fracStr = frac < 10 ? "0\(frac)" : "\(frac)"
+        return "\(symbol)\(sign)\(whole).\(fracStr)"
     }
 
     private func requestAlbumPermission() async {
