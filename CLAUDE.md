@@ -22,5 +22,5 @@
 ## 本地验证
 
 - 小程序：`npm ci && npm run typecheck && npm test`
-- iOS：`cd ios && xcodegen generate && xcodebuild test -scheme WorkdeckCN -only-testing:WorkdeckTests -destination "platform=iOS Simulator,name=<可用 iPhone>"`
+- iOS：`cd ios && xcodegen generate && xcodebuild test -scheme Workdeck -only-testing:WorkdeckTests -destination "platform=iOS Simulator,name=<可用 iPhone>"`
 - 契约：`node contract/tools/check.mjs`

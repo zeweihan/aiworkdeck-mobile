@@ -1,7 +1,7 @@
 # 正式上架流程
 
 两个发布面：iOS 与微信小程序。前者走 App Store 审核，后者走微信公众平台审核。
-TestFlight / 体验版的日常发布见 `fastlane/Fastfile` 的 `beta_cn` 与
+TestFlight / 体验版的日常发布见 `fastlane/Fastfile` 的 `beta` 与
 `scripts/mp-upload.js`，这份文档只讲**正式上架**。
 
 分工的口径：能用 API 做的都收在 `scripts/asc-listing.py`，凭据从
@@ -10,25 +10,24 @@ Apple 没开放 API，只能在网页做，逐条列在第 3 节——那几项�
 
 ```bash
 set -a; . fastlane/.env; set +a
-.venv/bin/python scripts/asc-listing.py status cn   # 提审前体检，随时可跑
+.venv/bin/python scripts/asc-listing.py status   # 提审前体检，随时可跑
 ```
 
 ## 1. iOS App 的基本信息
 
 | 项 | 值 |
 |---|---|
-| flavor 参数 | `cn`（`asc-listing.py` 唯一取值，metadata / screenshots 目录按它分层） |
-| Bundle ID | `com.aiworkdeck.mobile.cn` |
+| Bundle ID | `com.aiworkdeck.mobile.cn`（`.cn` 后缀与 App 备案绑定，不可改） |
 | ASC App ID | 6803309103 |
 | 发布主体 | 北京京微资易（`8WKHZVR2W8`） |
 | 上架区域 | **全球 175 个区**（2026-09-05 起） |
 | 文案语言 | zh-Hans（主语言）+ en-US（1.0.1 起） |
-| fastlane lane | `release_cn`（CI 是 `ci_appstore`） |
-| Xcode target | `WorkdeckCN` + `WorkdeckCNLiveActivity`（scheme `WorkdeckCN`） |
+| fastlane lane | `release`（CI 是 `ci_appstore`） |
+| Xcode target | `Workdeck` + `WorkdeckLiveActivity`（scheme `Workdeck`） |
 
-> 历史：iOS 曾有一个香港主体的国际版 App（`com.aiworkdeck.mobile`，Team
+> 历史：iOS 曾有第二条 App 记录（香港主体，`com.aiworkdeck.mobile`，Team
 > `X9B97KVA84`），1.0.0(19) 被 4.3(a) Spam 驳回，2026-09-05 起整体并入北京主体，
-> 那条 App 记录已删除、工程与 CI 里的对应部分已清理（dev-board#445、#446）。
+> 那条 App 记录已删除、工程与 CI 里的对应部分已清理（dev-board#445、#446、#450）。
 
 ### 1.1 描述文件
 
@@ -38,8 +37,8 @@ App 是**两个 bundle**：主 App + 录音 Live Activity 扩展（dev-board#404
 
 | Bundle ID | 描述文件名 | 来源 |
 |---|---|---|
-| `com.aiworkdeck.mobile.cn` | `AI WorkDeck CN AppStore` | 人工在 ASC 建，CI secret `CN_PROFILE_B64` |
-| `com.aiworkdeck.mobile.cn.LiveActivity` | `AI WorkDeck CN LiveActivity AppStore` | 2026-09-03 已用 ASC API 建好（profile `NL5G9Q2UT5`，同一张 Distribution 证书 579SG95VN2），CI secret `CN_LA_PROFILE_B64` 已加；文件与 ID 见总表 §6.7 |
+| `com.aiworkdeck.mobile.cn` | `AI WorkDeck AppStore` | 人工在 ASC 建，CI secret `APPSTORE_PROFILE_B64` |
+| `com.aiworkdeck.mobile.cn.LiveActivity` | `AI WorkDeck LiveActivity AppStore` | 用 ASC API 建（同一张 Distribution 证书 579SG95VN2），CI secret `LA_PROFILE_B64`；文件与 ID 见总表 §6.7 |
 
 扩展的描述文件或 secret 缺失时，`ci_appstore` 会在 exportArchive 因扩展没有描述文件
 而失败——先把 secret 补上再跑。
@@ -58,25 +57,25 @@ repo secrets，lane 是 `ci_appstore`）。
 set -a; . fastlane/.env; set +a
 
 # 打包并上传（构建号自动取线上最大值 +1）——仅当本机是发行版 macOS
-fastlane ios release_cn
+fastlane ios release
 
 # 等构建处理完（几分钟，ASC 上从 PROCESSING 变 VALID），然后挂版本
-.venv/bin/python scripts/asc-listing.py attach cn <构建号>
+.venv/bin/python scripts/asc-listing.py attach <构建号>
 
 # 文案 / 分级 / 定价 / 区域（已经跑过一遍，改了再跑）
-.venv/bin/python scripts/asc-listing.py text cn
-.venv/bin/python scripts/asc-listing.py rating cn
-.venv/bin/python scripts/asc-listing.py price cn
-.venv/bin/python scripts/asc-listing.py availability cn
+.venv/bin/python scripts/asc-listing.py text
+.venv/bin/python scripts/asc-listing.py rating
+.venv/bin/python scripts/asc-listing.py price
+.venv/bin/python scripts/asc-listing.py availability
 
 # 体检 → 提审
-.venv/bin/python scripts/asc-listing.py status cn
-.venv/bin/python scripts/asc-listing.py submit cn --yes
+.venv/bin/python scripts/asc-listing.py status
+.venv/bin/python scripts/asc-listing.py submit --yes
 ```
 
 `submit` 不加 `--yes` 只打印将要提交什么，不会真提交。
 
-`release_cn` 与 `beta_cn` 走的是**同一条上传通道**：ASC 里 TestFlight 与
+`release` 与 `beta` 走的是**同一条上传通道**：ASC 里 TestFlight 与
 App Store 共用同一批构建，选哪个发布是版本记录那边的事。一度改用
 `upload_to_app_store`（deliver）一把梭，fastlane 2.235.0 上它在 spaceship 解析
 回包时抛 `No data`（上游已知问题），而升 fastlane 会连带动到现役的 beta lane，
@@ -110,7 +109,7 @@ ASC → App 信息 →「App Store 法规和许可 / 中国大陆 ICP 备案号�
 
 ### 3.3 审核联系信息与演示账号
 
-`fastlane/metadata/cn/review_information/` 下有三个 `.example`，
+`fastlane/metadata/review_information/` 下有三个 `.example`，
 复制成同名 `.txt` 填写（实文件已 gitignore，公开仓不收个人信息与凭据）。
 
 必须填：登录只有验证码一条路，而审核员既收不到中国短信，也打不开
@@ -175,7 +174,7 @@ curl -s -X POST https://addin.aiworkdeck.com/api/auth/mail-login/send-code \
 
 ### 3.4 截图
 
-ASC → 版本 → 媒体，或用 deliver 传 `fastlane/screenshots/cn/`。
+ASC → 版本 → 媒体，或用 deliver 传 `fastlane/screenshots/`。
 尺寸要 6.9"（1320×2868，iPhone 17 Pro Max / 16 Pro Max），至少一张。
 
 **必须用真机拍。** 模拟器里取景框是纯黑（没有摄像头）、影像库是空缩略图，

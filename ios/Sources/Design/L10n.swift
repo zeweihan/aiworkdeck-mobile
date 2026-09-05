@@ -1,6 +1,6 @@
 import Foundation
 
-/// 契约文案。语言由 L10n.locale 决定，默认 zh-Hans（大陆版永远中文，测试与模拟器语言无关）。
+/// 契约文案。语言由 L10n.locale 决定，默认 zh-Hans（接线前 App 永远中文，测试与模拟器语言无关）。
 /// configureFromDevice() 暂未接线（见 WorkdeckApp 的注释）：接线后设备语言非中文且 en 非空时才用 en。
 enum L10n {
     nonisolated(unsafe) static var locale: String = "zh-Hans"

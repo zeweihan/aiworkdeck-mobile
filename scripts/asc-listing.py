@@ -5,10 +5,10 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
 对应参数、要么参数形状跟不上 Apple 2026 年改版后的问卷，只能直接打 API：
 
   setversion    版本号对齐 ios/project.yml；加 auto 改成过审自动上架
-  text          上架文案（fastlane/metadata/<flavor>/<locale>/*.txt → ASC）
-  category      主/次类目（读 metadata/<flavor>/*_category.txt）
-  review        审核联系信息与演示账号（读 metadata/<flavor>/review_information/）
-  screenshots   上传截图（读 fastlane/screenshots/<flavor>/<locale>/，6.9 吋 1320x2868）
+  text          上架文案（fastlane/metadata/<locale>/*.txt → ASC）
+  category      主/次类目（读 metadata/*_category.txt）
+  review        审核联系信息与演示账号（读 metadata/review_information/）
+  screenshots   上传截图（读 fastlane/screenshots/<locale>/，6.9 吋 1320x2868）
   attach <build> 把已上传的构建挂到版本上（构建号，如 13）
   submit        提交审核。对外动作，要再打一次 --yes 才真发
   rating        年龄分级问卷（全部答「无」）
@@ -17,14 +17,14 @@ fastlane 的 upload_to_app_store 负责二进制、文案、截图；剩下这�
   availability  上架区域（全球所有区）
   status        只读：把提审前的必填项逐条列出来，缺哪项一目了然
 
-flavor 参数只有 cn 一个取值：2026-09-05 起 iOS 只剩这一个 App（国际版 App 记录
-已删，dev-board#445/#446）。保留这个位置是因为 metadata / screenshots 目录按它分层。
+2026-09-05 起 iOS 只剩这一个 App（另一条 App 记录已删，dev-board#445/#446），
+所以这里写死一个 App ID，不再带 flavor 参数。
 
 用法（凭据从 fastlane/.env 读，见 5-Tech/EXTERNAL_SERVICES.md §6）：
 
     set -a; . fastlane/.env; set +a
-    .venv/bin/python scripts/asc-listing.py status cn
-    .venv/bin/python scripts/asc-listing.py rating cn
+    .venv/bin/python scripts/asc-listing.py status
+    .venv/bin/python scripts/asc-listing.py rating
 
 年龄分级的字段类型 Apple 改过不止一次（2026 版把 messagingAndChat、gambling
 等一批从枚举改成了布尔）。这里不写死类型表：先一律按枚举 "NONE" 提交，拿
@@ -46,10 +46,9 @@ import jwt
 BASE = "https://api.appstoreconnect.apple.com/v1"
 BASE_V2 = "https://api.appstoreconnect.apple.com/v2"
 
-APPS = {
-    # 北京京微资易（Team 8WKHZVR2W8）。全球上架，iOS 唯一的一条 App 记录。
-    "cn": {"app_id": "6803309103", "env": ("ASC_CN_KEY_ID", "ASC_CN_ISSUER_ID", "ASC_CN_KEY_PATH")},
-}
+# 北京京微资易（Team 8WKHZVR2W8）。全球上架，iOS 唯一的一条 App 记录。
+APP_ID = "6803309103"
+ENV_KEYS = ("ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_KEY_PATH")
 
 # 年龄分级问卷。这个 App 没有任何一项受限内容，全答「无」。
 # 值只是初始猜测，布尔字段会被下面的类型协商自动改成 False。
@@ -72,12 +71,11 @@ def token(kid, iss, key_path):
     return jwt.encode(payload, key, algorithm="ES256", headers={"kid": kid, "typ": "JWT"})
 
 
-def token_for(flavor):
-    keys = APPS[flavor]["env"]
-    missing = [k for k in keys if not os.environ.get(k)]
+def token_for():
+    missing = [k for k in ENV_KEYS if not os.environ.get(k)]
     if missing:
         sys.exit(f"缺少环境变量 {', '.join(missing)}——先 `set -a; . fastlane/.env; set +a`")
-    return token(*(os.environ[k] for k in keys))
+    return token(*(os.environ[k] for k in ENV_KEYS))
 
 
 def call(tok, method, path, body=None):
@@ -192,7 +190,7 @@ def cmd_price(tok, app_id):
 
 
 # fastlane 的 deliver 本来该管文案，但 2.235.0 上 spaceship 解析回包会抛
-# "No data"（上游已知问题），而升 fastlane 会连带动到现役的 beta_cn。
+# "No data"（上游已知问题），而升 fastlane 会连带动到现役的 beta lane。
 # 文案这几个字段就是几条 PATCH，自己打反而稳，构建与上传仍旧交给 fastlane。
 #
 # 分两处存放，别搞混：随版本走的（描述、关键词、更新说明）在
@@ -213,9 +211,9 @@ INFO_FIELDS = {
 }
 
 
-def read_locale_dir(flavor):
-    """metadata/<flavor>/ 下每个语言目录读成 {locale: {文件名: 内容}}。"""
-    root = os.path.join("fastlane", "metadata", flavor)
+def read_locale_dir():
+    """metadata/ 下每个语言目录读成 {locale: {文件名: 内容}}。"""
+    root = os.path.join("fastlane", "metadata")
     if not os.path.isdir(root):
         sys.exit(f"找不到 {root}——在仓库根目录跑")
     out = {}
@@ -248,10 +246,10 @@ def upsert(tok, kind, parent_path, parent_rel, parent_id, locale, attrs, strict=
     return die_on_error(resp, f"写入 {kind} {locale}") if strict else resp
 
 
-def cmd_text(tok, app_id, flavor):
+def cmd_text(tok, app_id):
     v = version(tok, app_id)
     info_id = app_info_id(tok, app_id)
-    for locale, files in read_locale_dir(flavor).items():
+    for locale, files in read_locale_dir().items():
         vattrs = {api: files[fn] for fn, api in VERSION_FIELDS.items() if fn in files}
         iattrs = {api: files[fn] for fn, api in INFO_FIELDS.items() if fn in files}
         if vattrs:
@@ -279,7 +277,7 @@ def marketing_version():
     return m.group(1)
 
 
-def cmd_setversion(tok, app_id, auto_release=False, flavor=None):
+def cmd_setversion(tok, app_id, auto_release=False):
     """版本号对齐 project.yml，并设定发布方式。
 
     ASC 建版本记录时默认 releaseType=AFTER_APPROVAL（过审即自动上架）。
@@ -297,12 +295,11 @@ def cmd_setversion(tok, app_id, auto_release=False, flavor=None):
     # copyright 是版本级属性，不在 appStoreVersionLocalizations 里，所以 text 那条
     # 路带不到它。缺了它提审会被 409 挡下（错误藏在 meta.associatedErrors 里，
     # 顶层只说「this resource cannot be reviewed」，不点开看不出来是缺哪一项）。
-    if flavor:
-        cp = os.path.join("fastlane", "metadata", flavor, "copyright.txt")
-        if os.path.exists(cp):
-            want_cp = open(cp).read().strip()
-            if v["attributes"].get("copyright") != want_cp:
-                attrs["copyright"] = want_cp
+    cp = os.path.join("fastlane", "metadata", "copyright.txt")
+    if os.path.exists(cp):
+        want_cp = open(cp).read().strip()
+        if v["attributes"].get("copyright") != want_cp:
+            attrs["copyright"] = want_cp
     if not attrs:
         print(f"版本 {want}、手动发布，已经是这样")
         return
@@ -334,7 +331,7 @@ def cmd_attach(tok, app_id, build_number):
     print(f"构建 {build_number} 已挂到版本 {v['attributes']['versionString']}")
 
 
-def cmd_submit(tok, app_id, flavor, confirmed):
+def cmd_submit(tok, app_id, confirmed):
     """提交审核。
 
     这是本脚本里唯一一个对外的动作：过审即上架（除非版本设了手动发布），
@@ -343,7 +340,7 @@ def cmd_submit(tok, app_id, flavor, confirmed):
     """
     v = version(tok, app_id)
     if not confirmed:
-        print(f"将提交 {flavor} 版本 {v['attributes']['versionString']} 进入 Apple 审核。")
+        print(f"将提交版本 {v['attributes']['versionString']} 进入 Apple 审核。")
         print("先跑 status 确认必填项齐了，确认后加 --yes 重跑。")
         return
     r = call(tok, "POST", "/reviewSubmissions",
@@ -368,16 +365,16 @@ def cmd_submit(tok, app_id, flavor, confirmed):
                       {"data": {"type": "reviewSubmissions", "id": sub_id,
                                 "attributes": {"submitted": True}}}),
                  "提交审核")
-    print(f"已提交审核：{flavor} {v['attributes']['versionString']}")
+    print(f"已提交审核：{v['attributes']['versionString']}")
 
 
-def cmd_category(tok, app_id, flavor):
+def cmd_category(tok, app_id):
     """主/次类目。是提审必填项，且**建 App 时不会自动带**，新建的 App 一律空着。
 
     类目是 appInfo 上的关系，不是本地化字段，所以不在 text 那条路里。
     """
     info_id = app_info_id(tok, app_id)
-    root = os.path.join("fastlane", "metadata", flavor)
+    root = os.path.join("fastlane", "metadata")
     # 走 appInfo 本体的 PATCH。/relationships/primaryCategory 那条子路径是只读的
     # （403 FORBIDDEN_ERROR，只给 GET），别照别的关系的写法套。
     rels = {}
@@ -407,8 +404,8 @@ REVIEW_FIELDS = {
 }
 
 
-def cmd_review(tok, app_id, flavor):
-    d = os.path.join("fastlane", "metadata", flavor, "review_information")
+def cmd_review(tok, app_id):
+    d = os.path.join("fastlane", "metadata", "review_information")
     if not os.path.isdir(d):
         sys.exit(f"找不到 {d}")
     attrs = {}
@@ -442,15 +439,15 @@ def cmd_review(tok, app_id, flavor):
 SCREENSHOT_DISPLAY_TYPE = "APP_IPHONE_67"
 
 
-def cmd_screenshots(tok, app_id, flavor):
-    """把 fastlane/screenshots/<flavor>/<locale>/ 下的图传到对应语言的截图组。
+def cmd_screenshots(tok, app_id):
+    """把 fastlane/screenshots/<locale>/ 下的图传到对应语言的截图组。
 
     ASC 传文件是三段式：先 POST 预留一条记录拿 uploadOperations，再按它给的
     分片把字节 PUT 上去，最后 PATCH uploaded=true 并附 md5。少最后一步的话
     记录会一直挂在「上传中」，网页上看得见但提审用不了。
     """
     import hashlib
-    root = os.path.join("fastlane", "screenshots", flavor)
+    root = os.path.join("fastlane", "screenshots")
     if not os.path.isdir(root):
         sys.exit(f"找不到 {root}")
     v = version(tok, app_id)
@@ -514,8 +511,8 @@ def cmd_screenshots(tok, app_id, flavor):
 def cmd_availability(tok, app_id):
     """上架区域：全球所有区。
 
-    2026-09-05 起北京主体这条 App 记录就是全球版：国际版被 4.3(a) 判定与它重复，
-    iOS 整体并入北京主体，那条 App 记录已删（dev-board#445/#446）。
+    2026-09-05 起北京主体这条 App 记录就是全球版：另一条 App 记录被 4.3(a) 判定
+    与它重复，iOS 整体并入北京主体，那条记录已删（dev-board#445/#446）。
 
     已有 appAvailabilities 记录的 App（上架过的都有）再 POST v2/appAvailabilities 会 409
     「already exists」，只能逐区 PATCH v1/territoryAvailabilities/{id}；从未设过的才 POST，
@@ -579,7 +576,7 @@ def cmd_availability(tok, app_id):
     print(f"上架区域已设置：{on}/{len(territories)} 个区可用（{label}）")
 
 
-def cmd_status(tok, app_id, flavor):
+def cmd_status(tok, app_id):
     """提审前必填项体检。只读，不改任何东西。"""
     app = call(tok, "GET", f"/apps/{app_id}")
     die_on_error(app, "读取 app")
@@ -590,7 +587,7 @@ def cmd_status(tok, app_id, flavor):
     rating = call(tok, "GET", f"/appInfos/{info['data'][0]['id']}/ageRatingDeclaration")
     ra = rating.get("data", {}).get("attributes", {})
 
-    print(f"== {flavor} / {a['name']} / {a['bundleId']} ==")
+    print(f"== {a['name']} / {a['bundleId']} ==")
     print(f"版本            {v['attributes']['versionString']}  {v['attributes']['appStoreState']}"
           f"  发布方式 {v['attributes'].get('releaseType')}")
     print(f"内容版权声明    {a.get('contentRightsDeclaration') or '未填'}")
@@ -624,33 +621,32 @@ def cmd_status(tok, app_id, flavor):
     rd = rdata.get("attributes") if rdata else None
     print(f"审核联系信息    {'已填' if rd and rd.get('contactEmail') else '未填'}")
     print(f"演示账号        {'已填' if rd and rd.get('demoAccountName') else '未填'}")
-    if flavor == "cn":
-        print("ICP 备案号      API 不开放，去网页「App 信息」核对（京ICP备2024096997号-13A）")
+    print("ICP 备案号      API 不开放，去网页「App 信息」核对（京ICP备2024096997号-13A）")
     print("隐私营养标签    API 未在本脚本覆盖，去网页「App 隐私」核对")
 
 
 def main():
-    if len(sys.argv) < 3 or sys.argv[2] not in APPS:
+    if len(sys.argv) < 2:
         sys.exit(__doc__)
-    cmd, flavor = sys.argv[1], sys.argv[2]
-    tok = token_for(flavor)
-    app_id = APPS[flavor]["app_id"]
+    cmd = sys.argv[1]
+    tok = token_for()
+    app_id = APP_ID
     if cmd == "setversion":
-        cmd_setversion(tok, app_id, auto_release="auto" in sys.argv, flavor=flavor)
+        cmd_setversion(tok, app_id, auto_release="auto" in sys.argv)
     elif cmd == "attach":
-        if len(sys.argv) < 4:
-            sys.exit("用法：asc-listing.py attach <flavor> <构建号>")
-        cmd_attach(tok, app_id, sys.argv[3])
+        if len(sys.argv) < 3:
+            sys.exit("用法：asc-listing.py attach <构建号>")
+        cmd_attach(tok, app_id, sys.argv[2])
     elif cmd == "submit":
-        cmd_submit(tok, app_id, flavor, "--yes" in sys.argv)
+        cmd_submit(tok, app_id, "--yes" in sys.argv)
     elif cmd == "screenshots":
-        cmd_screenshots(tok, app_id, flavor)
+        cmd_screenshots(tok, app_id)
     elif cmd == "review":
-        cmd_review(tok, app_id, flavor)
+        cmd_review(tok, app_id)
     elif cmd == "category":
-        cmd_category(tok, app_id, flavor)
+        cmd_category(tok, app_id)
     elif cmd == "text":
-        cmd_text(tok, app_id, flavor)
+        cmd_text(tok, app_id)
     elif cmd == "rating":
         cmd_rating(tok, app_id)
     elif cmd == "contentrights":
@@ -660,7 +656,7 @@ def main():
     elif cmd == "availability":
         cmd_availability(tok, app_id)
     elif cmd == "status":
-        cmd_status(tok, app_id, flavor)
+        cmd_status(tok, app_id)
     else:
         sys.exit(__doc__)
 
