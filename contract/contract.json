@@ -2,8 +2,8 @@
   "version": 1,
   "files": {
     "transfer-state.json": "5e7f5ce8c5096f0cd251096db1ea3d9fc9cfb6d92845dd01b10823ca47abf5fd",
-    "strings.json": "b35c8115912643c249c0ce2fd2ec9ddbf63a25535b297c63e22b34976982996e",
+    "strings.json": "0b05ddb0f94bb4227d147308a5daf163089e8dbcdfa2fbaea91299cb197233fd",
     "tokens.json": "9344377f9efcd6b0924bb43bbd0111e230900cbcd8cddcad3937044b1c35a136",
-    "capabilities.json": "94a6fdbddabe1079c5059fddb8afc52274cd990acb2e7304d69b3f5671b84a90"
+    "capabilities.json": "ce85a407ab633490eadd386534915b6594d75e56ea00af519ea7f99945868deb"
   }
 }

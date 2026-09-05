@@ -7,5 +7,7 @@ enum ContractCapabilities {
     /// true / false，或 "runtime" 表示运行时探测
     static let glassBlur: String = "true"
     static let deviceAttestation: Bool = true
+    /// 充值通道："iap" / "virtual" / "wxpay-app"，或 "false" 表示本端不做充值
+    static let recharge: String = "iap"
     static let degradedNotice: [String: String] = ["backgroundUpload": "cap.noBackgroundUpload", "continuousSegments": "cap.segmentedRecording", "backgroundRecording": "cap.noBackgroundRecording"]
 }

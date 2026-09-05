@@ -21,11 +21,14 @@ struct HomeView: View {
     var onOpenQueue: () -> Void
     var onOpenSettings: () -> Void
 
-    @State private var camera = CameraService()
-    /// 进程级单例（锁屏停止意图要找到它）。@Observable 对象不必用 @State 持有，
-    /// body 里读它的属性照样被观察。
+    /// 三个采集服务都是进程级单例。@Observable 对象不必用 @State 持有，body 里读它的
+    /// 属性照样被观察；反过来用 @State 持有反而有害——初始值表达式每次重建结构体都会
+    /// 求值一次，等于每次 RootView body 都在主线程上白建一个 AVCaptureSession /
+    /// CLLocationManager 再丢掉（dev-board#418）。
+    private let camera = CameraService.shared
+    /// 锁屏卡片 / 灵动岛的停止意图要找到正在录的这一个
     private let recorder = AudioRecorderService.shared
-    @State private var stamper = LocationStamper()
+    private let stamper = LocationStamper.shared
     @State private var mode: CapMode = .photo
     @State private var showFlash = false
 

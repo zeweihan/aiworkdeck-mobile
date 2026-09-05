@@ -172,6 +172,8 @@ function renderSwiftCaps(c) {
     /// true / false，或 "runtime" 表示运行时探测
     static let glassBlur: String = ${q(String(caps.glassBlur.ios))}
     static let deviceAttestation: Bool = ${caps.deviceAttestation.ios}
+    /// 充值通道："iap" / "virtual" / "wxpay-app"，或 "false" 表示本端不做充值
+    static let recharge: String = ${q(String(caps.recharge.ios))}
     static let degradedNotice: [String: String] = ${swiftDict(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
 `
@@ -247,6 +249,8 @@ object ContractCapabilities {
     /** "true" / "false" / "runtime" */
     const val glassBlur: String = ${kq(String(caps.glassBlur.android))}
     const val deviceAttestation: Boolean = ${caps.deviceAttestation.android}
+    /** 充值通道："iap" / "virtual" / "wxpay-app"，或 "false" 表示本端不做充值 */
+    const val recharge: String = ${kq(String(caps.recharge.android))}
     val degradedNotice: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
 `

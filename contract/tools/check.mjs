@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// contract/tools/check.mjs — 契约校验。① 清单 sha ② 引用闭合 ③ 夹具 schema + 与迁移表一致 ④ 生成物未过期 ⑤ API 副本未漂 ⑥ 无内联文案
-// 用法：node contract/tools/check.mjs [--root DIR] [--quick]   （--quick 跳过 ⑥）
+// contract/tools/check.mjs — 契约校验。① 清单 sha ② 引用闭合 ③ 数据文件 schema ④ 夹具 schema + 与迁移表一致 ⑤ 生成物未过期 ⑥ API 副本未漂 ⑦ 无内联文案
+// 另有一条只提示不报错的：夹具里还没有任何一端消费的段（runChecks 的 notes，CLI 打 ℹ）
+// 用法：node contract/tools/check.mjs [--root DIR] [--quick]   （--quick 跳过 ⑦）
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
 import { loadContract, manifestFor, DATA_FILES, outputs, sha256 } from './lib.mjs'
 
-const FIXTURES = ['tally', 'transitions', 'status-merge', 'restore', 'delete-warning']
+const FIXTURES = ['tally', 'transitions', 'status-merge', 'restore', 'delete-warning', 'billing']
 
 function evalGuard(guard, attempts, state, problems) {
   if (!guard) return true
@@ -78,6 +79,86 @@ function checkReferences(c, problems) {
     if (!states.has(t.from)) problems.push(`迁移 ${t.from}+${t.event} 的起点是未知状态 ${t.from}`)
     if (!states.has(t.to)) problems.push(`迁移 ${t.from}+${t.event} 的终点是未知状态 ${t.to}`)
     if (!events.has(t.event)) problems.push(`迁移 ${t.from}+${t.event} 的事件不在 events 里`)
+  }
+}
+
+/**
+ * ③ 数据文件的形状校验。以前 capabilities.json 一个字都没人校验：把 "android" 打成 "andriod"，
+ * 生成的安卓能力开关会变成字符串 "undefined"，而 check.mjs 全绿退出码 0（dev-board#425 复审实测）。
+ */
+function checkDataSchemas(c, problems) {
+  const ajv = new Ajv2020({ allErrors: true })
+  for (const [file, data] of [['capabilities', c.caps]]) {
+    const schema = JSON.parse(readFileSync(join(c.root, 'contract', 'schema', `${file}.schema.json`), 'utf8'))
+    const validate = ajv.compile(schema)
+    if (!validate(data)) {
+      for (const e of validate.errors) problems.push(`${file}.json 不合 schema：${e.instancePath || '/'} ${e.message}`)
+    }
+  }
+}
+
+const CURRENCY_SYMBOL = { CNY: '¥', USD: '$' }
+
+/**
+ * 参考实现：金额展示口径（唯一来源是 contract/schema/billing.schema.json 的说明段）——
+ * 符号按 currency 取 + 固定两位小数、**无千分位**、**不跟设备 locale**。
+ * 只在校验器里用；三端各自手写同语义的函数，拿夹具的 display 对拍（dev-board#425 二轮复审 N7）。
+ */
+export function referenceMoneyDisplay(cents, currency) {
+  const symbol = CURRENCY_SYMBOL[currency]
+  if (!symbol || !Number.isInteger(cents)) return null
+  const abs = Math.abs(cents)
+  return `${symbol}${cents < 0 ? '-' : ''}${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
+}
+
+/**
+ * billing 夹具的额外约束（schema 表达不了的三条）：
+ * ① 八个 kind 一个不缺——少一个就意味着有一类服务端失败没有任何一端对过；
+ * ② expect 就是 json 的解码结果，缺席的键解成 null，夹具不能自说自话；
+ * ③ balance 的 display 由参考实现复算，夹具同样不能自说自话。
+ */
+function checkBillingFixture(c, problems) {
+  const schema = JSON.parse(readFileSync(join(c.root, 'contract', 'schema', 'billing.schema.json'), 'utf8'))
+  const data = JSON.parse(readFileSync(join(c.root, 'contract', 'fixtures', 'billing.json'), 'utf8'))
+  const cases = Array.isArray(data.envelope) ? data.envelope : []
+  const seen = new Set(cases.map((k) => k.json?.kind).filter(Boolean))
+  for (const kind of schema.$defs.kind.enum) {
+    if (!seen.has(kind)) problems.push(`fixtures/billing.json 的 envelope 没有 kind=${kind} 的用例：四端就没有这一类失败可对`)
+  }
+  for (const k of cases) {
+    for (const f of ['code', 'message', 'kind', 'outTradeNo']) {
+      const want = k.json?.[f] ?? null
+      if ((k.expect?.[f] ?? null) !== want) {
+        problems.push(`fixtures/billing.json：「${k.name}」的 expect.${f} 应是 ${JSON.stringify(want)}（json 里没这个键就是 null）`)
+      }
+    }
+  }
+  for (const k of Array.isArray(data.balance) ? data.balance : []) {
+    const want = referenceMoneyDisplay(k.json?.balanceCents, k.json?.currency)
+    if (want === null) {
+      problems.push(`fixtures/billing.json：「${k.name}」的 currency=${JSON.stringify(k.json?.currency)} 还没有约定符号——先在 billing.schema.json 的展示口径里补这一种币种，再改各端`)
+    } else if (k.display !== want) {
+      problems.push(`fixtures/billing.json：「${k.name}」的 display 应是 ${JSON.stringify(want)}（符号按 currency 取 + 两位小数、无千分位、不跟设备 locale），夹具写的是 ${JSON.stringify(k.display)}`)
+    }
+  }
+}
+
+/**
+ * 夹具里**还没有任何一端适配测试消费**的段。不报错（本期没有消费方是有意的），但要留一条明确记号：
+ * 没人消费的段等于没有约束力——第二期做充值界面时把 present=redirect 的 codeUrl 解成空串，
+ * 契约层照样拦不住（dev-board#425 二轮复审 N3）。补了适配测试就把端名填进来。
+ */
+const FIXTURE_CONSUMERS = {
+  billing: { balance: ['ios', 'miniprogram', 'android'], envelope: ['ios', 'miniprogram', 'android'], recharge: [], status: [] },
+}
+function checkFixtureConsumers(c, notes) {
+  for (const [file, sections] of Object.entries(FIXTURE_CONSUMERS)) {
+    const data = JSON.parse(readFileSync(join(c.root, 'contract', 'fixtures', `${file}.json`), 'utf8'))
+    for (const section of Object.keys(data)) {
+      if ((sections[section] ?? []).length === 0) {
+        notes.push(`fixtures/${file}.json 的「${section}」段还没有任何一端的夹具适配测试消费——第二期做充值界面时补上（docs/specs/2026-09-04-mobile-recharge-design.md §8 第二期清单），补完把端名填进 check.mjs 的 FIXTURE_CONSUMERS`)
+      }
+    }
   }
 }
 
@@ -197,16 +278,20 @@ function checkHarmonySigning(c, problems) {
 
 export function runChecks(root, { quick = false } = {}) {
   const problems = []
+  const notes = []
   let c
-  try { c = loadContract(root) } catch (e) { return { ok: false, problems: [`contract/ 读不进来：${e.message}`] } }
+  try { c = loadContract(root) } catch (e) { return { ok: false, problems: [`contract/ 读不进来：${e.message}`], notes } }
   checkManifest(c, problems)
   checkReferences(c, problems)
+  checkDataSchemas(c, problems)
   checkFixtures(c, problems)
+  checkBillingFixture(c, problems)
+  checkFixtureConsumers(c, notes)
   checkGenerated(c, problems)
   checkHarmonySigning(c, problems)
   checkApiPin(c, problems)
   if (!quick) checkInline(c, problems)
-  return { ok: problems.length === 0, problems }
+  return { ok: problems.length === 0, problems, notes }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -214,6 +299,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const i = args.indexOf('--root')
   const root = resolve(i >= 0 ? args[i + 1] : join(dirname(fileURLToPath(import.meta.url)), '..', '..'))
   const r = runChecks(root, { quick: args.includes('--quick') })
+  for (const n of r.notes ?? []) console.log('ℹ', n)
   if (!r.ok) { for (const p of r.problems) console.error('✗', p); process.exit(1) }
   console.log('契约校验通过')
 }

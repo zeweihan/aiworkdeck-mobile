@@ -12,12 +12,30 @@ export const BASE_URL = 'https://addin.aiworkdeck.com'
 /** 官网（Next.js 站点）。引流页换号走这里，与插件云后端不是一个服务。 */
 export const WEB_BASE_URL = 'https://aiworkdeck.com'
 
-/** 统一错误：code 是信封里的业务 code；网络层/HTTP 层失败固定为 -1。 */
+/** Envelope.kind：机器可读判别位，contract/schema/billing.schema.json 的 $defs.kind 同一套取值。
+ *  各端一律按 kind 分支，禁止匹配 message 措辞——message 经 LangText 在英文部署下会整条变英文。 */
+export type ApiErrorKind =
+  | 'DISABLED'
+  | 'UNAVAILABLE'
+  | 'NOT_CONNECTED'
+  | 'NOT_FOUND'
+  | 'REJECTED'
+  | 'REVIEW_ACCOUNT'
+  | 'ALREADY_PAID'
+  | 'IDEMPOTENCY_CONFLICT'
+
+/** 统一错误：code 是信封里的业务 code；网络层/HTTP 层失败固定为 -1。
+ *  kind 是可选的机器可读判别位（缺席多半是非 billing 专有的失败，走通用 handler）；
+ *  outTradeNo 仅 kind 为 ALREADY_PAID / IDEMPOTENCY_CONFLICT 时有值。 */
 export class ApiError extends Error {
   code: number
-  constructor(code: number, message: string) {
+  kind: ApiErrorKind | null
+  outTradeNo: string | null
+  constructor(code: number, message: string, kind: ApiErrorKind | null = null, outTradeNo: string | null = null) {
     super(message)
     this.code = code
+    this.kind = kind
+    this.outTradeNo = outTradeNo
     this.name = 'ApiError'
   }
 }
@@ -94,23 +112,36 @@ export function setSelectedProject(p: RelayProject | null): void {
 // ---------- 统一响应判读 ----------
 
 /**
- * 信封与裸数组共用一套判读，四条规则：
+ * 信封与裸数组共用一套判读，五条规则：
  * 1. HTTP 非 2xx → ApiError(-1, '服务器返回 N')。
  * 2. 体是数组 → 直接成功（裸数组端点：/projects、/media/status）。
  * 3. 体是对象且有数字 code：0 成功取 data；4010 清会话并跳登录后抛错；
  *    其他 code 原样抛错。
- * 4. 都不匹配（HTTP 层正常但体既非数组也没有 code）→ 解析失败。
+ * 4. 体是对象但没有数字 code：默认按解析失败处理——大多数端点的信封必然带数字
+ *    code，一个没有 code 的对象体更可能是网关 interstitial / 代理注入 / 后端改了形状，
+ *    不是合法响应。只有调用点显式传 `{ bare: true }`（当前只有 /billing/balance 这一条
+ *    裸对象端点）才把它当成功直接返回。**不要为了让某个端点跑通而放宽这条判读**——
+ *    放宽是全局的，会让 verifyLoginCode 把网关异常响应当登录成功、myProjects/mediaStatus
+ *    把非数组交给 groupByDevice 变成运行时 TypeError（dev-board#425 二轮复审 N5）。
+ * 5. 都不匹配（HTTP 层正常但体既非数组也非对象，如 null/字符串/数字）→ 解析失败。
  * 网络层失败（wx.request/wx.uploadFile 的 fail 回调）不在这里处理，由调用方分开说。
+ *
+ * export 仅为了 tests/contract.test.ts 拿 contract/fixtures/billing.json 的
+ * envelope 夹具直接跑判读逻辑，不是给业务代码外部调用的公开 API。
  */
-function readEnvelope<T>(statusCode: number, body: unknown): T {
+export function readEnvelope<T>(statusCode: number, body: unknown, opts: { bare?: boolean } = {}): T {
   if (statusCode < 200 || statusCode >= 300) {
     throw new ApiError(-1, `服务器返回 ${statusCode}`)
   }
   if (Array.isArray(body)) {
     return body as T
   }
-  if (body && typeof body === 'object' && typeof (body as { code?: unknown }).code === 'number') {
-    const env = body as { code: number; message?: string; data?: T }
+  if (body && typeof body === 'object') {
+    if (typeof (body as { code?: unknown }).code !== 'number') {
+      if (opts.bare) return body as T
+      throw new ApiError(-1, '无法解析服务器响应')
+    }
+    const env = body as { code: number; message?: string; data?: T; kind?: ApiErrorKind; outTradeNo?: string }
     if (env.code === 0) {
       return env.data as T
     }
@@ -120,7 +151,7 @@ function readEnvelope<T>(statusCode: number, body: unknown): T {
       wx.reLaunch({ url: '/pages/login/login' })
       throw new ApiError(4010, '请先登录')
     }
-    throw new ApiError(env.code, env.message || '操作失败')
+    throw new ApiError(env.code, env.message || '操作失败', env.kind ?? null, env.outTradeNo ?? null)
   }
   throw new ApiError(-1, '无法解析服务器响应')
 }
@@ -130,7 +161,12 @@ function authHeader(): Record<string, string> {
   return session ? { 'X-Session-Id': session } : {}
 }
 
-function request<T>(url: string, method: 'GET' | 'POST', data?: Record<string, unknown>): Promise<T> {
+function request<T>(
+  url: string,
+  method: 'GET' | 'POST',
+  data?: Record<string, unknown>,
+  opts: { bare?: boolean } = {},
+): Promise<T> {
   return new Promise((resolve, reject) => {
     wx.request({
       url: BASE_URL + url,
@@ -142,7 +178,7 @@ function request<T>(url: string, method: 'GET' | 'POST', data?: Record<string, u
       },
       success: (res) => {
         try {
-          resolve(readEnvelope<T>(res.statusCode, res.data))
+          resolve(readEnvelope<T>(res.statusCode, res.data, opts))
         } catch (e) {
           reject(e)
         }
@@ -175,6 +211,26 @@ export function logout(): void {
   setSession(null)
   setUser(null)
   setSelectedProject(null)
+}
+
+// ---------- 统一账户余额（dev-board#425/#429） ----------
+
+export interface BillingBalance {
+  balanceCents: number
+  currency: 'CNY' | 'USD'
+  plan: string | null
+}
+
+/**
+ * 统一账户余额。裸对象成功；未登录/未关联/官网不可达等一律 Envelope(code 1) 走
+ * readEnvelope 的信封分支抛错，绝不会用余额 0 冒充失败。本期只读余额，不放充值入口
+ * （App Store 3.1.3 硬约束，站外充值行动号召会触发强制内购）。
+ *
+ * 唯一传 `{ bare: true }` 的调用点：裸对象响应没有数字 code，其余端点一律走默认的
+ * 严格判读（见 readEnvelope 规则 4，dev-board#425 二轮复审 N5）。
+ */
+export function billingBalance(): Promise<BillingBalance> {
+  return request<BillingBalance>('/api/mobile/billing/balance', 'GET', undefined, { bare: true })
 }
 
 // ---------- 引流页：一键手机号建号（dev-board#305） ----------

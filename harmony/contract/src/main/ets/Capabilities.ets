@@ -7,6 +7,7 @@ export interface ContractCapabilitiesShape {
   glassBlur: boolean
   deviceAttestation: boolean
   backgroundRecording: boolean
+  recharge: boolean
   degradedNotice: Record<string, string>
 }
 
@@ -24,5 +25,6 @@ export const ContractCapabilities: ContractCapabilitiesShape = {
   glassBlur: true,
   deviceAttestation: false,
   backgroundRecording: true,
+  recharge: false,
   degradedNotice: contractCapabilities_degradedNotice
 }

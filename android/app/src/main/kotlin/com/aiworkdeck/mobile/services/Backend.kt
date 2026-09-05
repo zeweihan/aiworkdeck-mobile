@@ -10,7 +10,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import java.io.File
 
-class ApiError(val code: Int, message: String) : Exception(message)
+/**
+ * kind/outTradeNo 仅信封分支（[checkEnvelopeCode]）才会带上；网络层/HTTP 层失败
+ * （[execute] 里的非 2xx）两者恒为 null——那两种失败压根没有信封可读。
+ */
+class ApiError(val code: Int, message: String, val kind: EnvelopeKind? = null, val outTradeNo: String? = null) : Exception(message)
 class Unauthorized : Exception("unauthorized")
 
 class Backend(private val baseUrl: String, private val session: SessionStore, private val client: OkHttpClient = OkHttpClient()) {
@@ -30,6 +34,8 @@ class Backend(private val baseUrl: String, private val session: SessionStore, pr
 
     suspend fun myProjects(): List<RelayProject> = bare("/api/mobile/projects")
     suspend fun mediaUsage(): MediaUsage = bare("/api/mobile/media/usage")
+    /** 统一账户余额。成功回裸对象、失败回信封，两者都是 JsonObject，靠 bare() 里探 code 字段区分。 */
+    suspend fun billingBalance(): BillingBalance = bare("/api/mobile/billing/balance")
     suspend fun mediaStatus(ids: List<String>): List<MediaStatus> =
         if (ids.isEmpty()) emptyList() else bare("/api/mobile/media/status?clientMediaIds=" + ids.joinToString(","))
 
@@ -60,11 +66,17 @@ class Backend(private val baseUrl: String, private val session: SessionStore, pr
         val r = json.decodeFromJsonElement<LoginResult>(envelope(text)["data"] ?: throw ApiError(1, "empty data"))
         session.save(r.sessionId); return r
     }
-    /** 全站信封：code 0 成功；4010 未登录（清会话）；其他为业务错误。裸数组不进这里。 */
+    /** 全站信封：code 0 成功；4010 未登录（清会话）；其他为业务错误。裸数组不进这里。
+     *  kind/outTradeNo 是 billing 端点的机器可读判别位，缺席时解成 null（不猜）。 */
     private fun checkEnvelopeCode(el: JsonObject) {
         val code = el["code"]?.jsonPrimitive?.intOrNull ?: return
         if (code == 4010) { session.clear(); throw Unauthorized() }
-        if (code != 0) throw ApiError(code, el["message"]?.jsonPrimitive?.contentOrNull ?: "code $code")
+        if (code != 0) throw ApiError(
+            code,
+            el["message"]?.jsonPrimitive?.contentOrNull ?: "code $code",
+            EnvelopeKind.fromRaw(el["kind"]?.jsonPrimitive?.contentOrNull),
+            el["outTradeNo"]?.jsonPrimitive?.contentOrNull,
+        )
     }
     private suspend fun execute(b: Request.Builder): String = withContext(Dispatchers.IO) {
         session.current()?.let { b.header("X-Session-Id", it) }
