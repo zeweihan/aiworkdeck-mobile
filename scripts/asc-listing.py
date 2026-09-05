@@ -114,8 +114,13 @@ def die_on_error(resp, what):
 # ---------------------------------------------------------------- 读取
 
 def app_info_id(tok, app_id):
+    """已上架的 App 有两条 appInfo：在售那条和随新版本出现的可编辑那条。
+    往在售那条加本地化会 409「cannot be created in current state」，所以优先取可编辑的。"""
     r = call(tok, "GET", f"/apps/{app_id}/appInfos")
     die_on_error(r, "读取 appInfos")
+    for i in r["data"]:
+        if i["attributes"].get("appStoreState") == "PREPARE_FOR_SUBMISSION":
+            return i["id"]
     return r["data"][0]["id"]
 
 
