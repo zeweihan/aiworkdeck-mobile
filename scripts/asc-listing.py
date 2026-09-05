@@ -29,6 +29,7 @@ ENTITY_ERROR.ATTRIBUTE.TYPE 的报错把该改布尔的挑出来再提交一次�
 再改，这段不用跟着改。
 """
 
+import base64
 import json
 import os
 import re
@@ -507,34 +508,62 @@ def cmd_screenshots(tok, app_id, flavor):
 def cmd_availability(tok, app_id, flavor):
     """上架区域。
 
-    大陆版只上中国大陆，国际版上其余全部区域——两个 App 是同一个产品的两份
-    发行，重叠上架等于在同一个区里放两个一样的东西。国际版本来也进不了中国
-    大陆：没有 ICP 备案号，那个区直接不可选。
+    2026-09-05 起大陆版（北京主体）就是全球版：国际版被 4.3(a) 判定与它重复，
+    iOS 整体并入北京主体。intl 分支只留到那条 App 记录删除为止，仍是「中国大陆除外」
+    （它没有 ICP 备案号，那个区本来就不可选）。
 
-    v2 的 appAvailabilities 不接受「只报要开的区」：**所有区都得列全**，
-    每个区自己带 available 真假。少一个就 409 报那个区没被 included。
+    已有 appAvailabilities 记录的 App（上架过的都有）再 POST v2/appAvailabilities 会 409
+    「already exists」，只能逐区 PATCH v1/territoryAvailabilities/{id}；从未设过的才 POST，
+    且 POST 必须把所有区列全，少一个就 409 说那个区没被 included。
     """
+    global_app = flavor == "cn"
+    want = (lambda t: True) if global_app else (lambda t: t != "CHN")
+    label = "全球" if global_app else "中国大陆除外"
+
+    existing = call(tok, "GET", BASE_V2 + f"/appAvailabilities/{app_id}/territoryAvailabilities?limit=200")
+    if "ERROR" not in existing:
+        rows = existing["data"]
+        changed, failed = 0, []
+        for row in rows:
+            tid = row["id"]
+            # id 是 base64 的 {"s": app, "t": 区域码}
+            territory = json.loads(base64.b64decode(tid + "=" * (-len(tid) % 4)))["t"]
+            target = want(territory)
+            if row["attributes"]["available"] == target:
+                continue
+            r = call(tok, "PATCH", f"/territoryAvailabilities/{tid}",
+                     {"data": {"type": "territoryAvailabilities", "id": tid,
+                               "attributes": {"available": target}}})
+            if "ERROR" in r:
+                failed.append((territory, errors_of(r)))
+            else:
+                changed += 1
+        # availableInNewTerritories 对已有记录只能网页改（API 对 appAvailabilities
+        # 只开放 CREATE / GET，PATCH 直接 403），这里不动。
+        for territory, errs in failed:
+            print(f"  ! {territory}: {errs}")
+        if failed:
+            sys.exit(f"上架区域：改了 {changed} 个区，{len(failed)} 个区失败")
+        print(f"上架区域已设置（{label}）：本次改了 {changed} 个区，共 {len(rows)} 个区")
+        return
+
     r = call(tok, "GET", "/territories?limit=200")
     die_on_error(r, "读取区域列表")
     territories = [t["id"] for t in r["data"]]
     if "CHN" not in territories:
         sys.exit("区域列表里没有 CHN，别往下走")
 
-    want_cn_only = flavor == "cn"
     refs, included = [], []
     for t in territories:
-        available = (t == "CHN") if want_cn_only else (t != "CHN")
         key = f"t-{t}"
         refs.append({"type": "territoryAvailabilities", "id": "${" + key + "}"})
         included.append({
             "type": "territoryAvailabilities", "id": "${" + key + "}",
-            "attributes": {"available": available},
+            "attributes": {"available": want(t)},
             "relationships": {"territory": {"data": {"type": "territories", "id": t}}}})
 
     body = {"data": {"type": "appAvailabilities",
-                     # 新开的区不自动跟进：大陆版永远只该有一个区，国际版新增区
-                     # 由人决定要不要上，别让区域清单自己长。
-                     "attributes": {"availableInNewTerritories": False},
+                     "attributes": {"availableInNewTerritories": global_app},
                      "relationships": {
                          "app": {"data": {"type": "apps", "id": app_id}},
                          "territoryAvailabilities": {"data": refs}}},
@@ -542,8 +571,7 @@ def cmd_availability(tok, app_id, flavor):
     resp = call(tok, "POST", BASE_V2 + "/appAvailabilities", body)
     die_on_error(resp, "设置上架区域")
     on = sum(1 for i in included if i["attributes"]["available"])
-    print(f"上架区域已设置：{on}/{len(territories)} 个区可用"
-          f"（{'仅中国大陆' if want_cn_only else '中国大陆除外'}）")
+    print(f"上架区域已设置：{on}/{len(territories)} 个区可用（{label}）")
 
 
 def cmd_status(tok, app_id, flavor):
