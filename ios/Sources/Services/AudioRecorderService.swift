@@ -92,6 +92,11 @@ final class AudioRecorderService: NSObject {
         }
         permissionDenied = false
 
+        // 先把麦克风从捕获会话里要回来。录过一次像之后麦克风输入会一直挂在
+        // AVCaptureSession 上（旧实现只加不摘），这时激活 `.record` 会话就是两个
+        // 客户端抢同一个设备：捕获会话被系统中断，取景黑屏、快门失灵（dev-board#461）。
+        CameraService.shared.releaseMicrophone()
+
         // 会话激活在后台串行队列上做，完成后才回到这里继续建 recorder——
         // 顺序不能乱：没激活会话就 record() 拿不到麦克风。
         guard await configureAudioSession(active: true) else { return }

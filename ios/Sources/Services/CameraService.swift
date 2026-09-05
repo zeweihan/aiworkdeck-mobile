@@ -23,7 +23,9 @@ final class CameraService: NSObject {
 
     enum Mode { case photo, video }
 
-    private(set) var isRunning = false
+    /// 会话正被系统中断（别的客户端抢走了摄像头 / 麦克风、来电、分屏）。
+    /// 中断结束会自己恢复——旧实现连「被中断了」都不知道，只能重开 App（dev-board#461）。
+    private(set) var isInterrupted = false
     private(set) var isRecording = false
     private(set) var permissionDenied = false
     private(set) var recordingSeconds = 0
@@ -34,13 +36,24 @@ final class CameraService: NSObject {
     private let sessionQueue = DispatchQueue(label: "com.aiworkdeck.mobile.session")
     private let photoOutput = AVCapturePhotoOutput()
     private let movieOutput = AVCaptureMovieFileOutput()
-    private var micAdded = false
     private var timer: Timer?
+
+    /// 用户意图与麦克风归属都记在这里，具体动作由本类执行（见文件末尾的
+    /// CameraSessionControl 一节）。拆开是为了让判定能被单测钉住。
+    private var recovery: CameraRecovery!
 
     /// 一条采集完成后回调。UI 层拿去落库。
     var onCaptured: ((Data, MediaKind, Date) -> Void)?
 
-    private override init() { super.init() }
+    /// 一次采集失败后回调。取证 App 里「按了快门却什么都没发生」不能是静默的：
+    /// 现场不可复现，用户当场就得知道这一张没拍上。
+    var onError: ((String) -> Void)?
+
+    private override init() {
+        super.init()
+        recovery = CameraRecovery(control: self)
+        observeSessionHealth()
+    }
 
     // MARK: - 生命周期
 
@@ -51,18 +64,67 @@ final class CameraService: NSObject {
         }
         // 去系统设置里把权限打开再回来：拒绝态要能自愈，不能一直停在提示页
         permissionDenied = false
+        // 意图先落：中断结束与媒体服务重置都只按它决定要不要把相机点亮
+        recovery.desiredRunning = true
         await configureIfNeeded()
-        sessionQueue.async { [session] in
-            if !session.isRunning { session.startRunning() }
-        }
-        isRunning = true
+        startRunning()
     }
 
     func stop() {
-        sessionQueue.async { [session] in
-            if session.isRunning { session.stopRunning() }
+        recovery.desiredRunning = false
+        stopRunning()
+    }
+
+    /// 把麦克风还给系统。现场录音必须独占麦克风：录过一次像之后麦克风输入会一直
+    /// 挂在捕获会话上，与 AVAudioRecorder 的 `.record` 会话抢同一个设备，
+    /// 捕获会话被中断后（旧实现无人恢复）就是黑屏 + 快门失灵（dev-board#461）。
+    func releaseMicrophone() { recovery.releaseMicrophone() }
+
+    /// 会话健康：中断、中断结束、运行时错误。这三个观察者是本次修复的核心——
+    /// 旧实现一个都没有，会话一旦死掉就永远是黑的，只有重开 App 才好。
+    /// 单例活到进程结束，不用留 token 反注册（同 AudioRecorderService）。
+    private func observeSessionHealth() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: AVCaptureSession.wasInterruptedNotification,
+            object: session, queue: .main
+        ) { [weak self] note in
+            // Notification 不是 Sendable，跨 actor 之前先把要用的值取出来
+            let reason = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int ?? -1
+            Task { @MainActor in self?.sessionWasInterrupted(reason: reason) }
         }
-        isRunning = false
+        center.addObserver(
+            forName: AVCaptureSession.interruptionEndedNotification,
+            object: session, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.sessionInterruptionEnded() }
+        }
+        center.addObserver(
+            forName: AVCaptureSession.runtimeErrorNotification,
+            object: session, queue: .main
+        ) { [weak self] note in
+            let code = (note.userInfo?[AVCaptureSessionErrorKey] as? NSError)
+                .flatMap { AVError.Code(rawValue: $0.code) }
+            Task { @MainActor in self?.sessionRuntimeError(code) }
+        }
+    }
+
+    private func sessionWasInterrupted(reason: Int) {
+        isInterrupted = true
+        // 原因编号要留痕：现场不可复现，事后只能靠它回答「那一下为什么黑了」
+        cameraLog.error("capture session interrupted, reason=\(reason, privacy: .public)")
+    }
+
+    private func sessionInterruptionEnded() {
+        isInterrupted = false
+        cameraLog.log("capture session interruption ended")
+        recovery.handleInterruptionEnded()
+    }
+
+    private func sessionRuntimeError(_ code: AVError.Code?) {
+        cameraLog.error("capture session runtime error, code=\(code?.rawValue ?? -1, privacy: .public)")
+        guard let code else { return }
+        recovery.handleRuntimeError(code)
     }
 
     private var configured = false
@@ -73,42 +135,41 @@ final class CameraService: NSObject {
 
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             sessionQueue.async { [session, photoOutput, movieOutput] in
-                session.beginConfiguration()
-                session.sessionPreset = .high
-
-                if let cam = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-                   let input = try? AVCaptureDeviceInput(device: cam),
-                   session.canAddInput(input) {
-                    session.addInput(input)
-                }
-                if session.canAddOutput(photoOutput) {
-                    session.addOutput(photoOutput)
-                    photoOutput.maxPhotoQualityPrioritization = .quality
-                }
-                if session.canAddOutput(movieOutput) { session.addOutput(movieOutput) }
-
-                session.commitConfiguration()
+                Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput)
                 cont.resume()
             }
         }
     }
 
-    /// 麦克风按需申请：只拍照的用户不该被要求授权录音。
-    private func addMicIfNeeded() async {
-        guard !micAdded, await ensureAuthorized(.audio) else { return }
-        micAdded = true
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            sessionQueue.async { [session] in
-                session.beginConfiguration()
-                if let mic = AVCaptureDevice.default(for: .audio),
-                   let mi = try? AVCaptureDeviceInput(device: mic),
-                   session.canAddInput(mi) {
-                    session.addInput(mi)
-                }
-                session.commitConfiguration()
-                cont.resume()
-            }
+    /// 在 sessionQueue 上跑。首次配置与重置后的重建共用这一份——
+    /// 两处各写一遍是这类会话代码最容易走样的地方。
+    private nonisolated static func applyConfiguration(
+        session: AVCaptureSession,
+        photoOutput: AVCapturePhotoOutput,
+        movieOutput: AVCaptureMovieFileOutput
+    ) {
+        session.beginConfiguration()
+        session.sessionPreset = .high
+
+        if let cam = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+           let input = try? AVCaptureDeviceInput(device: cam),
+           session.canAddInput(input) {
+            session.addInput(input)
         }
+        if session.canAddOutput(photoOutput) {
+            session.addOutput(photoOutput)
+            photoOutput.maxPhotoQualityPrioritization = .quality
+        }
+        if session.canAddOutput(movieOutput) { session.addOutput(movieOutput) }
+
+        session.commitConfiguration()
+    }
+
+    /// 麦克风按需申请：只拍照的用户不该被要求授权录音。
+    /// 用完要还（releaseMicrophone），不能像旧实现那样加进去就一直留着。
+    private func addMicIfNeeded() async {
+        guard !recovery.micHeld, await ensureAuthorized(.audio) else { return }
+        recovery.acquireMicrophone()
     }
 
     private func ensureAuthorized(_ media: AVMediaType) async -> Bool {
@@ -152,6 +213,62 @@ final class CameraService: NSObject {
     }
 }
 
+// MARK: - 会话动作
+
+/// CameraRecovery 决定「做哪几步」，这里是「怎么做」。全部只往 sessionQueue 上排队：
+/// 那是一条串行队列，入队顺序就是执行顺序，不需要另外同步。
+extension CameraService: CameraSessionControl {
+    func startRunning() {
+        sessionQueue.async { [session] in
+            if !session.isRunning { session.startRunning() }
+        }
+    }
+
+    func stopRunning() {
+        sessionQueue.async { [session] in
+            if session.isRunning { session.stopRunning() }
+        }
+    }
+
+    /// mediaServicesWereReset 之后会话里的输入输出全成了空壳，拆干净重来。
+    /// configured 保持 true：这一次调用本身就是一次完整的重新配置。
+    func reconfigure() {
+        configured = true
+        sessionQueue.async { [session, photoOutput, movieOutput] in
+            session.beginConfiguration()
+            session.inputs.forEach(session.removeInput)
+            session.outputs.forEach(session.removeOutput)
+            session.commitConfiguration()
+            Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput)
+        }
+    }
+
+    func addMicrophone() {
+        sessionQueue.async { [session] in
+            guard let mic = AVCaptureDevice.default(for: .audio),
+                  let input = try? AVCaptureDeviceInput(device: mic),
+                  session.canAddInput(input) else { return }
+            session.beginConfiguration()
+            session.addInput(input)
+            session.commitConfiguration()
+        }
+    }
+
+    /// 按媒体类型扫出来再摘，不另存一份引用：引用要跨队列同步，
+    /// 而「会话里此刻挂着哪些输入」本来就只有在 sessionQueue 上问才准。
+    func removeMicrophone() {
+        sessionQueue.async { [session] in
+            let mics = session.inputs
+                .compactMap { $0 as? AVCaptureDeviceInput }
+                .filter { $0.device.hasMediaType(.audio) }
+            guard !mics.isEmpty else { return }
+            session.beginConfiguration()
+            mics.forEach(session.removeInput)
+            session.commitConfiguration()
+        }
+    }
+}
+
 // MARK: - 代理
 
 extension CameraService: AVCapturePhotoCaptureDelegate {
@@ -160,7 +277,19 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
     ) {
-        guard error == nil, let data = photo.fileDataRepresentation() else { return }
+        // 旧实现在这里 `guard error == nil ... else { return }`，一声不吭地把失败丢掉：
+        // 界面上就是「按了快门，计数不动，也没有任何报错」（dev-board#461 的症状之一）。
+        if let error {
+            cameraLog.error("photo capture failed: \(error.localizedDescription, privacy: .public)")
+            let message = "拍照失败：\(error.localizedDescription)"
+            Task { @MainActor [weak self] in self?.onError?(message) }
+            return
+        }
+        guard let data = photo.fileDataRepresentation() else {
+            cameraLog.error("photo capture produced no data")
+            Task { @MainActor [weak self] in self?.onError?("拍照失败：没有拿到图像数据") }
+            return
+        }
         let at = Date()
         Task { @MainActor [weak self] in
             self?.onCaptured?(data, .photo, at)
