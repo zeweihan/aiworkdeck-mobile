@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """下一个 build 号 = 该 App 在 ASC 上**所有**构建里最大的 +1（不分版本、不分处理状态）。
 
-用法：python scripts/asc-next-build.py intl|cn   （env 同 asc-listing.py）
+用法：python scripts/asc-next-build.py cn   （env 同 asc-listing.py）
 
 为什么不用 fastlane 的 latest_testflight_build_number：它只看「最新预发布版本」下的
 构建，2026-09-02 它报 19 而 ASC 上已有 build 20，CI 用 20 上传被 altool 以
@@ -18,7 +18,7 @@ spec.loader.exec_module(asc)
 
 flavor = sys.argv[1] if len(sys.argv) > 1 else ""
 if flavor not in asc.APPS:
-    sys.exit("用法：asc-next-build.py intl|cn")
+    sys.exit("用法：asc-next-build.py cn")
 tok = asc.token_for(flavor)
 app_id = asc.APPS[flavor]["app_id"]
 nums = []
