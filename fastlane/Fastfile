@@ -1,9 +1,10 @@
 # 全程走 App Store Connect API Key，不做交互登录、不碰 2FA。
 # Key 是 Admin 角色（创建 Distribution 证书必须 Admin，Developer 角色会卡住）。
 #
-# 2026-09-05 起 iOS 只有一个 App：大陆版 com.aiworkdeck.mobile.cn（北京京微资易，
-# Team 8WKHZVR2W8），已全球上架。国际版（香港主体）的 App 记录已在 ASC 删除，
-# 对应的 create_app / sigh / beta / release lane 一并去掉（dev-board#445、#446）。
+# 2026-09-05 起 iOS 只有一个 App：com.aiworkdeck.mobile.cn（北京京微资易，
+# Team 8WKHZVR2W8），已全球上架。（bundle id 里的 .cn 与 App 备案绑定，不可改。）
+# 另一条 App 记录（香港主体）已在 ASC 删除，对应的 create_app / sigh / beta /
+# release lane 一并去掉（dev-board#445、#446）。
 
 # cert 动作装 WWDR 中间证书时用的是裸 `curl -f`，没有重试。Apple 的
 # certificateauthority CDN 会间歇性回 403 / 半路断流（2026-08-21 发版实测：
@@ -18,41 +19,41 @@ default_platform(:ios)
 
 # 主 App 与录音 Live Activity 扩展（dev-board#404）各要一份 App Store 描述文件。
 # 两份都是人在 ASC 手建的（私钥不是 fastlane 生成的，走不了 sigh），名字固定。
-def cn_profiles
+def app_store_profiles
   {
-    "com.aiworkdeck.mobile.cn" => "AI WorkDeck CN AppStore",
-    "com.aiworkdeck.mobile.cn.LiveActivity" => "AI WorkDeck CN LiveActivity AppStore"
+    "com.aiworkdeck.mobile.cn" => "AI WorkDeck AppStore",
+    "com.aiworkdeck.mobile.cn.LiveActivity" => "AI WorkDeck LiveActivity AppStore"
   }
 end
 
-# ---------------- 大陆版（北京京微资易，Team 8WKHZVR2W8） ----------------
+# ---------------- AI WorkDeck（北京京微资易，Team 8WKHZVR2W8） ----------------
 # 改这条 lane 前先读：
-# 1) 凭据走 jwzy 团队那套 ASC Key（Admin）。默认值就是现役那套，
-#    env（ASC_CN_*）只用于覆盖，平时一个变量都不用 export。
+# 1) 凭据走 jwzy 团队那套 ASC Key（Admin），从 fastlane/.env 读
+#    （ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH）。
 # 2) 不跑 cert/sigh：Distribution 证书 579SG95VN2 的私钥是本机 openssl 生成的，
 #    fastlane 拿不到；2026-08-20 已导入 fastlane_build keychain，profile
-#    （AI WorkDeck CN AppStore / VCM2ZDV8KD）也已装进本机。机器重装后照
+#    （AI WorkDeck AppStore / VCM2ZDV8KD）也已装进本机。机器重装后照
 #    5-Tech/EXTERNAL_SERVICES.md §6.7 把 p12 与 .mobileprovision 装回来即可。
 #    另：这张证书的公钥/SHA-1 已绑 App 备案，撤销重建=同步做备案变更。
-# 3) 不需要把构建挂进测试组：CN 的内部测试组（942673b0…）建的时候
+# 3) 不需要把构建挂进测试组：内部测试组（942673b0…）建的时候
 #    就是 hasAccessToAllBuilds，构建处理完自动对组可见。
 
-def asc_key_cn
-  %w[ASC_CN_KEY_ID ASC_CN_ISSUER_ID ASC_CN_KEY_PATH].each do |k|
+def asc_key
+  %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH].each do |k|
     UI.user_error!("missing #{k} (fastlane/.env, 见 5-Tech/EXTERNAL_SERVICES.md §6.7)") if ENV[k].to_s.empty?
   end
   app_store_connect_api_key(
-    key_id:     ENV["ASC_CN_KEY_ID"],
-    issuer_id:  ENV["ASC_CN_ISSUER_ID"],
-    key_filepath: File.expand_path(ENV["ASC_CN_KEY_PATH"]),
+    key_id:     ENV["ASC_KEY_ID"],
+    issuer_id:  ENV["ASC_ISSUER_ID"],
+    key_filepath: File.expand_path(ENV["ASC_KEY_PATH"]),
     in_house: false
   )
 end
 
 platform :ios do
-  desc "大陆版打包并上传 TestFlight（com.aiworkdeck.mobile.cn，ASC App 6803309103）"
-  lane :beta_cn do
-    key = asc_key_cn
+  desc "打包并上传 TestFlight（com.aiworkdeck.mobile.cn，ASC App 6803309103）"
+  lane :beta do
+    key = asc_key
 
     # 用专属 keychain，不用 login.keychain——避免 codesign 撞 ACL 弹窗 /
     # errSecInternalComponent。这台机上 fastlane_build 已经有 Distribution 私钥。
@@ -65,7 +66,7 @@ platform :ios do
     build = latest_testflight_build_number(
       api_key: key, app_identifier: "com.aiworkdeck.mobile.cn", initial_build_number: 0
     ) + 1
-    UI.message("大陆版本次 build 号 #{build}")
+    UI.message("本次 build 号 #{build}")
     # 不用 increment_build_number 改 xcodeproj——工程是 XcodeGen 从 project.yml 生成的，
     # 改了下次 generate 就冲掉，build 号永远停在 1，ASC 会按重复号拒收（Claws 踩过）。
     # 走 xcargs 在构建期注入。
@@ -73,11 +74,11 @@ platform :ios do
 
     build_app(
       project: "ios/Workdeck.xcodeproj",
-      scheme: "WorkdeckCN",
+      scheme: "Workdeck",
       configuration: "Release",
       export_method: "app-store",
       output_directory: "ios/build",
-      output_name: "WorkdeckCN.ipa",
+      output_name: "Workdeck.ipa",
       xcargs: "CURRENT_PROJECT_VERSION=#{build}",
       # 只认下面显式给的映射，不让 gym 自己去扫工程里各 target 的签名设置——
       # 扫出来的东西一旦与手建 profile 对不上，xcodebuild 直接 EXPORT FAILED。
@@ -85,15 +86,15 @@ platform :ios do
       export_options: {
         signingStyle: "manual",
         teamID: "8WKHZVR2W8",
-        provisioningProfiles: cn_profiles
+        provisioningProfiles: app_store_profiles
       }
     )
 
     upload_to_testflight(
       api_key: key,
       app_identifier: "com.aiworkdeck.mobile.cn",
-      # 不等处理完是为了省 5-15 分钟；CN 的内部测试组是 hasAccessToAllBuilds，
-      # 不需要像早先国际版那样再补一步分组。
+      # 不等处理完是为了省 5-15 分钟；内部测试组是 hasAccessToAllBuilds，
+      # 不需要像早先另一条 App 记录那样再补一步分组。
       skip_waiting_for_build_processing: true,
       changelog: ENV["CHANGELOG"] || "现场拍摄与本地归档：拍照/录像、SHA-256、时间与地点。"
     )
@@ -101,13 +102,13 @@ platform :ios do
 end
 
 # ---------------- 正式上架（App Store，不是 TestFlight） ----------------
-# 与 beta_cn 的关系：release_cn 只多做一件事——把构建号与 MARKETING_VERSION
-# 对齐到正式版。**上传通道刻意与 beta_cn 相同**：ASC 里 TestFlight 与 App Store
+# 与 beta 的关系：release 只多做一件事——把构建号与 MARKETING_VERSION
+# 对齐到正式版。**上传通道刻意与 beta 相同**：ASC 里 TestFlight 与 App Store
 # 共用同一批构建，选哪个发布是版本记录那边的事，不取决于用哪条通道传上去。
 #
 # 一度改用 upload_to_app_store（deliver）一把梭，2.235.0 上它在 spaceship
 # 解析回包时抛 "No data"（上游已知问题），而升 fastlane 会动到现役的
-# beta_cn。文案、分级、定价、区域、挂构建、提审因此全部收在
+# beta。文案、分级、定价、区域、挂构建、提审因此全部收在
 # scripts/asc-listing.py，那边是直接打 REST API，不受 fastlane 版本影响。
 #
 # **lane 不提审**。提审是对外动作、撤回要重新排队，那一下由人显式去做。
@@ -123,8 +124,8 @@ end
 
 platform :ios do
   desc "打正式版包并上传（App Store 侧用 scripts/asc-listing.py 收尾）"
-  lane :release_cn do
-    key = asc_key_cn
+  lane :release do
+    key = asc_key
 
     kc_path = File.expand_path("~/Library/Keychains/fastlane_build-db")
     UI.user_error!("fastlane_build keychain 不存在，先照 EXTERNAL_SERVICES.md §6.7 恢复") unless File.exist?(kc_path)
@@ -135,23 +136,23 @@ platform :ios do
     build = latest_testflight_build_number(
       api_key: key, app_identifier: "com.aiworkdeck.mobile.cn", initial_build_number: 0
     ) + 1
-    UI.message("大陆版 #{marketing_version} (#{build})")
+    UI.message("#{marketing_version} (#{build})")
     sh("cd .. && xcodegen generate --spec ios/project.yml --project ios") rescue nil
 
     build_app(
       project: "ios/Workdeck.xcodeproj",
-      scheme: "WorkdeckCN",
+      scheme: "Workdeck",
       configuration: "Release",
       export_method: "app-store",
       output_directory: "ios/build",
-      output_name: "WorkdeckCN.ipa",
+      output_name: "Workdeck.ipa",
       xcargs: "CURRENT_PROJECT_VERSION=#{build}",
-      # 理由同 beta_cn：只认下面显式给的 profile 映射。
+      # 理由同 beta：只认下面显式给的 profile 映射。
       skip_profile_detection: true,
       export_options: {
         signingStyle: "manual",
         teamID: "8WKHZVR2W8",
-        provisioningProfiles: cn_profiles
+        provisioningProfiles: app_store_profiles
       }
     )
 
@@ -165,9 +166,9 @@ platform :ios do
     # ICP 备案号（京ICP备2024096997号-13A）ASC 没开放 API，只能在网页
     # 「App 信息 → 中国大陆 ICP 备案号」填。没填就提审会被直接挡下。
     UI.important("提审前确认 ASC 网页已填 ICP 备案号，且 App 名称与备案表逐字一致")
-    UI.success("大陆版 #{marketing_version} (#{build}) 已上传。接着跑：\n" \
-               "  .venv/bin/python scripts/asc-listing.py attach cn #{build}\n" \
-               "  .venv/bin/python scripts/asc-listing.py status cn")
+    UI.success("#{marketing_version} (#{build}) 已上传。接着跑：\n" \
+               "  .venv/bin/python scripts/asc-listing.py attach #{build}\n" \
+               "  .venv/bin/python scripts/asc-listing.py status")
   end
 end
 
@@ -180,12 +181,11 @@ end
 # secrets，见 EXTERNAL_SERVICES.md §6.4）。
 #
 # 环境契约（.github/workflows/appstore-build.yml 负责准备）：
-#   ASC_CN_KEY_ID / ASC_CN_ISSUER_ID / ASC_CN_KEY_PATH  ASC API Key
-#   DIST_P12_PATH / DIST_P12_PASSWORD                   Distribution 身份的 p12
-#                                                       （本机 fastlane_build
-#                                                       keychain 导出）
-#   CN_PROFILE_PATH                                     AI WorkDeck CN AppStore 描述文件
-#   CN_LA_PROFILE_PATH                                  同上，Live Activity 扩展的（可缺，见下）
+#   ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH  ASC API Key
+#   DIST_P12_PATH / DIST_P12_PASSWORD          Distribution 身份的 p12
+#                                              （本机 fastlane_build keychain 导出）
+#   APPSTORE_PROFILE_PATH                      AI WorkDeck AppStore 描述文件
+#   LA_PROFILE_PATH                            同上，Live Activity 扩展的（可缺，见下）
 platform :ios do
   desc "CI：发行版 macOS 上打正式包并上传"
   lane :ci_appstore do
@@ -208,33 +208,33 @@ platform :ios do
      "~/Library/Developer/Xcode/UserData/Provisioning Profiles"].each do |d|
       dir = File.expand_path(d)
       FileUtils.mkdir_p(dir)
-      FileUtils.cp(ENV.fetch("CN_PROFILE_PATH"),
-                   File.join(dir, "aiworkdeck-cn-appstore.mobileprovision"))
+      FileUtils.cp(ENV.fetch("APPSTORE_PROFILE_PATH"),
+                   File.join(dir, "aiworkdeck-appstore.mobileprovision"))
       # Live Activity 扩展的描述文件（dev-board#404）：由用户在 ASC 建好
-      # （bundle id com.aiworkdeck.mobile.cn.LiveActivity，名 AI WorkDeck CN
-      # LiveActivity AppStore）后加 secret CN_LA_PROFILE_B64，工作流才会导出这个
+      # （bundle id com.aiworkdeck.mobile.cn.LiveActivity，名 AI WorkDeck
+      # LiveActivity AppStore）后加 secret LA_PROFILE_B64，工作流才会导出这个
       # 变量。缺它归档会在 exportArchive 因扩展没有描述文件而失败。
-      la = ENV["CN_LA_PROFILE_PATH"]
+      la = ENV["LA_PROFILE_PATH"]
       if la && File.exist?(la)
-        FileUtils.cp(la, File.join(dir, "aiworkdeck-cn-liveactivity-appstore.mobileprovision"))
+        FileUtils.cp(la, File.join(dir, "aiworkdeck-liveactivity-appstore.mobileprovision"))
       end
     end
 
     sh("cd .. && xcodegen generate --spec ios/project.yml --project ios")
 
-    key = asc_key_cn
+    key = asc_key
     # 不用 latest_testflight_build_number：它只看最新预发布版本下的构建，会漏号
     # （2026-09-02 报 19 而 ASC 已有 20，上传撞 409 buildUpload INVALID_STATE）。
-    build = sh("cd .. && .venv/bin/python scripts/asc-next-build.py cn").strip.to_i
-    UI.message("CI 大陆版 #{marketing_version} (#{build})")
+    build = sh("cd .. && .venv/bin/python scripts/asc-next-build.py").strip.to_i
+    UI.message("CI #{marketing_version} (#{build})")
     build_app(
-      project: "ios/Workdeck.xcodeproj", scheme: "WorkdeckCN", configuration: "Release",
-      export_method: "app-store", output_directory: "ios/build", output_name: "WorkdeckCN.ipa",
+      project: "ios/Workdeck.xcodeproj", scheme: "Workdeck", configuration: "Release",
+      export_method: "app-store", output_directory: "ios/build", output_name: "Workdeck.ipa",
       xcargs: "CURRENT_PROJECT_VERSION=#{build}",
-      skip_profile_detection: true,   # 理由同 release_cn：只认显式映射
+      skip_profile_detection: true,   # 理由同 release：只认显式映射
       export_options: {
         signingStyle: "manual", teamID: "8WKHZVR2W8",
-        provisioningProfiles: cn_profiles
+        provisioningProfiles: app_store_profiles
       })
     upload_to_testflight(api_key: key, app_identifier: "com.aiworkdeck.mobile.cn",
                          skip_waiting_for_build_processing: true,

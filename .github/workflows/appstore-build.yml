@@ -41,19 +41,19 @@ jobs:
 
       - name: 落签名材料到 RUNNER_TEMP
         env:
-          ASC_CN_KEY_P8_B64: ${{ secrets.ASC_CN_KEY_P8_B64 }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
           DIST_P12_B64: ${{ secrets.DIST_P12_B64 }}
-          CN_PROFILE_B64: ${{ secrets.CN_PROFILE_B64 }}
-          CN_LA_PROFILE_B64: ${{ secrets.CN_LA_PROFILE_B64 }}
+          APPSTORE_PROFILE_B64: ${{ secrets.APPSTORE_PROFILE_B64 }}
+          LA_PROFILE_B64: ${{ secrets.LA_PROFILE_B64 }}
         run: |
           mkdir -p "$RUNNER_TEMP/signing"
-          echo "$ASC_CN_KEY_P8_B64" | base64 -d > "$RUNNER_TEMP/signing/asc_cn.p8"
-          echo "$DIST_P12_B64"      | base64 -d > "$RUNNER_TEMP/signing/dist.p12"
-          echo "$CN_PROFILE_B64"    | base64 -d > "$RUNNER_TEMP/signing/cn.mobileprovision"
+          echo "$ASC_KEY_P8_B64"       | base64 -d > "$RUNNER_TEMP/signing/asc.p8"
+          echo "$DIST_P12_B64"         | base64 -d > "$RUNNER_TEMP/signing/dist.p12"
+          echo "$APPSTORE_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/signing/appstore.mobileprovision"
           # Live Activity 扩展的描述文件（dev-board#404）。secret 缺失时不落文件，
           # Fastfile 走「不存在」分支——但归档会在 exportArchive 失败，这是预期。
-          if [ -n "$CN_LA_PROFILE_B64" ]; then
-            echo "$CN_LA_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/signing/cn-la.mobileprovision"
+          if [ -n "$LA_PROFILE_B64" ]; then
+            echo "$LA_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/signing/la.mobileprovision"
           fi
 
       - name: 打包并上传
@@ -62,15 +62,15 @@ jobs:
           LANG: en_US.UTF-8
           FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "180"
           FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "6"
-          ASC_CN_KEY_ID: ${{ secrets.ASC_CN_KEY_ID }}
-          ASC_CN_ISSUER_ID: ${{ secrets.ASC_CN_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           DIST_P12_PASSWORD: ${{ secrets.DIST_P12_PASSWORD }}
         run: |
-          export ASC_CN_KEY_PATH="$RUNNER_TEMP/signing/asc_cn.p8"
+          export ASC_KEY_PATH="$RUNNER_TEMP/signing/asc.p8"
           export DIST_P12_PATH="$RUNNER_TEMP/signing/dist.p12"
-          export CN_PROFILE_PATH="$RUNNER_TEMP/signing/cn.mobileprovision"
-          if [ -f "$RUNNER_TEMP/signing/cn-la.mobileprovision" ]; then
-            export CN_LA_PROFILE_PATH="$RUNNER_TEMP/signing/cn-la.mobileprovision"
+          export APPSTORE_PROFILE_PATH="$RUNNER_TEMP/signing/appstore.mobileprovision"
+          if [ -f "$RUNNER_TEMP/signing/la.mobileprovision" ]; then
+            export LA_PROFILE_PATH="$RUNNER_TEMP/signing/la.mobileprovision"
           fi
-          # 2026-09-05 起 iOS 只剩这一个 App（国际版 App 记录已删，dev-board#445/#446）
+          # 2026-09-05 起 iOS 只剩这一个 App（另一条 App 记录已删，dev-board#445/#446）
           fastlane ios ci_appstore

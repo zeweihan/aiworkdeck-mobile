@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// 后端地址。国际版与大陆版是同一套代码，只换这个值和签名 Team——
+/// 后端地址。整个 App 只在这里指向服务器——
 /// 所以绝不能写死在调用点上。
 enum Backend {
     /// **当前指大陆站。**

@@ -21,7 +21,7 @@ settings:
 
 # App 的构建设置与 Info.plist 全收在这个模板里，target 上只留 bundle id 与描述文件，
 # 避免 purpose string 之类的东西改一处漏一处。
-# （2026-09-05 之前这里还有一个国际版 target 与大陆版共用同一份模板；国际版 App
+# （2026-09-05 之前这里还有第二个 App target 与它共用同一份模板；那条 App
 #  记录已删，模板保留原样，见 dev-board#446。）
 targetTemplates:
   WorkdeckApp:
@@ -77,7 +77,7 @@ targetTemplates:
         # iOS 也不允许后台用摄像头。
         UIBackgroundModes:
           - audio
-        # 录音中的灵动岛 + 锁屏卡片，视图在 WorkdeckCNLiveActivity 扩展里
+        # 录音中的灵动岛 + 锁屏卡片，视图在 WorkdeckLiveActivity 扩展里
         NSSupportsLiveActivities: true
 
         # Apple 的 purpose string 是 SDK 链接期强制，不是运行期强制：
@@ -131,40 +131,40 @@ targetTemplates:
 targets:
   # App target 必须显式声明 scheme：不声明的话 XcodeGen 不落 xcshareddata/xcschemes，
   # xcodebuild 只好走隐式 scheme 解析，名字对不上时会解析到别的 target 上去
-  # （实测把 -scheme WorkdeckCN 解到过另一个 App target，归档出错误的 bundle，
+  # （实测把 -scheme 解到过另一个 App target，归档出错误的 bundle，
   # 然后在 exportArchive 阶段以「requires a provisioning profile」报错）。
   # 现在工程里只剩这一个 App target，这段 scheme: 仍然要留着。
   #
-  # 大陆版：App Store，北京京微资易团队（8WKHZVR2W8），2026-09-05 起全球上架。
+  # 唯一 App：App Store，北京京微资易团队（8WKHZVR2W8），2026-09-05 起全球上架。
   # 证书/描述文件不走 sigh（私钥在本机 5-Tech/x-apple-jwzy/，非 fastlane 生成），
   # profile 是 ASC API 建的，名字是下面这个，别按 sigh 的命名模式找。
   # 注意：Distribution 证书 579SG95VN2 的公钥/SHA-1 已填进 App 备案，
   # 撤销重建证书 = 必须同步做备案变更（见 5-Tech/EXTERNAL_SERVICES.md §6.7）。
-  # target 名保留 WorkdeckCN：改名会牵动 CI 与 profile 映射，另议。
-  WorkdeckCN:
+  # bundle id 里的 .cn 后缀不可改：它与 App 备案绑定。
+  Workdeck:
     templates: [WorkdeckApp]
     scheme:
       configVariants: []
       testTargets: [WorkdeckTests]
     dependencies:
-      - target: WorkdeckCNLiveActivity
+      - target: WorkdeckLiveActivity
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.cn
       configs:
         Release:
-          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN AppStore"
+          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck AppStore"
 
   # 扩展的描述文件与主 App 一样由人在 ASC 手建（不走 sigh），
-  # 名字就是下面这个；CI 经 CN_LA_PROFILE_B64 secret 装入（见 Fastfile ci_appstore）。
-  WorkdeckCNLiveActivity:
+  # 名字就是下面这个；CI 经 LA_PROFILE_B64 secret 装入（见 Fastfile ci_appstore）。
+  WorkdeckLiveActivity:
     templates: [LiveActivityExt]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiworkdeck.mobile.cn.LiveActivity
       configs:
         Release:
-          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck CN LiveActivity AppStore"
+          PROVISIONING_PROFILE_SPECIFIER: "AI WorkDeck LiveActivity AppStore"
 
   # 纯逻辑单测（阶段映射、图集分组、删除文案）。不参与 fastlane 归档。
   WorkdeckTests:
@@ -176,14 +176,8 @@ targets:
         type: folder
         buildPhase: resources
     dependencies:
-      - target: WorkdeckCN
+      - target: Workdeck
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_ALLOWED: NO
-        # XcodeGen 按 **target 名** 拼 TEST_HOST（WorkdeckCN.app/WorkdeckCN），
-        # 而 App 的 PRODUCT_NAME 是 Workdeck，产物其实是 Workdeck.app/Workdeck。
-        # 从前宿主是同名的 Workdeck target 所以碰巧对上；换成 WorkdeckCN 之后
-        # 不写这条，xcodebuild test 会在构建阶段就报
-        # 「Could not find test host for WorkdeckTests」。
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Workdeck.app/Workdeck"

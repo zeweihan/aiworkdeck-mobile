@@ -1,7 +1,7 @@
 # 商店文案字段映射
 
-来源：`fastlane/metadata/cn/zh-Hans/*.txt`（国内/中文）与
-`fastlane/metadata/intl/en-US/*.txt`（国际/英文），按 Android 各商店的字段结构拆分、核对字数上限后落地。
+来源：`fastlane/metadata/zh-Hans/*.txt`（中文）与
+`fastlane/metadata/en-US/*.txt`（英文），按 Android 各商店的字段结构拆分、核对字数上限后落地。
 改动顺序照抄 iOS 那份：先改 iOS `fastlane/metadata/`，再回来同步这里——不要在这里单独改词。
 
 ## Google Play Console

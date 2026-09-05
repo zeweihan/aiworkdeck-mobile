@@ -35,8 +35,8 @@ fastlane/profiles/
 
 # 上架材料：审核联系人/演示账号是个人信息与凭据，公开仓不收
 # 排除目录本身 git 就不会往里看，负向规则也就失效了，所以要排到文件一级
-fastlane/metadata/*/review_information/*
-!fastlane/metadata/*/review_information/*.example
+fastlane/metadata/review_information/*
+!fastlane/metadata/review_information/*.example
 # 截图是二进制大文件，且要从真机重拍，不入库
 fastlane/screenshots/
 
