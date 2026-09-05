@@ -141,27 +141,41 @@ ArkTS 严格模式的两条在生成器里踩过：
   配到 `signingConfigs.release` 后 `hvigorw assembleApp -p buildMode=release` 出 `.app` 交 AGC。
   出包脚本另卡。
 
-## 模拟器（用户动作，未就绪）
+## 模拟器
 
-本机**没有下载系统镜像**（`~/Library/Huawei/Sdk` 不存在），也没有调试签名，所以现在只能编译，装不了。
-用户在 DevEco Device Manager 里下载 phone 镜像（HarmonyOS 7.0.0(26.0.0)，Pura 90 Pro 实例已建）并接受许可后：
+2026-09-05 实测：Pura 90 Pro 镜像（HarmonyOS 7.0.0(26.0.0)）装好后，**未签名 HAP 可以直接 `hdc install`**——
+模拟器走查不需要调试签名，`signingConfigs` 保持 `[]` 即可。`hdc shell` 是 uid 2000，写不进应用沙盒，
+所以「灌一条本地项目」走 debug 启动参数（下面 `--ps awdSeed 1`，只在 `BuildProfile.DEBUG` 为真时生效，
+对位 iOS `-AWDScreenshotMode` 与安卓 run-as 灌 prefs）。
 
 ```bash
-# 启动模拟器
-Emulator -start "Pura 90 Pro"
-hdc list targets
+E=/Applications/DevEco-Studio.app/Contents/tools/emulator/Emulator
+HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc
 
-# 装包、启动
-hdc install harmony/entry/build/default/outputs/default/entry-default-signed.hap
-hdc shell aa start -a EntryAbility -b com.aiworkdeck.mobile.huawei
+# 启动模拟器（镜像未下载时会报 imageRoot 不存在——去 DevEco Device Manager 下载）
+$E -start "Pura 90 Pro"
+$HDC list targets                      # 127.0.0.1:5555
+
+# 装包、启动（-r 覆盖安装）；不带 --ps 就是正常启动
+$HDC install -r harmony/entry/build/default/outputs/default/entry-default-unsigned.hap
+$HDC shell aa start -a EntryAbility -b com.aiworkdeck.mobile.huawei --ps awdSeed 1
+
+# 界面自动化（模拟器自带输入法会弹自己的隐私声明，用 uitest 直接送文本可绕开）
+$HDC shell uitest uiInput click <x> <y>
+$HDC shell uitest uiInput text <文本>
+$HDC shell uitest uiInput keyEvent Home
+$HDC shell uitest dumpLayout          # 控件坐标
 
 # 截图
-hdc shell snapshot_display -f /data/local/tmp/x.jpeg && hdc file recv /data/local/tmp/x.jpeg .
+$HDC shell snapshot_display -f /data/local/tmp/x.jpeg && $HDC file recv /data/local/tmp/x.jpeg .
 
-# 走查时看日志：录音服务 / 上传队列
-hdc hilog | grep -i RecorderService
-hdc hilog | grep -i UploadQueue
+# 走查时看日志（tag 是类名）
+$HDC shell hilog -x | grep -E 'RecorderService|UploadQueue|Uploader|EvidenceStore|CameraService|AppModel'
 ```
+
+登录用审核账号（见项目记忆 `mobile-local-verify-recipe`，不入仓）；审核账号没有桌面端，所以要 `--ps awdSeed 1`
+才进得了取景器。中转区接受假项目 `dev-emulator:1` 的上传件，7 天后自然清理。
+模拟器没有相机（预览黑、拍照回调不回）和 GPS（一直「定位中」），来电中断也造不出来，这三样只能真机验。
 
 ## 走查清单
 
