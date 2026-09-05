@@ -4,12 +4,13 @@
 
 | 端 | 技术 | 发布主体 | 覆盖 |
 |---|---|---|---|
-| iOS | Swift / SwiftUI | Zhen Shan Mei Grace Legacy Limited（香港，Team `X9B97KVA84`） | 中国大陆以外全部区 |
+| iOS | Swift / SwiftUI | 北京京微资易科技有限公司（Team `8WKHZVR2W8`） | 全球 175 个区 |
 | 微信小程序 | 原生 WXML / WXSS / TypeScript | 北京京微资易科技有限公司 | 中国大陆 |
-| iOS 中国区 | 同上 | 北京京微资易科技有限公司（需单独开 Apple 账号 + App 备案） | 中国大陆 |
 
+iOS 只有一条 App 记录（`com.aiworkdeck.mobile.cn`，2026-09-05 起全球上架）。
 香港主体**无法**为大陆区 App Store 做 ICP 备案（港澳台在 MIIT 体系外），
-所以大陆区必须用北京主体。这不是可选项。
+所以大陆区必须用北京主体；早先并存的香港主体国际版被 4.3(a) 判定与它重复，
+已并入北京主体（dev-board#445、#446）。
 
 ## 场景
 

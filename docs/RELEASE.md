@@ -1,8 +1,8 @@
 # 正式上架流程
 
-三个发布面：iOS 国际版、iOS 大陆版、微信小程序。前两个走 App Store 审核，
-小程序走微信公众平台审核。TestFlight / 体验版的日常发布见 `fastlane/Fastfile`
-的 `beta` / `beta_cn` 与 `scripts/mp-upload.js`，这份文档只讲**正式上架**。
+两个发布面：iOS 与微信小程序。前者走 App Store 审核，后者走微信公众平台审核。
+TestFlight / 体验版的日常发布见 `fastlane/Fastfile` 的 `beta_cn` 与
+`scripts/mp-upload.js`，这份文档只讲**正式上架**。
 
 分工的口径：能用 API 做的都收在 `scripts/asc-listing.py`，凭据从
 `fastlane/.env` 读（内容见 `5-Tech/EXTERNAL_SERVICES.md` §6）。剩下几项
@@ -10,40 +10,39 @@ Apple 没开放 API，只能在网页做，逐条列在第 3 节——那几项�
 
 ```bash
 set -a; . fastlane/.env; set +a
-.venv/bin/python scripts/asc-listing.py status intl   # 提审前体检，随时可跑
+.venv/bin/python scripts/asc-listing.py status cn   # 提审前体检，随时可跑
 ```
 
-## 1. 两个 App 的对应关系
+## 1. iOS App 的基本信息
 
-| | 国际版 | 大陆版 |
-|---|---|---|
-| flavor 参数 | `intl` | `cn` |
-| Bundle ID | `com.aiworkdeck.mobile` | `com.aiworkdeck.mobile.cn` |
-| ASC App ID | 6802233845 | 6803309103 |
-| 发布主体 | 真善美承澤（香港，`X9B97KVA84`） | 北京京微资易（`8WKHZVR2W8`） |
-| 上架区域 | 中国大陆以外 174 个区 | 仅中国大陆 |
-| 文案语言 | en-US | zh-Hans |
-| fastlane lane | `release` | `release_cn` |
+| 项 | 值 |
+|---|---|
+| flavor 参数 | `cn`（`asc-listing.py` 唯一取值，metadata / screenshots 目录按它分层） |
+| Bundle ID | `com.aiworkdeck.mobile.cn` |
+| ASC App ID | 6803309103 |
+| 发布主体 | 北京京微资易（`8WKHZVR2W8`） |
+| 上架区域 | **全球 175 个区**（2026-09-05 起） |
+| 文案语言 | zh-Hans（主语言）+ en-US（1.0.1 起） |
+| fastlane lane | `release_cn`（CI 是 `ci_appstore`） |
+| Xcode target | `WorkdeckCN` + `WorkdeckCNLiveActivity`（scheme `WorkdeckCN`） |
 
-**文案语言各只有一个，不是漏了。** App Store 的应用名在每个语言里全球唯一，
-两个 App 用同一个名字「AI WorkDeck」，谁先占住某个语言，另一个再加同名的该
-语言本地化就会被拒（实测报 *Cannot add localization due to app name*）。国际版
-占 en-US、大陆版占 zh-Hans，各自够用，别再互相加。
+> 历史：iOS 曾有一个香港主体的国际版 App（`com.aiworkdeck.mobile`，Team
+> `X9B97KVA84`），1.0.0(19) 被 4.3(a) Spam 驳回，2026-09-05 起整体并入北京主体，
+> 那条 App 记录已删除、工程与 CI 里的对应部分已清理（dev-board#445、#446）。
 
 ### 1.1 描述文件
 
-每个 App 现在是**两个 bundle**：主 App + 录音 Live Activity 扩展（dev-board#404），
-各要一份 App Store 描述文件。
+App 是**两个 bundle**：主 App + 录音 Live Activity 扩展（dev-board#404），
+各要一份 App Store 描述文件。两份都不走 `sigh`（Distribution 证书 579SG95VN2 的
+私钥是本机 openssl 生成的，fastlane 拿不到），由人在 ASC 建好后进 CI secret。
 
 | Bundle ID | 描述文件名 | 来源 |
 |---|---|---|
-| `com.aiworkdeck.mobile` | `com.aiworkdeck.mobile AppStore` | `sigh` 自动 |
-| `com.aiworkdeck.mobile.LiveActivity` | `com.aiworkdeck.mobile.LiveActivity AppStore` | `sigh` 自动（lane 先注册 App ID） |
 | `com.aiworkdeck.mobile.cn` | `AI WorkDeck CN AppStore` | 人工在 ASC 建，CI secret `CN_PROFILE_B64` |
 | `com.aiworkdeck.mobile.cn.LiveActivity` | `AI WorkDeck CN LiveActivity AppStore` | 2026-09-03 已用 ASC API 建好（profile `NL5G9Q2UT5`，同一张 Distribution 证书 579SG95VN2），CI secret `CN_LA_PROFILE_B64` 已加；文件与 ID 见总表 §6.7 |
 
-大陆版扩展的描述文件建好、secret 加上之前，`ci_appstore` 的 CN 分支会在
-exportArchive 因扩展没有描述文件而失败——先用 `FLAVOR=intl` 单打国际版。
+扩展的描述文件或 secret 缺失时，`ci_appstore` 会在 exportArchive 因扩展没有描述文件
+而失败——先把 secret 补上再跑。
 
 ## 2. 命令序列
 
@@ -59,26 +58,26 @@ repo secrets，lane 是 `ci_appstore`）。
 set -a; . fastlane/.env; set +a
 
 # 打包并上传（构建号自动取线上最大值 +1）——仅当本机是发行版 macOS
-fastlane ios release        # 或 release_cn
+fastlane ios release_cn
 
 # 等构建处理完（几分钟，ASC 上从 PROCESSING 变 VALID），然后挂版本
-.venv/bin/python scripts/asc-listing.py attach intl <构建号>
+.venv/bin/python scripts/asc-listing.py attach cn <构建号>
 
 # 文案 / 分级 / 定价 / 区域（已经跑过一遍，改了再跑）
-.venv/bin/python scripts/asc-listing.py text intl
-.venv/bin/python scripts/asc-listing.py rating intl
-.venv/bin/python scripts/asc-listing.py price intl
-.venv/bin/python scripts/asc-listing.py availability intl
+.venv/bin/python scripts/asc-listing.py text cn
+.venv/bin/python scripts/asc-listing.py rating cn
+.venv/bin/python scripts/asc-listing.py price cn
+.venv/bin/python scripts/asc-listing.py availability cn
 
 # 体检 → 提审
-.venv/bin/python scripts/asc-listing.py status intl
-.venv/bin/python scripts/asc-listing.py submit intl --yes
+.venv/bin/python scripts/asc-listing.py status cn
+.venv/bin/python scripts/asc-listing.py submit cn --yes
 ```
 
 `submit` 不加 `--yes` 只打印将要提交什么，不会真提交。
 
-`release` / `release_cn` 与 `beta` / `beta_cn` 走的是**同一条上传通道**：ASC 里
-TestFlight 与 App Store 共用同一批构建，选哪个发布是版本记录那边的事。一度改用
+`release_cn` 与 `beta_cn` 走的是**同一条上传通道**：ASC 里 TestFlight 与
+App Store 共用同一批构建，选哪个发布是版本记录那边的事。一度改用
 `upload_to_app_store`（deliver）一把梭，fastlane 2.235.0 上它在 spaceship 解析
 回包时抛 `No data`（上游已知问题），而升 fastlane 会连带动到现役的 beta lane，
 所以 App Store 侧全部改成直接打 REST API。
@@ -103,18 +102,18 @@ ASC →「App 隐私」→ 逐项勾。按代码实际行为，答案是：
 （`CaptureManifest`）；照片/录像/录音经中转区传到桌面端。没有广告标识符、
 没有第三方分析 SDK，所以「用于追踪」一律否。
 
-### 3.2 中国大陆 ICP 备案号（仅大陆版）
+### 3.2 中国大陆 ICP 备案号
 
 ASC → App 信息 →「App Store 法规和许可 / 中国大陆 ICP 备案号」填
 `京ICP备2024096997号-13A`。会自动与工信部库比对**App 名称与主体**，
-必须逐字一致——所以大陆版的应用名不能改动，保持 `AI WorkDeck`。
+必须逐字一致——所以应用名不能改动，保持 `AI WorkDeck`。
 
 ### 3.3 审核联系信息与演示账号
 
-`fastlane/metadata/<flavor>/review_information/` 下有三个 `.example`，
+`fastlane/metadata/cn/review_information/` 下有三个 `.example`，
 复制成同名 `.txt` 填写（实文件已 gitignore，公开仓不收个人信息与凭据）。
 
-两个 App 都需要：登录只有验证码一条路，而审核员既收不到中国短信，也打不开
+必须填：登录只有验证码一条路，而审核员既收不到中国短信，也打不开
 我们的邮箱。内核仓已经加了固定验证码旁路（`config/ReviewAccountGate`，
 aiworkdeck#680），服务器上按下面三步启用：
 
@@ -150,7 +149,7 @@ dev-board#345 的讨论（给审核账号种一个项目 / App 支持无项目�
 短信那条不受影响。原 env 备份在同目录 `env.bak-20260901-mailpwdless`。
 下面留作重装机器时的参考。
 
-邮箱登录是国际版唯一能用的登录方式，服务端默认关着。同一个 env 文件里：
+邮箱登录是境外审核员与境外用户唯一能用的登录方式，服务端默认关着。同一个 env 文件里：
 
 ```
 MAIL_PASSWORDLESS_LOGIN_ENABLED=true
@@ -176,7 +175,7 @@ curl -s -X POST https://addin.aiworkdeck.com/api/auth/mail-login/send-code \
 
 ### 3.4 截图
 
-ASC → 版本 → 媒体，或用 deliver 传 `fastlane/screenshots/<flavor>/`。
+ASC → 版本 → 媒体，或用 deliver 传 `fastlane/screenshots/cn/`。
 尺寸要 6.9"（1320×2868，iPhone 17 Pro Max / 16 Pro Max），至少一张。
 
 **必须用真机拍。** 模拟器里取景框是纯黑（没有摄像头）、影像库是空缩略图，
@@ -208,6 +207,6 @@ ASC → 版本 → 媒体，或用 deliver 传 `fastlane/screenshots/<flavor>/`�
 
 ## 5. 过审之后
 
-两个 App 的版本都设成了「手动发布」（`releaseType: MANUAL`——ASC 的默认值是
+版本设成了「手动发布」（`releaseType: MANUAL`——ASC 的默认值是
 `AFTER_APPROVAL`，即过审自动上架，`setversion` 会把它改掉），
-过审后要人去点发布。这样能把两端与小程序凑到同一天放出去。
+过审后要人去点发布。这样能把 iOS 与小程序凑到同一天放出去。

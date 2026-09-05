@@ -1,3 +1,6 @@
-app_identifier "com.aiworkdeck.mobile"
+# iOS 只有一个 App：大陆版（北京京微资易，Team 8WKHZVR2W8），2026-09-05 起全球上架。
+# 凭据走 ASC API Key（见 Fastfile 的 asc_key_cn），apple_id 只有走 Apple ID
+# 交互登录的动作才用得上，平时留空。
+app_identifier "com.aiworkdeck.mobile.cn"
 apple_id       ENV["APPLE_ID"]
-team_id        ENV["APPLE_TEAM_ID"]
+team_id        ENV["APPLE_TEAM_ID"] || "8WKHZVR2W8"

@@ -171,7 +171,7 @@ EOF
 ## 商店材料
 
 `android/store/` 下是 Google Play（国际版）与国内六家商店（华为 AGC / 应用宝 / 小米 / OPPO /
-vivo / 荣耀）的上架材料，文案改动顺序照抄 iOS：先改 `fastlane/metadata/{cn,intl}/**`，
+vivo / 荣耀）的上架材料，文案改动顺序照抄 iOS：先改 `fastlane/metadata/cn/**`，
 再回来同步 `android/store/listing/`（映射表见 `android/store/listing/README.md`）。
 
 - `listing/zh-Hans/` `listing/en-US/`：应用名称、简介、详情、更新说明。

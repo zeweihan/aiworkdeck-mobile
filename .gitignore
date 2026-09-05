@@ -52,3 +52,7 @@ android/.kotlin/
 
 # 计划执行的工作目录（任务汇报等），不入库
 .superpowers/
+
+# Python 字节码
+__pycache__/
+*.pyc
