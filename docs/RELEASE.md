@@ -21,15 +21,15 @@ set -a; . fastlane/.env; set +a
 | Bundle ID | `com.aiworkdeck.mobile` | `com.aiworkdeck.mobile.cn` |
 | ASC App ID | 6802233845 | 6803309103 |
 | 发布主体 | 真善美承澤（香港，`X9B97KVA84`） | 北京京微资易（`8WKHZVR2W8`） |
-| 上架区域 | 中国大陆以外 174 个区（**弃用中**，见下） | **全球 175 个区**（2026-09-05 起） |
-| 文案语言 | en-US | zh-Hans |
+| 上架区域 | （App 记录已于 2026-09-05 删除） | **全球 175 个区**（2026-09-05 起） |
+| 文案语言 | — | zh-Hans（主语言）+ en-US（1.0.1 起） |
 | fastlane lane | `release` | `release_cn` |
 
 > **2026-09-05 起 iOS 整体并入北京主体（dev-board#445）。** 国际版 1.0.0(19) 被
 > 4.3(a) Spam 驳回，原因是与已上架的大陆版同名同码、开发者法人不同。裁定：大陆版
-> App 扩到全球上架，国际版 App 记录待删除（删掉后才能把 en-US 本地化加到大陆版）。
-> 下面关于国际版的内容在删除前仍然成立，删除后另卡清理工程里的 `Workdeck` target、
-> `release` lane 与 CI secrets。
+> App 扩到全球上架，国际版 App 记录已删除，en-US 本地化随 1.0.1 加到大陆版。
+> CI `appstore-build` 固定 `FLAVOR=cn`。下面关于国际版的内容只作历史参考，
+> 另卡清理工程里的 `Workdeck` target、`release` lane 与 CI secrets。
 
 **文案语言各只有一个，不是漏了。** App Store 的应用名在每个语言里全球唯一，
 两个 App 用同一个名字「AI WorkDeck」，谁先占住某个语言，另一个再加同名的该
