@@ -13,6 +13,12 @@ const SHA_PREFIX: number = 12
 const MAX_ZOOM: number = 5
 const DOUBLE_TAP_ZOOM: number = 2.5
 const BLACK: string = '#000000'
+/**
+ * 录音件的播放条高度（vp）。`Video` 把控制条画在**自己的底边**上，所以录音件不能
+ * 让播放器铺满全屏——满屏时控制条正好落到底座那条元信息下面，被玻璃底座盖住，
+ * 既看不见也点不着（走查实测：控制条 y 2517–2657 压着底座的 2512–2620）。
+ */
+const AUDIO_PLAYER_H: number = 120
 
 /**
  * 全屏看大图。左右滑同一天的其他件；照片可缩放，录像与录音交给系统播放器。
@@ -122,19 +128,30 @@ export struct Viewer {
               })))
       } else if (this.index === i) {
         if (item.kind === MediaKind.audio) {
-          Text('♪')
-            .fontSize(Tk.Ty.hero)
-            .fontColor(Tk.D.fgMuted)
-            .width('100%')
-            .height('100%')
-            .textAlign(TextAlign.Center)
-        }
-        Video({ src: fileUri.getUriFromPath(item.localPath) })
-          .controls(true)
-          .autoPlay(false)
-          .objectFit(ImageFit.Contain)
+          // 音符与播放条竖着排、整体居中：录音没有画面，把播放器铺满屏只会让
+          // 控制条钻到底座下面去，而音符也被播放器那层不透明底色盖掉。
+          Column({ space: Tk.Sp.s2 }) {
+            Text('♪')
+              .fontSize(Tk.Ty.hero)
+              .fontColor(Tk.D.fgMuted)
+              .textAlign(TextAlign.Center)
+            Video({ src: fileUri.getUriFromPath(item.localPath) })
+              .controls(true)
+              .autoPlay(false)
+              .width('100%')
+              .height(AUDIO_PLAYER_H)
+          }
           .width('100%')
           .height('100%')
+          .justifyContent(FlexAlign.Center)
+        } else {
+          Video({ src: fileUri.getUriFromPath(item.localPath) })
+            .controls(true)
+            .autoPlay(false)
+            .objectFit(ImageFit.Contain)
+            .width('100%')
+            .height('100%')
+        }
       }
     }
     .width('100%')

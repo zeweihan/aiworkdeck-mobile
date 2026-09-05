@@ -1,3 +1,4 @@
+import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppModel } from '../AppModel'
 import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
@@ -7,6 +8,9 @@ import { Unauthorized } from '../model/Envelope'
 import { AccountUser, MediaUsage } from '../services/ApiTypes'
 import { BASE_URL, ServiceLocator } from '../services/ServiceLocator'
 import { errorText, toast } from './Feedback'
+
+const DOMAIN: number = 0x0000
+const TAG: string = 'Settings'
 
 /** 用量读不到时的占位。一条「—」比一行报错更符合这行信息的分量。 */
 const DASH: string = '—'
@@ -49,7 +53,10 @@ export struct Settings {
     }).catch((e: Object): void => {
       if (e instanceof Unauthorized) {
         AppModel.shared.signOut().catch((): void => {})
+        return
       }
+      // 走查发现「—」常驻却查不出原因：其他失败也得留一行日志，不然无从定性
+      hilog.warn(DOMAIN, TAG, 'mediaUsage failed: %{public}s', `${e}`)
     })
   }
 
