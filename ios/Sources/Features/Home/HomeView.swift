@@ -44,6 +44,8 @@ struct HomeView: View {
                 let loc = stamper.last
                 Task { await model.store(data: data, kind: kind, at: at, location: loc) }
             }
+            // 采集失败与落库失败走同一个字段：失败必须有个落点，不能只留在日志里
+            camera.onError = { msg in model.lastError = msg }
             recorder.onCaptured = { data, at in
                 let loc = stamper.last
                 Task { await model.store(data: data, kind: .audio, at: at, location: loc) }
@@ -52,6 +54,9 @@ struct HomeView: View {
             if mode != .audio { await camera.start() }
         }
         .onChange(of: mode) { _, m in
+            // 离开录像档就把麦克风还回去：只有录像收声需要它，留着就会在下一次
+            // 现场录音时与 AVAudioRecorder 抢设备（dev-board#461）。
+            if m != .video { camera.releaseMicrophone() }
             switch m {
             case .photo:
                 camera.mode = .photo
