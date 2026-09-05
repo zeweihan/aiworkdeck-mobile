@@ -78,4 +78,5 @@ jobs:
           if [ -f "$RUNNER_TEMP/signing/cn-la.mobileprovision" ]; then
             export CN_LA_PROFILE_PATH="$RUNNER_TEMP/signing/cn-la.mobileprovision"
           fi
-          fastlane ios ci_appstore
+          # 2026-09-05 起 iOS 只剩大陆版（国际版 App 记录已删，dev-board#445）
+          FLAVOR=cn fastlane ios ci_appstore
