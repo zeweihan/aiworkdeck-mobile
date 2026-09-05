@@ -1,0 +1,9 @@
+{
+  "name": "contract",
+  "version": "1.0.0",
+  "description": "四端共享契约的 ArkTS 生成物（contract/tools/gen.mjs 产出，不要手改）",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}

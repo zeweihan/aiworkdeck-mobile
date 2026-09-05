@@ -1,0 +1,15 @@
+/node_modules
+**/oh_modules
+/.hvigor
+/.idea
+/local.properties
+/.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+/.appanalyzer
+**/build
+**/.preview
+**/.test
+# 每次构建按 buildMode 重写，不是源码
+**/BuildProfile.ets

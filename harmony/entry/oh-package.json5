@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "AI WorkDeck 现场取证 HAP",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "contract": "file:../contract"
+  }
+}

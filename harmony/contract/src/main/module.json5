@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "contract",
+    "type": "har",
+    "deviceTypes": [
+      "phone"
+    ]
+  }
+}
