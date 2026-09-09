@@ -125,7 +125,7 @@ Page({
 
   onPageScroll(e: { scrollTop: number }) {
     const crossed = e.scrollTop > 4
-    if (crossed !== this.data.scrollTop > 4) this.setData({ scrollTop: e.scrollTop })
+    if (crossed !== (this.data.scrollTop > 4)) this.setData({ scrollTop: e.scrollTop })
   },
 
   refresh() {
