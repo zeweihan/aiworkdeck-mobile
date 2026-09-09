@@ -179,7 +179,7 @@ Page({
   onPageScroll(e: { scrollTop: number }) {
     // 只在跨过阈值时 setData，避免每帧都触发渲染层通信
     const crossed = e.scrollTop > 4
-    if (crossed !== this.data.scrollTop > 4) {
+    if (crossed !== (this.data.scrollTop > 4)) {
       this.setData({ scrollTop: e.scrollTop })
     }
   },
