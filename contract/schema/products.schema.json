@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "充值档位表（dev-board#427）。**端上的档位列表只能来自这里**，不许在页面里手抄一份价格。\n\n价格的最终权威在官网侧（lib/payments 的权威表）：这里是四端与官网对齐的那一份副本，两边不一致时官网回 400 product_mismatch，Java 译成 REJECTED（fixtures/billing.json 的「档位与金额不符」用例）。改档位的顺序是：先在微信公众平台发布/下架道具，再改官网权威表，最后改这里跑 gen。\n\nwxvp = 微信小程序虚拟支付。微信单个道具上限 100 元，所以 amountCents 封顶 10000，没有 300 档。",
+  "type": "object",
+  "required": ["wxvp"],
+  "additionalProperties": false,
+  "properties": {
+    "wxvp": { "$ref": "#/$defs/tiers" }
+  },
+  "$defs": {
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["productId", "amountCents"],
+        "additionalProperties": false,
+        "properties": {
+          "productId": { "$comment": "微信公众平台上道具的 id，与 Java 侧的 ^[a-z0-9_]{1,64}$ 同一套约束", "type": "string", "pattern": "^[a-z0-9_]{1,64}$" },
+          "amountCents": { "$comment": "整数分，须与公众平台上该道具的价格逐分相等；微信单道具上限 100 元", "type": "integer", "exclusiveMinimum": 0, "maximum": 10000 }
+        }
+      }
+    }
+  }
+}

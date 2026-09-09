@@ -75,6 +75,7 @@ test('gen：每个生成物都带 GENERATED 头且落在约定路径', () => {
   const expected = [
     'miniprogram/styles/tokens.wxss',
     'miniprogram/utils/contract/states.ts', 'miniprogram/utils/contract/strings.ts', 'miniprogram/utils/contract/capabilities.ts',
+    'miniprogram/utils/contract/products.ts',
     'ios/Sources/Contract/Tokens.swift', 'ios/Sources/Contract/Strings.swift', 'ios/Sources/Contract/States.swift', 'ios/Sources/Contract/Capabilities.swift',
     'android/contract/src/main/kotlin/com/aiworkdeck/contract/Tokens.kt', 'android/contract/src/main/kotlin/com/aiworkdeck/contract/Strings.kt',
     'android/contract/src/main/kotlin/com/aiworkdeck/contract/States.kt', 'android/contract/src/main/kotlin/com/aiworkdeck/contract/Capabilities.kt',
@@ -209,6 +210,14 @@ test('check：capabilities 取值越界要红', () => {
   assert.ok(r.problems.some((m) => m.includes('capabilities.json') && m.includes('recharge')), r.problems.join('\n'))
 })
 
+test('check：products 档位价格越界要红（微信单道具上限 100 元）', () => {
+  const dir = tempCopy()
+  const p = join(dir, 'contract', 'products.json')
+  writeFileSync(p, readFileSync(p, 'utf8').replace('"amountCents": 10000', '"amountCents": 30000'))
+  const r = runChecks(dir, { quick: true })
+  assert.ok(r.problems.some((m) => m.includes('products.json')), r.problems.join('\n'))
+})
+
 test('check：billing 夹具漏一个 kind 要红', () => {
   const dir = tempCopy()
   const p = join(dir, 'contract', 'fixtures', 'billing.json')
@@ -250,14 +259,12 @@ test('check：billing 夹具的 display 与展示口径对不上要红', () => {
   assert.ok(r.problems.some((m) => m.includes('billing.json') && m.includes('display')), r.problems.join('\n'))
 })
 
-test('check：没有任何一端消费的夹具段要留下提示（不报错）', () => {
+test('check：billing 夹具四段都有端在消费，一段提示都不该剩', () => {
   const r = runChecks(ROOT, { quick: true })
   assert.deepEqual(r.problems, [])
-  for (const section of ['recharge', 'status']) {
-    assert.ok(r.notes.some((m) => m.includes('billing.json') && m.includes(section)), r.notes.join('\n'))
-  }
-  // 已被三端消费的两段不该出现在提示里
-  for (const section of ['balance', 'envelope']) {
+  // 小程序虚拟支付（dev-board#427）把 recharge / status 也接上了生产解码路径
+  // （tests/contract.test.ts），四段都有消费方，notes 里不该再出现 billing.json 的任何一段
+  for (const section of ['balance', 'envelope', 'recharge', 'status']) {
     assert.ok(!r.notes.some((m) => m.includes(`「${section}」`)), r.notes.join('\n'))
   }
 })

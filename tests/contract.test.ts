@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tallyOf, tallyTotal, deleteWarningLevel, type QueueState } from '../miniprogram/utils/phase.ts'
 import { next, recover, applyStatus } from '../miniprogram/utils/transition.ts'
 import { t } from '../miniprogram/utils/i18n.ts'
-import { readEnvelope, ApiError } from '../miniprogram/utils/api.ts'
+import { readEnvelope, ApiError, decodeRechargeOrder } from '../miniprogram/utils/api.ts'
 import { formatMoney, shouldHideBalanceRow } from '../miniprogram/utils/money.ts'
 
 const fx = (n: string) => JSON.parse(readFileSync(join(import.meta.dirname, '..', 'contract', 'fixtures', `${n}.json`), 'utf8'))
@@ -77,6 +77,29 @@ test('fixture: billing balance — 裸对象解码；plan 是计费档位原样�
     // 不能被映射成套餐名或被丢弃；上游未给这个字段时必须是 null。
     assert.deepEqual(got, k.expect, k.name)
   }
+})
+
+test('fixture: billing recharge — 走生产解码路径，缺席的可选键解成 null 不是空串（含 present=virtual）', () => {
+  const presents = new Set<string>()
+  for (const k of fx('billing').recharge) {
+    // 生产解码路径本身：billingRecharge 就是 request(bare:true) 再 decodeRechargeOrder，
+    // 这里不另抄一份结构体，抄一份就等于夹具没约束到线上那条路
+    const decoded = decodeRechargeOrder(readEnvelope(200, k.json, { bare: true }))
+    assert.deepEqual(decoded, k.expect, k.name)
+    presents.add(k.expect.present)
+  }
+  // 三种 present 都对过：只测 qrcode 就发现不了 virtual 把 signData 解丢
+  assert.deepEqual([...presents].sort(), ['qrcode', 'redirect', 'virtual'])
+})
+
+test('fixture: billing recharge status — 裸对象解码，四种状态都对过', () => {
+  const seen = new Set<string>()
+  for (const k of fx('billing').status) {
+    // billingRechargeStatus 也是 request(bare:true)：三个字段都必有，没有可选键要补
+    assert.deepEqual(readEnvelope(200, k.json, { bare: true }), k.expect, k.name)
+    seen.add(k.expect.status)
+  }
+  assert.deepEqual([...seen].sort(), ['closed', 'expired', 'paid', 'pending'])
 })
 
 test('readEnvelope：没有数字 code 的对象体默认按解析失败处理，只有 bare:true 才当成功（N5）', () => {
