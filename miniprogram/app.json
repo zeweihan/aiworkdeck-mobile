@@ -6,6 +6,7 @@
     "pages/project/project",
     "pages/queue/queue",
     "pages/recharge/recharge",
+    "pages/settings/settings",
     "pages/start/start"
   ],
   "window": {

@@ -1,0 +1,45 @@
+<nav-bar title="{{navTitle}}" show-back="{{true}}" />
+
+<!-- 100vh 要减掉自定义导航栏的高度：nav-bar 自带一个等高占位在页面顶上，
+     直接写 100vh 会把「退出登录」顶到首屏之外（本页没有别的内容可滚，用户会以为没有这个入口）。 -->
+<view
+  class="page"
+  style="min-height: calc(100vh - {{metrics.navTotalHeight}}px); padding-bottom: {{metrics.bottomInset}}px;"
+>
+
+  <!-- 账户：登录时记下的手机号，脱敏显示；一键登录没拿到号就只留标题 -->
+  <view class="row">
+    <text class="row__label">{{accountLabel}}</text>
+    <text wx:if="{{phoneText}}" class="row__value mono">{{phoneText}}</text>
+  </view>
+  <view class="rule"></view>
+
+  <!-- 余额与充值：显隐规则在 contract/schema/billing.schema.json，页面只按 kind 分支的结果渲染。
+       充值入口与余额行**分开判**：NOT_CONNECTED 时行在、入口也在（dev-board#535） -->
+  <block wx:if="{{balanceVisible}}">
+    <view class="row">
+      <text class="row__label">{{balanceTitle}}</text>
+      <view class="row__right">
+        <text class="row__value">{{balanceText}}</text>
+        <view wx:if="{{rechargeVisible}}" class="row__action tappable" bindtap="onRecharge">
+          <text>{{rechargeText}}</text>
+        </view>
+      </view>
+    </view>
+    <text wx:if="{{openHint}}" class="hint">{{openHint}}</text>
+    <view class="rule"></view>
+  </block>
+
+  <!-- 版本 -->
+  <view class="row">
+    <text class="row__label">{{versionLabel}}</text>
+    <text class="row__value mono">{{versionText}}</text>
+  </view>
+  <view class="rule"></view>
+
+  <view class="footer">
+    <view class="footer__text tappable" bindtap="onLogout">
+      <text>{{signOutText}}</text>
+    </view>
+  </view>
+</view>

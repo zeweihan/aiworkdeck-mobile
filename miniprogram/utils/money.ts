@@ -32,3 +32,40 @@ export function formatMoney(cents: number, currency: 'CNY' | 'USD'): string {
 export function shouldHideBalanceRow(kind: ApiErrorKind | null): boolean {
   return kind === 'NOT_CONNECTED' || kind === 'DISABLED' || kind === 'REVIEW_ACCOUNT'
 }
+
+/** 余额行的渲染方案：行显不显、充值入口显不显、行上放哪句文案。 */
+export interface BalanceRowPlan {
+  showRow: boolean
+  showRecharge: boolean
+  /** 余额行的文案键；null 表示这一行不渲染文案（整行不渲染，或成功路径直接显示金额） */
+  textKey: 'balance.notConnected' | 'balance.unavailable' | null
+}
+
+/**
+ * 余额拉失败时该怎么渲染，唯一来源是 contract/schema/billing.schema.json 的 UI 映射
+ * （一律按 kind 分支，不匹配 message 措辞）。
+ *
+ * canRecharge 就是本端有没有充值通道（contract/capabilities.json 的 recharge 非 false）：
+ *  - 没有充值能力的端：完全照旧，NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT 整行不渲染
+ *    （shouldHideBalanceRow）；
+ *  - 有充值能力的端（当前是小程序 virtual）只改 NOT_CONNECTED 一条：渲染余额行 +
+ *    balance.notConnected + **充值入口照常可见**——触发 NOT_CONNECTED 的正是还没有统一
+ *    账户、最该去充值把账户开出来的人，连入口一起藏掉就等于界面上找不到充值口
+ *    （dev-board#535，第二期上线后实测反馈）。
+ *
+ * DISABLED / REVIEW_ACCOUNT 无论有没有充值能力都整行不渲染、入口一并收起：
+ * 本部署没开通、审核演示账号，两种都不该出现充值。
+ */
+export function balanceRowForError(kind: ApiErrorKind | null, canRecharge: boolean): BalanceRowPlan {
+  if (kind === 'DISABLED' || kind === 'REVIEW_ACCOUNT') {
+    return { showRow: false, showRecharge: false, textKey: null }
+  }
+  if (kind === 'NOT_CONNECTED') {
+    return canRecharge
+      ? { showRow: true, showRecharge: true, textKey: 'balance.notConnected' }
+      : { showRow: false, showRecharge: false, textKey: null }
+  }
+  // 其余（含 kind 缺席）都是可能自己恢复的瞬时故障：显示 balance.unavailable，
+  // 充值入口保持可见——读不到余额不代表下不了单，下单失败自会按信封 message 提示。
+  return { showRow: true, showRecharge: canRecharge, textKey: 'balance.unavailable' }
+}

@@ -31,16 +31,23 @@
         <text class="top__label">{{phaseLabel.landed}}</text>
       </view>
     </view>
+    <!-- 「我的」入口：账户、余额与充值、退出登录都在那一页（dev-board#535） -->
+    <view class="top__settings tappable" bindtap="onOpenSettings" aria-label="{{settingsLabel}}">
+      <image class="top__gear" src="{{Icon.gearWhite}}" mode="aspectFit" />
+    </view>
   </view>
 
   <!-- 取景区 -->
   <view class="finder">
+    <!-- cameraMounted 由 onShow/onHide 控制：页面被别的页盖住时把原生组件整个卸掉，
+         回来再挂一个新的（dev-board#536）。bindstop 收「摄像头非正常终止」，同样靠重挂恢复。 -->
     <camera
-      wx:if="{{mode !== 'audio' && cameraState !== 'denied'}}"
+      wx:if="{{cameraMounted && mode !== 'audio' && cameraState !== 'denied'}}"
       class="finder__camera"
       device-position="back"
       flash="off"
       binderror="onCameraError"
+      bindstop="onCameraStop"
       bindinitdone="onCameraReady"
     />
 

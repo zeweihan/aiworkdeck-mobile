@@ -45,6 +45,7 @@ export class ApiError extends Error {
 const KEY_SESSION = 'awd.session'
 const KEY_USER = 'awd.user'
 const KEY_PROJECT = 'awd.project'
+const KEY_PHONE = 'awd.phone'
 
 export interface AccountUser {
   id: number
@@ -94,6 +95,28 @@ function setUser(u: AccountUser | null): void {
   } else {
     wx.removeStorageSync(KEY_USER)
   }
+}
+
+/** 登录时记下的手机号，「我的」页脱敏展示用。取不到（一键登录且服务端没把号当用户名）就是 null，
+ *  页面只显示「账号」两个字，不编一个号码出来。 */
+export function getPhone(): string | null {
+  const v = wx.getStorageSync(KEY_PHONE)
+  return typeof v === 'string' && /^\d{11}$/.test(v) ? v : null
+}
+
+/** 只认大陆 11 位数字；别的形态（邮箱用户名等）不记，免得「我的」页脱敏出一串乱码。 */
+function rememberPhone(candidate: string | null): void {
+  if (candidate && /^\d{11}$/.test(candidate)) {
+    wx.setStorageSync(KEY_PHONE, candidate)
+  } else {
+    wx.removeStorageSync(KEY_PHONE)
+  }
+}
+
+/** 138****0000。不是 11 位就原样回，不做半吊子脱敏。 */
+export function maskPhone(phone: string | null): string {
+  if (!phone || !/^\d{11}$/.test(phone)) return phone || ''
+  return phone.slice(0, 3) + '****' + phone.slice(7)
 }
 
 export function getSelectedProject(): RelayProject | null {
@@ -202,15 +225,40 @@ export function verifyLoginCode(phone: string, code: string): Promise<LoginResul
   return request<LoginResult>('/api/auth/sms-login/verify', 'POST', { phone, code }).then((result) => {
     setSession(result.sessionId)
     setUser(result.user)
+    rememberPhone(phone)
     return result
   })
 }
 
-/** 清会话 + 用户 + 已选项目，登出必须三个一起清，不然守门逻辑会判断错。 */
+/**
+ * 微信手机号一键登录（dev-board#534）。
+ *
+ * 入参是 button open-type="getPhoneNumber" 回调里的 e.detail.code，服务端拿它去官网
+ * 换手机号再发会话；**响应与 sms-login/verify 完全同形**（LoginResult），所以成功路径
+ * 与 verifyLoginCode 逐字相同：存会话、存用户、记手机号。
+ *
+ * 手机号明文不回传，这里只能退而求其次：服务端把手机号当用户名时（findOrCreateByPhone
+ * 的既有口径）rememberPhone 会认出来，认不出就不记，「我的」页少显示一行号码而已。
+ *
+ * 业务失败一律走信封 code 1（本服务器没开通 / 授权过期 / 非大陆号），调用方 toast
+ * message 并把短信表单展开——一键登录不可用不是死路。
+ */
+export function wxPhoneLogin(code: string): Promise<LoginResult> {
+  return request<LoginResult>('/api/auth/wx-phone-login', 'POST', { code }).then((result) => {
+    setSession(result.sessionId)
+    setUser(result.user)
+    rememberPhone(result.user ? result.user.username : null)
+    return result
+  })
+}
+
+/** 清会话 + 用户 + 已选项目 + 记下的手机号，登出必须一起清，不然守门逻辑会判断错、
+ *  「我的」页还会挂着上一个人的号码。 */
 export function logout(): void {
   setSession(null)
   setUser(null)
   setSelectedProject(null)
+  rememberPhone(null)
 }
 
 // ---------- 统一账户余额（dev-board#425/#429） ----------

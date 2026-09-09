@@ -1,4 +1,4 @@
-import { sendLoginCode, verifyLoginCode } from '../../utils/api'
+import { sendLoginCode, verifyLoginCode, wxPhoneLogin } from '../../utils/api'
 import type { ApiError } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
 import { t } from '../../utils/i18n'
@@ -24,6 +24,11 @@ Page({
     codeButtonText: t('login.sendCode'),
     sendDisabled: true,
     submitDisabled: true,
+    /** 一键登录是首屏；短信表单默认折叠，用户点开或一键登录走不通时才展开 */
+    smsOpen: false,
+    wxLoggingIn: false,
+    wxPhoneText: t('login.wxPhone'),
+    useSmsText: t('login.useSms'),
   },
 
   timer: null as ReturnType<typeof setInterval> | null,
@@ -51,6 +56,38 @@ Page({
           ? `${countdown}s 后重新获取`
           : t('login.sendCode'),
     })
+  },
+
+  onOpenSms() {
+    this.setData({ smsOpen: true })
+  },
+
+  /**
+   * 微信手机号一键登录（dev-board#534，规格 docs/specs/2026-09-09-miniprogram-entry-and-wx-login.md §2）。
+   *
+   * 三条分支，缺一不可：
+   *  - 用户点了拒绝：**不报错**，只把短信表单展开——拒绝授权是正常选择，不是故障；
+   *  - 拿到 code 但服务端不给过（本服务器没开通 / 授权过期 / 非大陆号，一律 code 1）：
+   *    toast 服务端的 message 并展开短信表单；
+   *  - 成功：与 verifyLoginCode 同一条路（会话已在 api 层存好），进项目页。
+   */
+  onGetPhone(e: WechatMiniprogram.ButtonGetPhoneNumber) {
+    const detail = e.detail || {}
+    if (!detail.code) {
+      // 拒绝授权 / 取消 / 没拿到凭证：都不弹错误，把短信表单展开就是最直接的下一步
+      this.setData({ smsOpen: true })
+      return
+    }
+
+    this.setData({ wxLoggingIn: true })
+    wxPhoneLogin(detail.code)
+      .then(() => {
+        wx.reLaunch({ url: '/pages/project/project' })
+      })
+      .catch((err: ApiError) => {
+        this.setData({ wxLoggingIn: false, smsOpen: true })
+        wx.showToast({ icon: 'none', title: err.message })
+      })
   },
 
   onPhoneInput(e: { detail: { value: string } }) {

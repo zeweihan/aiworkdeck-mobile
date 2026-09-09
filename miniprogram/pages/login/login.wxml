@@ -7,50 +7,67 @@
     <view class="hero__sub">登录后可在此查看桌面端项目，并同步现场拍摄的影像</view>
   </view>
 
-  <view class="form">
-    <view class="field">
-      <text class="field__label">{{phoneLabel}}</text>
-      <input
-        class="field__input mono"
-        type="number"
-        maxlength="11"
-        placeholder="请输入 11 位手机号"
-        placeholder-class="field__placeholder"
-        value="{{phone}}"
-        bindinput="onPhoneInput"
-      />
-    </view>
-    <view class="rule"></view>
+  <!-- 首屏就是一键登录：微信绑定的手机号直接换会话，不用等短信（dev-board#534）。
+       拒绝授权或服务端没开通时，下面的短信表单接着用，不是死路。 -->
+  <button
+    class="submit tappable {{wxLoggingIn ? 'submit--disabled' : ''}}"
+    open-type="getPhoneNumber"
+    bindgetphonenumber="onGetPhone"
+    disabled="{{wxLoggingIn}}"
+  >
+    <text class="submit__text">{{wxLoggingIn ? '登录中…' : wxPhoneText}}</text>
+  </button>
 
-    <view class="field">
-      <text class="field__label">{{codeLabel}}</text>
-      <view class="field__row">
+  <view wx:if="{{!smsOpen}}" class="alt tappable" bindtap="onOpenSms">
+    <text class="alt__text">{{useSmsText}}</text>
+  </view>
+
+  <block wx:if="{{smsOpen}}">
+    <view class="form">
+      <view class="field">
+        <text class="field__label">{{phoneLabel}}</text>
         <input
-          class="field__input field__input--code mono"
+          class="field__input mono"
           type="number"
-          maxlength="6"
-          placeholder="6 位验证码"
+          maxlength="11"
+          placeholder="请输入 11 位手机号"
           placeholder-class="field__placeholder"
-          value="{{code}}"
-          bindinput="onCodeInput"
+          value="{{phone}}"
+          bindinput="onPhoneInput"
         />
-        <view
-          class="code-btn tappable {{sendDisabled ? 'code-btn--disabled' : ''}}"
-          bindtap="onSendCode"
-        >
-          <text class="code-btn__text">{{codeButtonText}}</text>
+      </view>
+      <view class="rule"></view>
+
+      <view class="field">
+        <text class="field__label">{{codeLabel}}</text>
+        <view class="field__row">
+          <input
+            class="field__input field__input--code mono"
+            type="number"
+            maxlength="6"
+            placeholder="6 位验证码"
+            placeholder-class="field__placeholder"
+            value="{{code}}"
+            bindinput="onCodeInput"
+          />
+          <view
+            class="code-btn tappable {{sendDisabled ? 'code-btn--disabled' : ''}}"
+            bindtap="onSendCode"
+          >
+            <text class="code-btn__text">{{codeButtonText}}</text>
+          </view>
         </view>
       </view>
+      <view class="rule"></view>
     </view>
-    <view class="rule"></view>
-  </view>
 
-  <view
-    class="submit tappable {{submitDisabled ? 'submit--disabled' : ''}}"
-    bindtap="onLogin"
-  >
-    <text class="submit__text">{{loggingIn ? '登录中…' : submitText}}</text>
-  </view>
+    <view
+      class="submit submit--sms tappable {{submitDisabled ? 'submit--disabled' : ''}}"
+      bindtap="onLogin"
+    >
+      <text class="submit__text">{{loggingIn ? '登录中…' : submitText}}</text>
+    </view>
+  </block>
 
   <view class="footer">
     <text class="footer__text">登录即代表同意将拍摄影像同步至你的 AI WorkDeck 桌面端</text>

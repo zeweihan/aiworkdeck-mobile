@@ -1,6 +1,6 @@
 <nav-bar title="{{navTitle}}" show-back="{{showBack}}" scroll-top="{{scrollTop}}" />
 
-<view class="page">
+<view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
 
   <view wx:if="{{loading}}" class="status">
     <text class="status__text">加载中…</text>
@@ -40,22 +40,4 @@
     </view>
   </view>
 
-  <view class="footer" style="padding-bottom: {{metrics.bottomInset}}px;">
-    <!-- 余额行与它下面那条分隔线同进同出：整行隐藏时不能留一条孤立发丝线 -->
-    <block wx:if="{{balanceVisible}}">
-      <view class="account">
-        <text class="account__label">{{balanceTitle}}</text>
-        <view class="account__right">
-          <text class="account__value">{{balanceText}}</text>
-          <view wx:if="{{rechargeVisible}}" class="account__recharge tappable" bindtap="onRecharge">
-            <text>{{rechargeText}}</text>
-          </view>
-        </view>
-      </view>
-      <view class="rule"></view>
-    </block>
-    <view class="footer__text tappable" bindtap="onLogout">
-      <text>{{signOutText}}</text>
-    </view>
-  </view>
 </view>

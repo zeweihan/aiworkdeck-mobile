@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { tallyOf, tallyTotal, deleteWarningLevel, type QueueState } from '../miniprogram/utils/phase.ts'
 import { next, recover, applyStatus } from '../miniprogram/utils/transition.ts'
 import { t } from '../miniprogram/utils/i18n.ts'
-import { readEnvelope, ApiError, decodeRechargeOrder } from '../miniprogram/utils/api.ts'
-import { formatMoney, shouldHideBalanceRow } from '../miniprogram/utils/money.ts'
+import { readEnvelope, ApiError, decodeRechargeOrder, maskPhone } from '../miniprogram/utils/api.ts'
+import { formatMoney, shouldHideBalanceRow, balanceRowForError } from '../miniprogram/utils/money.ts'
 
 const fx = (n: string) => JSON.parse(readFileSync(join(import.meta.dirname, '..', 'contract', 'fixtures', `${n}.json`), 'utf8'))
 
@@ -132,6 +132,59 @@ test('余额行是否渲染：shouldHideBalanceRow 与契约 UI 映射逐条对�
   for (const kind of ['UNAVAILABLE', 'NOT_FOUND', 'REJECTED', 'ALREADY_PAID', 'IDEMPOTENCY_CONFLICT', null] as const) {
     assert.equal(shouldHideBalanceRow(kind), false, String(kind))
   }
+})
+
+test('充值入口与余额行：有充值能力的端 NOT_CONNECTED 要渲染余额行并留着充值入口（dev-board#535）', () => {
+  // 有充值能力（小程序 virtual）：NOT_CONNECTED 不再整行藏掉——这批用户正是最该去充值的人
+  assert.deepEqual(balanceRowForError('NOT_CONNECTED', true), {
+    showRow: true,
+    showRecharge: true,
+    textKey: 'balance.notConnected',
+  })
+  // 没有充值能力的端维持原规则：整行不渲染（与 shouldHideBalanceRow 同一口径）
+  assert.deepEqual(balanceRowForError('NOT_CONNECTED', false), {
+    showRow: false,
+    showRecharge: false,
+    textKey: null,
+  })
+  // 本部署没开通 / 审核演示账号：两端都是整行不渲染 + 充值入口一并收起
+  for (const kind of ['DISABLED', 'REVIEW_ACCOUNT'] as const) {
+    for (const canRecharge of [true, false]) {
+      assert.deepEqual(
+        balanceRowForError(kind, canRecharge),
+        { showRow: false, showRecharge: false, textKey: null },
+        `${kind}/${canRecharge}`,
+      )
+    }
+  }
+  // 瞬时故障（含 kind 缺席）：显示 balance.unavailable，充值入口跟着本端能力走，不因读不到余额而收起
+  for (const kind of ['UNAVAILABLE', 'NOT_FOUND', 'REJECTED', 'ALREADY_PAID', 'IDEMPOTENCY_CONFLICT', null] as const) {
+    assert.deepEqual(
+      balanceRowForError(kind, true),
+      { showRow: true, showRecharge: true, textKey: 'balance.unavailable' },
+      String(kind),
+    )
+    assert.deepEqual(
+      balanceRowForError(kind, false),
+      { showRow: true, showRecharge: false, textKey: 'balance.unavailable' },
+      String(kind),
+    )
+  }
+  // 契约里定义的每个 kind 都被上面某一条覆盖到了：新增 kind 时这条会先红
+  const covered = ['NOT_CONNECTED', 'DISABLED', 'REVIEW_ACCOUNT', 'UNAVAILABLE', 'NOT_FOUND', 'REJECTED', 'ALREADY_PAID', 'IDEMPOTENCY_CONFLICT']
+  const schema = JSON.parse(
+    readFileSync(join(import.meta.dirname, '..', 'contract', 'schema', 'billing.schema.json'), 'utf8'),
+  )
+  assert.deepEqual([...covered].sort(), [...schema.$defs.kind.enum].sort())
+})
+
+test('手机号脱敏：11 位才脱敏，其余原样回，空值给空串（「我的」页账户行）', () => {
+  assert.equal(maskPhone('13800000000'), '138****0000')
+  assert.equal(maskPhone('13912345678'), '139****5678')
+  assert.equal(maskPhone(null), '')
+  assert.equal(maskPhone(''), '')
+  // 不是 11 位数字就不做半吊子脱敏（一键登录时服务端用户名可能压根不是手机号）
+  assert.equal(maskPhone('u_12345'), 'u_12345')
 })
 
 test('i18n: 占位符替换与缺键行为', () => {

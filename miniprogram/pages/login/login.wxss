@@ -29,7 +29,7 @@
 
 /* ---- 表单：发丝线分区，不做输入框边框 ------------------------------------ */
 .form {
-  margin-top: var(--s8);
+  margin-top: var(--s6);
 }
 
 .field {
@@ -84,12 +84,36 @@
   white-space: nowrap;
 }
 
-/* ---- 提交：全 App 唯一一处强调色实心按钮，仍不加阴影 ---------------------- */
+/* ---- 提交：全 App 唯一一处强调色实心按钮，仍不加阴影 ----------------------
+ * 一键登录必须是 <button open-type="getPhoneNumber">，所以这里要把微信给 button 的
+ * 默认边框/内边距/伪元素边线全抹掉，才能和下面那个 view 版按钮长得一模一样。 */
 .submit {
   margin-top: var(--s8);
   height: 96rpx;
+  padding: 0;
+  border: none;
   border-radius: var(--s2);
   background: var(--accent);
+  line-height: normal;
+}
+
+.submit::after {
+  border: none;
+}
+
+/* 短信表单里的提交按钮跟在发丝线下面，不用再留一整段 */
+.submit--sms {
+  margin-top: var(--s6);
+}
+
+/* 「用短信验证码登录」：文字按钮，是次级路径，不跟一键登录抢注意力 */
+.alt {
+  margin-top: var(--s4);
+}
+
+.alt__text {
+  font-size: var(--t-small);
+  color: var(--accent);
 }
 
 .submit--disabled {
