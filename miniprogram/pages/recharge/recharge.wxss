@@ -1,0 +1,73 @@
+/* 充值页。视觉语汇照抄 login 页：纯白底、发丝线、无卡片阴影，
+ * 选中态只用一条 1px 边与浅底色表达，不做投影。 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+
+.pick {
+  margin-top: var(--s10);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+}
+
+/* ---- 档位：一列到底，金额是这一页唯一的大字 ---------------------------- */
+.tiers {
+  margin-top: var(--s4);
+}
+
+.tier {
+  justify-content: flex-start;
+  padding: var(--s3) var(--s4);
+  margin-top: var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--s2);
+  background: var(--bg);
+}
+
+.tier:first-child {
+  margin-top: 0;
+}
+
+.tier--on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.tier__amount {
+  font-size: var(--t-title);
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 支付按钮 ------------------------------------------------------------ */
+.pay {
+  margin-top: var(--s8);
+  height: 96rpx;
+  border-radius: var(--s2);
+  background: var(--accent);
+}
+
+.pay--busy {
+  background: var(--rule-strong);
+}
+
+.pay__text {
+  color: #FFFFFF;
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hint {
+  margin-top: var(--s3);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+  text-align: center;
+}

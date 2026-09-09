@@ -92,10 +92,23 @@
   color: var(--fg-faint);
 }
 
+.account__right {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+}
+
 .account__value {
   font-size: var(--t-body);
   color: var(--fg);
   font-variant-numeric: tabular-nums;
+}
+
+/* 充值入口：文字按钮，不做实心块——这一行是页脚，不该抢主列表的注意力。
+ * 尺寸不覆盖 .tappable 的 88rpx 最小可点区（app.wxss 里那条是硬指标）。 */
+.account__recharge {
+  font-size: var(--t-small);
+  color: var(--accent);
 }
 
 .footer__text {

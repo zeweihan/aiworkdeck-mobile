@@ -480,6 +480,42 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "充值",
     "en": "Top up"
   },
+  "recharge.title": {
+    "zh-Hans": "充值",
+    "en": "Top up"
+  },
+  "recharge.pick": {
+    "zh-Hans": "选择充值金额",
+    "en": "Choose an amount"
+  },
+  "recharge.pay": {
+    "zh-Hans": "微信支付",
+    "en": "Pay with WeChat"
+  },
+  "recharge.paying": {
+    "zh-Hans": "正在确认到账…",
+    "en": "Confirming payment…"
+  },
+  "recharge.success": {
+    "zh-Hans": "充值成功，余额已更新",
+    "en": "Top-up successful"
+  },
+  "recharge.cancelled": {
+    "zh-Hans": "已取消支付",
+    "en": "Payment cancelled"
+  },
+  "recharge.failed": {
+    "zh-Hans": "支付未完成，请稍后再试",
+    "en": "Payment did not complete. Try again later."
+  },
+  "recharge.pendingLong": {
+    "zh-Hans": "支付已提交，到账稍有延迟，可稍后下拉刷新余额",
+    "en": "Payment submitted; balance will update shortly"
+  },
+  "recharge.tier": {
+    "zh-Hans": "{amount}",
+    "en": "{amount}"
+  },
   "notify.channel.upload": {
     "zh-Hans": "上传",
     "en": "Uploads"

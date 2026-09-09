@@ -45,7 +45,12 @@
     <block wx:if="{{balanceVisible}}">
       <view class="account">
         <text class="account__label">{{balanceTitle}}</text>
-        <text class="account__value">{{balanceText}}</text>
+        <view class="account__right">
+          <text class="account__value">{{balanceText}}</text>
+          <view wx:if="{{rechargeVisible}}" class="account__recharge tappable" bindtap="onRecharge">
+            <text>{{rechargeText}}</text>
+          </view>
+        </view>
       </view>
       <view class="rule"></view>
     </block>

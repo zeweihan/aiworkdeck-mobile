@@ -5,6 +5,7 @@
     "pages/login/login",
     "pages/project/project",
     "pages/queue/queue",
+    "pages/recharge/recharge",
     "pages/start/start"
   ],
   "window": {

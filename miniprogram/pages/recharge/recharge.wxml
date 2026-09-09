@@ -1,0 +1,26 @@
+<nav-bar title="{{navTitle}}" show-back="{{true}}" />
+
+<view class="page" style="padding-bottom: {{metrics.bottomInset}}px;">
+
+  <text class="pick">{{pickText}}</text>
+
+  <view class="tiers">
+    <view
+      wx:for="{{tiers}}"
+      wx:for-item="tier"
+      wx:for-index="i"
+      wx:key="productId"
+      class="tier tappable {{selected === i ? 'tier--on' : ''}}"
+      data-i="{{i}}"
+      bindtap="onSelectTier"
+    >
+      <text class="tier__amount">{{tier.label}}</text>
+    </view>
+  </view>
+
+  <view class="pay tappable {{paying ? 'pay--busy' : ''}}" bindtap="onPay">
+    <text class="pay__text">{{payText}}</text>
+  </view>
+
+  <text wx:if="{{hint}}" class="hint">{{hint}}</text>
+</view>

@@ -4,6 +4,7 @@ import type { Metrics } from '../../utils/layout'
 import { Icon } from '../../utils/icons'
 import { t } from '../../utils/i18n'
 import { formatMoney, shouldHideBalanceRow } from '../../utils/money'
+import { CAPS } from '../../utils/contract/capabilities'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -55,6 +56,10 @@ Page({
     // 拉成功，或拉到「会自己恢复」的失败态。
     balanceVisible: false,
     balanceText: '',
+    rechargeText: t('recharge.entry'),
+    // 充值入口跟着余额行走：本端的充值通道是微信虚拟支付（contract/capabilities.json），
+    // 而审核账号 / DISABLED / NOT_CONNECTED 三态余额行本就不渲染，入口随之消失。
+    rechargeVisible: CAPS.recharge === 'virtual',
   },
 
   onLoad() {
@@ -118,6 +123,10 @@ Page({
         }
         this.setData({ balanceVisible: true, balanceText: t('balance.unavailable') })
       })
+  },
+
+  onRecharge() {
+    wx.navigateTo({ url: '/pages/recharge/recharge' })
   },
 
   onRetry() {

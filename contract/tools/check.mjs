@@ -88,7 +88,7 @@ function checkReferences(c, problems) {
  */
 function checkDataSchemas(c, problems) {
   const ajv = new Ajv2020({ allErrors: true })
-  for (const [file, data] of [['capabilities', c.caps]]) {
+  for (const [file, data] of [['capabilities', c.caps], ['products', c.products]]) {
     const schema = JSON.parse(readFileSync(join(c.root, 'contract', 'schema', `${file}.schema.json`), 'utf8'))
     const validate = ajv.compile(schema)
     if (!validate(data)) {
@@ -149,7 +149,12 @@ function checkBillingFixture(c, problems) {
  * 契约层照样拦不住（dev-board#425 二轮复审 N3）。补了适配测试就把端名填进来。
  */
 const FIXTURE_CONSUMERS = {
-  billing: { balance: ['ios', 'miniprogram', 'android'], envelope: ['ios', 'miniprogram', 'android'], recharge: [], status: [] },
+  billing: {
+    balance: ['ios', 'miniprogram', 'android'], envelope: ['ios', 'miniprogram', 'android'],
+    // 小程序虚拟支付（dev-board#427）起，recharge / status 两段由 tests/contract.test.ts 走
+    // 生产解码路径消费（readEnvelope + decodeRechargeOrder / decodeRechargeStatus）
+    recharge: ['miniprogram'], status: ['miniprogram'],
+  },
 }
 function checkFixtureConsumers(c, notes) {
   for (const [file, sections] of Object.entries(FIXTURE_CONSUMERS)) {

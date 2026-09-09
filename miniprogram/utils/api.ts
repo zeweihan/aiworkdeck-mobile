@@ -233,6 +233,88 @@ export function billingBalance(): Promise<BillingBalance> {
   return request<BillingBalance>('/api/mobile/billing/balance', 'GET', undefined, { bare: true })
 }
 
+// ---------- 充值（dev-board#427，小程序走微信虚拟支付） ----------
+
+/** 充值通道。不传这个字段是第一期行为（走站点默认通道）；小程序一律传 wxvp。 */
+export type RechargeChannel = 'wxvp'
+
+/** 服务端裸响应原文：不适用的键**不出现**（服务端 putIfPresent 对 null 与空串都不出键）。 */
+export interface RawRechargeOrder {
+  present: 'qrcode' | 'redirect' | 'virtual'
+  outTradeNo: string
+  amountCents: number
+  codeUrl?: string
+  qrCode?: string
+  redirectUrl?: string
+  signData?: string
+  paySig?: string
+  signature?: string
+}
+
+/** 解码后的充值单：缺席的可选键一律是 null，不是空串也不是 undefined
+ *  （contract/schema/billing.schema.json 的 recharge 段把这条钉死，
+ *  contract/fixtures/billing.json 的 recharge 用例逐条对拍）。 */
+export interface RechargeOrder {
+  present: 'qrcode' | 'redirect' | 'virtual'
+  outTradeNo: string
+  amountCents: number
+  codeUrl: string | null
+  qrCode: string | null
+  redirectUrl: string | null
+  /** present=virtual：签名原文，**必须原样透传**给 wx.requestVirtualPayment。
+   *  端上重新 JSON.stringify 一遍键序/空白就变了，paySig 与 signature 立刻对不上。 */
+  signData: string | null
+  paySig: string | null
+  signature: string | null
+}
+
+export interface RechargeStatus {
+  status: 'pending' | 'paid' | 'closed' | 'expired'
+  paid: boolean
+  amountCents: number
+}
+
+const optional = (v: string | undefined): string | null => (v ? v : null)
+
+/** 生产解码路径。tests/contract.test.ts 拿 contract/fixtures/billing.json 的 recharge 段对拍它，
+ *  不在测试里另抄一份结构体。 */
+export function decodeRechargeOrder(raw: RawRechargeOrder): RechargeOrder {
+  return {
+    present: raw.present,
+    outTradeNo: raw.outTradeNo,
+    amountCents: raw.amountCents,
+    codeUrl: optional(raw.codeUrl),
+    qrCode: optional(raw.qrCode),
+    redirectUrl: optional(raw.redirectUrl),
+    signData: optional(raw.signData),
+    paySig: optional(raw.paySig),
+    signature: optional(raw.signature),
+  }
+}
+
+/**
+ * 创建充值单。裸对象成功，业务失败走信封（code 1 + kind）：
+ * ALREADY_PAID / IDEMPOTENCY_CONFLICT 会连 outTradeNo 一起回来，调用方按 kind 分支恢复。
+ *
+ * idempotencyKey 由客户端生成并**先落盘再发**（服务端不代生成，缺失即 code 1 无 kind）。
+ */
+export function billingRecharge(opts: {
+  channel: RechargeChannel
+  productId: string
+  amountCents: number
+  idempotencyKey: string
+  wxCode: string
+}): Promise<RechargeOrder> {
+  return request<RawRechargeOrder>('/api/mobile/billing/recharge', 'POST', { ...opts }, { bare: true }).then(
+    decodeRechargeOrder,
+  )
+}
+
+/** 查充值单状态。裸对象，三个字段都必有，没有可选键要补 null。 */
+export function billingRechargeStatus(outTradeNo: string): Promise<RechargeStatus> {
+  return request<RechargeStatus>('/api/mobile/billing/recharge/status', 'GET', { outTradeNo }, { bare: true })
+}
+
 // ---------- 引流页：一键手机号建号（dev-board#305） ----------
 
 export interface WxStartResult {
