@@ -66,6 +66,18 @@ page {
   flex-shrink: 0;
 }
 
+/* 「我的」入口。.tappable 的 88rpx 最小可点区是硬指标不缩小，顶栏跟着长高一点是代价。 */
+.top__settings {
+  flex-shrink: 0;
+  margin-right: -8rpx;
+}
+
+.top__gear {
+  width: 40rpx;
+  height: 40rpx;
+  opacity: 0.75;
+}
+
 .top__stat {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,117 @@
+/**
+ * 「我的」页（dev-board#535）。
+ *
+ * 起因是第二期上线后的实测反馈：充值入口挂在项目页页脚、且只在余额行可见时才渲染，
+ * 而没有官网账户的用户余额是 NOT_CONNECTED、整行不渲染——充值口在界面上根本找不到。
+ * 现在账户相关的东西（手机号、余额、充值、退出登录、版本）统一收进这一页，
+ * 项目页只管选项目。
+ *
+ * 余额行与充值入口的显隐规则一律走契约（contract/schema/billing.schema.json 的 UI 映射，
+ * 实现在 utils/money.ts 的 balanceRowForError），按 kind 分支，不匹配 message 措辞。
+ */
+import { billingBalance, getPhone, logout, maskPhone } from '../../utils/api'
+import type { ApiError, BillingBalance } from '../../utils/api'
+import type { Metrics } from '../../utils/layout'
+import { t } from '../../utils/i18n'
+import { balanceRowForError, formatMoney } from '../../utils/money'
+import { CAPS } from '../../utils/contract/capabilities'
+
+interface AppGlobal {
+  globalData: { metrics: Metrics }
+}
+
+/** 本端有没有充值通道：contract/capabilities.json 的 recharge，**非 false 即有**
+ *  （小程序当前是微信虚拟支付 virtual）。生成物把它收窄成了字面量类型，这里放宽一档再比——
+ *  页面不该写死某一种通道名，将来多一种通道也不用改这一页。 */
+const CAN_RECHARGE: boolean = (CAPS.recharge as string | false) !== false
+
+/** 金额格式化按契约统一口径（contract/schema/billing.schema.json），不在这里重写。 */
+function formatBalance(b: BillingBalance): string {
+  return t('balance.amount', { amount: formatMoney(b.balanceCents, b.currency) })
+}
+
+/** 小程序版本号。体验版 / 开发版拿不到，回落 settings.devBuild。 */
+function miniProgramVersion(): string {
+  try {
+    const info = wx.getAccountInfoSync()
+    return info.miniProgram.version || t('settings.devBuild')
+  } catch {
+    return t('settings.devBuild')
+  }
+}
+
+Page({
+  data: {
+    metrics: {} as Metrics,
+    navTitle: t('settings.title'),
+    accountLabel: t('settings.account'),
+    phoneText: '',
+    balanceTitle: t('balance.title'),
+    // 未知态（还没拉到结果）不渲染，避免先出现空壳行再消失的首帧闪烁（与项目页原来同一口径）
+    balanceVisible: false,
+    balanceText: '',
+    // 充值入口跟余额行分开算：NOT_CONNECTED 时行在、入口也要在（dev-board#535）
+    rechargeVisible: false,
+    rechargeText: t('recharge.entry'),
+    // 「充值后即开通统一账户」只在 NOT_CONNECTED 时说，别的态说这句是废话
+    openHint: '',
+    versionLabel: t('settings.version'),
+    versionText: '',
+    signOutText: t('common.signOut'),
+  },
+
+  onLoad() {
+    const app = getApp<AppGlobal>()
+    this.setData({
+      metrics: app.globalData.metrics,
+      phoneText: maskPhone(getPhone()),
+      versionText: miniProgramVersion(),
+    })
+  },
+
+  onShow() {
+    // 从充值页返回也走这里：付完钱回来余额要是新的
+    this.loadBalance()
+  },
+
+  /** 成功显示金额、充值入口按本端能力显隐；失败一律按 kind 走 balanceRowForError。 */
+  loadBalance() {
+    billingBalance()
+      .then((b) => {
+        this.setData({
+          balanceVisible: true,
+          balanceText: formatBalance(b),
+          rechargeVisible: CAN_RECHARGE,
+          openHint: '',
+        })
+      })
+      .catch((err: ApiError) => {
+        const plan = balanceRowForError(err.kind, CAN_RECHARGE)
+        this.setData({
+          balanceVisible: plan.showRow,
+          balanceText: plan.textKey ? t(plan.textKey) : '',
+          rechargeVisible: plan.showRecharge,
+          openHint: plan.textKey === 'balance.notConnected' ? t('recharge.openHint') : '',
+        })
+      })
+  },
+
+  onRecharge() {
+    wx.navigateTo({ url: '/pages/recharge/recharge' })
+  },
+
+  onLogout() {
+    wx.showModal({
+      title: t('common.signOut'),
+      content: '退出后需要重新用手机号登录。',
+      confirmText: '退出',
+      confirmColor: '#B91C1C',
+      success: (res) => {
+        if (res.confirm) {
+          logout()
+          wx.reLaunch({ url: '/pages/login/login' })
+        }
+      },
+    })
+  },
+})

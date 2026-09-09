@@ -90,6 +90,7 @@ Page({
       on: t('common.on'),
       off: t('common.off'),
     },
+    settingsLabel: t('settings.title'),
     tally: { uploading: 0, failed: 0, staged: 0, landed: 0 } as Tally,
     failedSuffix: '',
     total: 0,
@@ -98,6 +99,8 @@ Page({
     modeNote: MODE_NOTES.photo,
     /** pending：等相机初始化；ready：取景中；denied：权限被拒/初始化失败 */
     cameraState: 'pending' as 'pending' | 'ready' | 'denied',
+    /** <camera> 原生组件挂不挂。只在本页可见时为 true，见 mountCamera/unmountCamera（dev-board#536） */
+    cameraMounted: false,
     recording: false,
     recordElapsed: '00:00',
     recordSegment: 1,
@@ -111,6 +114,8 @@ Page({
   },
 
   unsubscribe: null as (() => void) | null,
+  /** 本页是不是当前可见页。bindstop 的恢复只在可见时做，页面被盖住时重挂没有意义。 */
+  visible: false,
   pollTimer: null as number | null,
   recordTimer: null as number | null,
   wmTimer: null as number | null,
@@ -155,6 +160,9 @@ Page({
     // 通话结束事件没送到时，回前台补一次续录
     resumeIfInterrupted()
 
+    this.visible = true
+    this.mountCamera()
+
     this.refresh()
     if (!this.unsubscribe) {
       this.unsubscribe = subscribe(() => this.refresh())
@@ -167,20 +175,33 @@ Page({
   },
 
   onHide() {
+    this.visible = false
     this.stopPolling()
     this.stopWatermark()
     // 页面隐藏相机即停：录像中尽力收走当前段，不让已录内容白丢。
     // 录音不停——requiredBackgroundModes audio 支持后台续录，维持既有行为。
     if (this.data.mode === 'video' && this.data.recording) {
       this.manualStopping = true
+      // 卸载放在 stopRecord 的回调里：先卸原生组件，这一段就收不回来了
       this.camera().stopRecord({
-        success: (res) => this.onVideoSegmentEnd(res, false),
-        fail: () => this.stopRecordUi(),
+        success: (res) => {
+          this.onVideoSegmentEnd(res, false)
+          this.unmountCamera()
+        },
+        fail: () => {
+          this.stopRecordUi()
+          this.unmountCamera()
+        },
       })
+      return
     }
+    this.unmountCamera()
   },
 
   onUnload() {
+    this.visible = false
+    // 页面正在销毁，只丢引用不 setData
+    this.cameraCtx = null
     this.stopPolling()
     this.stopWatermark()
     this.stopRecordTimer()
@@ -195,6 +216,27 @@ Page({
       this.cameraCtx = wx.createCameraContext()
     }
     return this.cameraCtx
+  },
+
+  /**
+   * 本页可见时才挂 <camera>（dev-board#536）。
+   *
+   * 原生组件不在 WebView 的渲染流程里（微信文档「原生组件说明」），页面被 navigateTo 盖住时
+   * 组件仍留在节点树上、相机会话却被客户端收走；安卓上同层渲染一旦失败，这块脱离 WebView 的
+   * 死画布会盖住整个页面——回到首页看到的就是一整屏白且点不动。**卸掉再挂一个新的**是本仓
+   * 已有的做法（见 onOpenCameraSetting 的注释：wx:if 先卸再挂，让 camera 组件重新初始化）。
+   */
+  mountCamera() {
+    if (!this.data.cameraMounted) this.setData({ cameraMounted: true })
+  },
+
+  /** 卸掉原生组件，顺手丢掉绑在它上面的 CameraContext；denied 态保留，别把权限提示闪没了。 */
+  unmountCamera() {
+    this.cameraCtx = null
+    if (!this.data.cameraMounted && this.data.cameraState !== 'ready') return
+    const patch: { cameraMounted: boolean; cameraState?: 'pending' } = { cameraMounted: false }
+    if (this.data.cameraState === 'ready') patch.cameraState = 'pending'
+    this.setData(patch)
   },
 
   startPolling() {
@@ -259,6 +301,15 @@ Page({
       this.stopRecordUi()
     }
     this.setData({ cameraState: 'denied' })
+  },
+
+  /** 摄像头非正常终止（微信文档：如退出后台等情况）。可见时重挂一个新的，
+   *  否则留着一块永远不会再出画面的死取景区。录制中交给既有的停止/报错路径，不在这里插手。 */
+  onCameraStop() {
+    if (this.data.recording) return
+    this.unmountCamera()
+    // 同一帧里卸了又挂等于没卸：两次 setData 会被合并，原生组件不会重建。等下一帧再挂。
+    if (this.visible) wx.nextTick(() => { if (this.visible) this.mountCamera() })
   },
 
   onOpenCameraSetting() {
@@ -584,6 +635,10 @@ Page({
 
   onOpenGallery() {
     wx.navigateTo({ url: '/pages/gallery/gallery' })
+  },
+
+  onOpenSettings() {
+    wx.navigateTo({ url: '/pages/settings/settings' })
   },
 
   onSwitchProject() {

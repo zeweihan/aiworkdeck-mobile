@@ -188,6 +188,14 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "收不到验证码？发邮件到 hi@aiworkdeck.com",
     "en": "No code? Email hi@aiworkdeck.com"
   },
+  "login.wxPhone": {
+    "zh-Hans": "微信手机号一键登录",
+    "en": "Sign in with WeChat phone number"
+  },
+  "login.useSms": {
+    "zh-Hans": "用短信验证码登录",
+    "en": "Sign in with SMS code"
+  },
   "project.eyebrow": {
     "zh-Hans": "归档到",
     "en": "Archive to"
@@ -452,6 +460,14 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "关于",
     "en": "About"
   },
+  "settings.title": {
+    "zh-Hans": "我的",
+    "en": "Me"
+  },
+  "settings.devBuild": {
+    "zh-Hans": "开发版",
+    "en": "Dev build"
+  },
   "settings.version": {
     "zh-Hans": "版本",
     "en": "Version"
@@ -515,6 +531,10 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
   "recharge.tier": {
     "zh-Hans": "{amount}",
     "en": "{amount}"
+  },
+  "recharge.openHint": {
+    "zh-Hans": "充值后即开通统一账户",
+    "en": "Topping up opens your unified account"
   },
   "notify.channel.upload": {
     "zh-Hans": "上传",
