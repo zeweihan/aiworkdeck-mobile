@@ -1,1 +1,1 @@
-Now available worldwide, with an English App Store listing. No functional changes.
+Fixed a camera black screen that could occur when switching back to photos after recording audio. Improved camera recovery and switching between capture modes.
