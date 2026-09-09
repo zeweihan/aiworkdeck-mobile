@@ -14,6 +14,7 @@ import type { Metrics } from '../../utils/layout'
 import { PRODUCTS } from '../../utils/contract/products'
 import { t } from '../../utils/i18n'
 import { formatMoney } from '../../utils/money'
+import { reportDiag } from '../../utils/diag'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
@@ -77,6 +78,8 @@ function wxLogin(): Promise<string> {
 }
 
 type PayResult = 'ok' | 'cancelled' | 'failed'
+/** 最近一次微信支付 fail 的原文（errCode + errMsg），失败提示里带上，真机才能定位（dev-board#427） */
+let lastPayError = ''
 
 /**
  * 唤起虚拟支付。signData 原样透传：这一串是服务端签名时用的原文，
@@ -94,8 +97,12 @@ function requestVirtualPayment(order: RechargeOrder): Promise<PayResult> {
       paySig,
       signature,
       success: () => resolve('ok'),
-      fail: (err: { errMsg?: string }) =>
-        resolve(String(err && err.errMsg ? err.errMsg : '').indexOf('cancel') >= 0 ? 'cancelled' : 'failed'),
+      fail: (err: { errMsg?: string; errCode?: number; errno?: number }) => {
+        const msg = String(err && err.errMsg ? err.errMsg : '')
+        const code = err && (err.errCode !== undefined ? err.errCode : err.errno)
+        lastPayError = `${code !== undefined ? code + ' ' : ''}${msg}`
+        resolve(msg.indexOf('cancel') >= 0 ? 'cancelled' : 'failed')
+      },
     }
     wx.requestVirtualPayment(option as unknown as WechatMiniprogram.RequestVirtualPaymentOption)
   })
@@ -142,7 +149,12 @@ Page({
       const placed = await this.placeOrder(tier, true)
       if (placed.pay !== 'ok') {
         // 取消与失败都**不清**幂等键：同一档再点一次要复用同一把键，不能变成两笔单
-        this.settle(placed.pay === 'cancelled' ? t('recharge.cancelled') : t('recharge.failed'))
+        if (placed.pay === 'cancelled') {
+          this.settle(t('recharge.cancelled'))
+        } else {
+          reportDiag('支付失败', lastPayError || '(微信未返回 errMsg)')
+          this.settle(`${t('recharge.failed')} ${lastPayError}`.trim())
+        }
         return
       }
       if (await this.pollUntilPaid(placed.outTradeNo)) {

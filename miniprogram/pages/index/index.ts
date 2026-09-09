@@ -15,6 +15,7 @@ import { getSession, getSelectedProject, type RelayProject } from '../../utils/a
 import { listItems, tallyFor, subscribe, pollStatus, processQueue, enqueueCapture, type QueueItem } from '../../utils/queue'
 import { dotClass, projectId, tallyTotal, PHASE_LABEL, type Tally } from '../../utils/phase'
 import { t } from '../../utils/i18n'
+import { reportDiag } from '../../utils/diag'
 import { startRecording, stopRecording, isRecording, resumeIfInterrupted } from '../../utils/recorder'
 import { CAPS, DEGRADED_NOTICE } from '../../utils/contract/capabilities'
 import { thumbFor, setVideoThumb, markThumbBroken } from '../../utils/thumbs'
@@ -161,7 +162,9 @@ Page({
     resumeIfInterrupted()
 
     this.visible = true
-    this.mountCamera()
+    // 安卓从别的页面返回时，上一块原生相机可能还没释放；晚一拍再挂，避免新实例初始化失败
+    // 变成一块盖住整页的白画布（dev-board#536）。首次进入也走这条，300ms 肉眼无感。
+    setTimeout(() => { if (this.visible) this.mountCamera() }, 300)
 
     this.refresh()
     if (!this.unsubscribe) {
@@ -295,7 +298,8 @@ Page({
     this.setData({ cameraState: 'ready' })
   },
 
-  onCameraError() {
+  onCameraError(e?: { detail?: { errMsg?: string } }) {
+    reportDiag('相机错误', String(e && e.detail && e.detail.errMsg ? e.detail.errMsg : '(无 errMsg)'))
     // 权限被拒与初始化失败走同一个降级态：明示 + 去设置 + 系统相机兜底
     if (this.data.recording && this.data.mode === 'video') {
       this.stopRecordUi()
