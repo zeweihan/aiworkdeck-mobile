@@ -15,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.aiworkdeck.mobile.ScreenshotMode
 import com.aiworkdeck.mobile.design.tr
 
 /**
@@ -62,6 +63,8 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
         /** 唯一名去重：已经排队/在跑的一份就够了，新的一份直接让位（KEEP）。 */
         fun enqueue(context: Context) {
+            // 截图模式下队列里摆的是灌进去的假件，一上传就会被打成 failed，那正是要拍的三段状态
+            if (ScreenshotMode.enabled) return
             val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
             val request = OneTimeWorkRequestBuilder<UploadWorker>()
                 .setConstraints(constraints)

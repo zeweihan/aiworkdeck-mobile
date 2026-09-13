@@ -101,6 +101,17 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     fun bootstrap() {
         viewModelScope.launch {
+            // 上架截图模式：不碰网络、不起上传，只把界面摆到「已登录 + 桌面端在线」这一格。
+            // 影像与当前项目由 capture 脚本灌进应用私有目录，这里照常从磁盘读。
+            if (ScreenshotMode.enabled) {
+                _isSignedIn.value = true
+                _account.value = ScreenshotMode.account
+                _selectedProject.value = prefs.selectedProject
+                _desktopOnline.value = true
+                refresh()
+                _didRestore.value = true
+                return@launch
+            }
             // 本地有会话就直接进主界面。这里只判断「有没有」，会话是否还有效交给第一次真实
             // 请求的 401——启动多打一次网络请求会让离线开 App 卡住，而离线拍照正是主场景。
             _isSignedIn.value = backend.hasSession()

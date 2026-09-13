@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.aiworkdeck.mobile.AppModel
+import com.aiworkdeck.mobile.ScreenshotMode
 import com.aiworkdeck.mobile.design.Fonts
 import com.aiworkdeck.mobile.design.Hairline
 import com.aiworkdeck.mobile.design.Tk
@@ -34,7 +35,6 @@ import com.aiworkdeck.mobile.model.RelayProject
 import com.aiworkdeck.mobile.services.ServiceLocator
 import com.aiworkdeck.mobile.services.Unauthorized
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 /**
  * 选归档目标。登录后必走一次——不选项目就不知道照片该往哪去，与其让人先拍完再问，
@@ -50,6 +50,12 @@ fun ProjectPickerScreen(model: AppModel) {
 
     suspend fun load() {
         loading = true; error = null
+        // 截图机器上没有桌面端，项目列表本来是空态；截图模式给三条演示项目
+        if (ScreenshotMode.enabled) {
+            projects = ScreenshotMode.projects
+            loading = false
+            return
+        }
         try {
             projects = backend.myProjects()
         } catch (_: Unauthorized) {
@@ -74,7 +80,7 @@ fun ProjectPickerScreen(model: AppModel) {
             Eyebrow(tr("project.eyebrow"))
             Text(tr("project.title"), style = Fonts.display(), color = Tk.L.fg)
             Text(
-                text = tr("project.hint", mapOf("date" to LocalDate.now().toString())),
+                text = tr("project.hint", mapOf("date" to ScreenshotMode.archiveDate())),
                 style = Fonts.micro(), color = Tk.L.fgFaint,
             )
         }

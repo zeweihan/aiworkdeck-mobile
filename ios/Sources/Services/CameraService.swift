@@ -58,6 +58,11 @@ final class CameraService: NSObject {
     // MARK: - 生命周期
 
     func start() async {
+#if DEBUG
+        // 截图模式一律不点相机。守在这里而不是调用点：进前台、切模式、浮层收起
+        // 都会各自 start() 一次，漏一处就是一张带权限弹窗的截图。
+        if Shot.isOn { return }
+#endif
         guard await ensureAuthorized(.video) else {
             permissionDenied = true
             return
@@ -361,6 +366,14 @@ final class LocationStamper: NSObject, CLLocationManagerDelegate {
     }
 
     func begin() {
+#if DEBUG
+        // 截图模式给一个固定坐标与精度（规格要「±5 米」），不真起定位——
+        // 模拟器没有位置，弹出的授权框还会挡住截图。
+        if Shot.isOn {
+            last = Shot.location
+            return
+        }
+#endif
         if manager.authorizationStatus == .notDetermined {
             manager.requestWhenInUseAuthorization()
         }

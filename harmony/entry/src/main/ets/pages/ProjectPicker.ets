@@ -4,6 +4,7 @@ import { Tk } from '../design/Tokens'
 import { RelayProject, projectId } from '../model/Capture'
 import { Unauthorized } from '../model/Envelope'
 import { formatDay } from '../model/Format'
+import { ScreenshotMode } from '../ScreenshotMode'
 import { ServiceLocator } from '../services/ServiceLocator'
 import { errorText } from './Feedback'
 
@@ -36,7 +37,7 @@ export struct ProjectPicker {
           Text(tr('project.title'))
             .fontSize(Tk.Ty.display)
             .fontColor(Tk.L.fg)
-          Text(tr('project.hint', { 'date': formatDay(Date.now()) }))
+          Text(tr('project.hint', { 'date': formatDay(ScreenshotMode.archiveMs(Date.now())) }))
             .fontSize(Tk.Ty.micro)
             .fontColor(Tk.L.fgFaint)
         }
@@ -177,6 +178,12 @@ export struct ProjectPicker {
   }
 
   private async loadAsync(): Promise<void> {
+    // 截图机器上没有桌面端，项目列表本来是空态；截图模式给三条演示项目
+    if (ScreenshotMode.enabled) {
+      this.projects = ScreenshotMode.projects
+      this.loading = false
+      return
+    }
     try {
       this.projects = await ServiceLocator.backend.myProjects()
     } catch (e) {

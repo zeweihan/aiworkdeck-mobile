@@ -132,7 +132,16 @@ struct SettingsView: View {
             }
             .background(T.L.bg)
             // 进页面拉一次用量。失败静默——占位「—」比一条报错更符合这行信息的分量
-            .task { usage = try? await API.shared.mediaUsage() }
+            .task {
+#if DEBUG
+                // 截图模式不打网络请求：等超时只会截到一行「—」
+                if Shot.isOn {
+                    usage = API.MediaUsage(usedBytes: Shot.usage.used, quotaBytes: Shot.usage.quota)
+                    return
+                }
+#endif
+                usage = try? await API.shared.mediaUsage()
+            }
             // 读余额永不建号（C1）：这是一次纯读，未关联时服务端也不会替用户建号。
             // 按 kind 分支，不匹配 message 措辞（C2）；网络错误或解码失败一并落到
             // .unavailable。NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT 归并成 .hidden——
@@ -176,6 +185,11 @@ struct SettingsView: View {
     /// 按 kind 分支，不匹配 message 措辞（C2）；网络错误或解码失败一并落到 `.failed(nil)`，
     /// 怎么渲染见 `plan`。
     private func loadBalance() async {
+#if DEBUG
+        // 截图模式不打网络请求。余额行留在 .unknown（整行不渲染）——
+        // 上架截图上摆一个编出来的余额，等于对着审核和用户报一个假数。
+        if Shot.isOn { return }
+#endif
         if let result = try? await API.shared.billingBalance() {
             switch result {
             case .ok(let b): balanceState = .ok(b)

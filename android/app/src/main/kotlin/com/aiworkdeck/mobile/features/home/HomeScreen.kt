@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.aiworkdeck.mobile.AppModel
 import com.aiworkdeck.mobile.Overlay
+import com.aiworkdeck.mobile.ScreenshotMode
 import com.aiworkdeck.mobile.design.Fonts
 import com.aiworkdeck.mobile.design.Hairline
 import com.aiworkdeck.mobile.design.StatusDot
@@ -72,7 +73,6 @@ import com.aiworkdeck.mobile.services.RecordingState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.LocalDate
 
 /** 三档采集模式。录音走前台服务 [RecordingService]，不经过相机会话——麦克风不需要点亮摄像头。 */
 private enum class CapMode { photo, video, audio }
@@ -100,7 +100,7 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     val previewView = remember { PreviewView(context) }
 
     var mode by remember { mutableStateOf(CapMode.photo) }
-    var loc by remember { mutableStateOf<Loc?>(null) }
+    var loc by remember { mutableStateOf(if (ScreenshotMode.enabled) ScreenshotMode.loc else null) }
     var now by remember { mutableStateOf(Instant.now()) }
     var flash by remember { mutableStateOf(false) }
 
@@ -137,6 +137,7 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     // 定位每 10 秒续一次，按快门时直接取最近一次的结果：现场按下快门到落库不能等 GPS。
     // 拿不到新定位就留着上一次的，不清空——上一次的坐标仍然说明「在这栋楼」。
     LaunchedEffect(hasLocation) {
+        if (ScreenshotMode.enabled) return@LaunchedEffect
         while (hasLocation) {
             stamper.current()?.let { loc = it }
             delay(10_000)
@@ -144,6 +145,8 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     }
 
     LaunchedEffect(mode, hasCamera) {
+        // 截图模式下取景区贴的是静态照，PreviewView 根本没挂进树，绑相机只会白烧一次会话
+        if (ScreenshotMode.stage != null) return@LaunchedEffect
         if (!hasCamera) return@LaunchedEffect
         if (mode == CapMode.audio) camera.unbind()
         else runCatching { camera.bind(previewView, if (mode == CapMode.photo) CameraService.Mode.photo else CameraService.Mode.video) }
@@ -230,6 +233,19 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
             when {
                 mode == CapMode.audio -> AudioStage(hasMic, RecordingState.isRecording, elapsed, context)
                 !hasCamera -> PermissionStage(tr("home.permission.camera"), context)
+                // 截图模式：模拟器没有相机，取景区贴一张静态现场照，水印照常叠上去
+                ScreenshotMode.stage != null -> {
+                    AsyncImage(
+                        model = ScreenshotMode.stage,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Watermark(
+                        now = ScreenshotMode.stamp(now), projectName = project?.name.orEmpty(), loc = loc,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(Tk.Sp.s3),
+                    )
+                }
                 else -> {
                     CameraPreview(previewView, Modifier.fillMaxSize())
                     Watermark(
@@ -294,7 +310,10 @@ private fun Header(
 
         Text(projectName, style = Fonts.title(), color = Tk.D.fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-            tr("home.archiveTo", mapOf("path" to tr("archive.path", mapOf("date" to LocalDate.now().toString())))),
+            tr(
+                "home.archiveTo",
+                mapOf("path" to tr("archive.path", mapOf("date" to ScreenshotMode.archiveDate()))),
+            ),
             style = Fonts.nano(), color = Color.White.copy(alpha = 0.4f),
         )
         Box(Modifier.fillMaxWidth().heightIn(min = 28.dp).clickable(onClick = onOpenQueue), contentAlignment = Alignment.CenterStart) {

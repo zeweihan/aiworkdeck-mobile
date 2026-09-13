@@ -17,6 +17,7 @@ import {
 } from '../services/Permissions'
 import { RecorderService } from '../services/RecorderService'
 import { RecordingState } from '../services/RecordingState'
+import { ScreenshotMode } from '../ScreenshotMode'
 import { ServiceLocator } from '../services/ServiceLocator'
 import { errorText, toast } from './Feedback'
 
@@ -99,6 +100,8 @@ export struct Home {
 
   aboutToAppear(): void {
     this.alive = true
+    // 模拟器没有 GPS（一直「定位中」）：截图模式给一个固定的 ±5 米
+    if (ScreenshotMode.enabled) this.locSnapshot = ScreenshotMode.loc
     this.token = AppModel.shared.subscribe((): void => this.syncModel())
     this.recToken = RecorderService.shared.state.subscribe((): void => this.syncRecording())
     this.lifeToken = AppModel.shared.subscribeLifecycle((foreground: boolean): void => {
@@ -208,7 +211,13 @@ export struct Home {
    */
   @Builder
   stage() {
-    if (this.mode !== CapMode.audio && this.hasCamera) {
+    // 截图模式：模拟器没有相机，取景区贴一张静态现场照（debug-only，见 ScreenshotMode）
+    if (this.mode !== CapMode.audio && ScreenshotMode.stagePath.length > 0) {
+      Image(fileUri.getUriFromPath(ScreenshotMode.stagePath))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+    } else if (this.mode !== CapMode.audio && this.hasCamera) {
       XComponent({ type: XComponentType.SURFACE, controller: this.xctl })
         .onLoad((): void => {
           this.surfaceId = this.xctl.getXComponentSurfaceId()
@@ -317,7 +326,8 @@ export struct Home {
         .fontColor(Tk.D.fg)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(tr('home.archiveTo', { 'path': tr('archive.path', { 'date': formatDay(Date.now()) }) }))
+      Text(tr('home.archiveTo',
+        { 'path': tr('archive.path', { 'date': formatDay(ScreenshotMode.archiveMs(Date.now())) }) }))
         .fontSize(Tk.Ty.nano)
         .fontColor(Tk.D.fgMuted)
       Text(this.tallyText)
@@ -698,7 +708,8 @@ export struct Home {
   }
 
   private refreshStamp(): void {
-    this.stampLines = watermarkLines(Date.now(), this.projectName, this.locSnapshot)
+    this.stampLines = watermarkLines(
+      ScreenshotMode.archiveMs(Date.now()), this.projectName, this.locSnapshot)
   }
 
   private syncModel(): void {

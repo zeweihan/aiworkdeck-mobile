@@ -1,1 +1,1 @@
-Fixed a camera black screen that could occur when switching back to photos after recording audio. Improved camera recovery and switching between capture modes.
+Added account balance and recharge: top up your account via in-app purchase from Settings, with the balance credited instantly.

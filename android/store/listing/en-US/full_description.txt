@@ -1,20 +1,26 @@
-Field evidence capture that files itself into the right project folder on your computer.
+For professionals working on site — capture it, and it's already filed into the project.
 
-Due diligence, audits, factory inspections, site acceptance — photos and video shot on site normally have to be exported and sorted one by one once you are back at your desk. AI WorkDeck Mobile removes that step: shoot on your phone, and each capture is queued and delivered into the "Site Media / date" folder of that project on your computer.
+Lawyers running due diligence, auditors doing stocktakes, engineers inspecting factories and sites — the photos, video and audio shot on location usually mean exporting, renaming and sorting one by one back at the office. AI WorkDeck Mobile removes that step: shoot on your phone, and each capture is queued and delivered straight into the "Site Media / date" folder of that project on your computer, alongside the rest of the project's files on the desktop app.
 
-Hashed at capture time
-Every capture gets a SHA-256 digest computed as it is written, recorded alongside capture time, GPS coordinates and accuracy, device model and OS version. The digest is produced on device and does not depend on a network connection.
+A verifiable fingerprint on every capture
+A SHA-256 digest is computed the moment a capture is written, recorded together with capture time, GPS coordinates and accuracy, device model and OS version. The digest is generated on device and doesn't depend on a network connection.
 
-Originals stay out of the system photo library
-Captures are kept inside the app by default rather than written to your camera roll, so work material does not mix with personal photos. "Also save to Photos" can be enabled in Settings.
+Work captures, kept apart from personal photos
+Captures live in the app's own library, grouped by project and by day, separate from your personal photos. Whether a copy also goes to Photos is a single switch in Settings.
 
-A visible upload queue
-Waiting, transferring and delivered are shown separately. Nothing is lost to a dropped connection or to quitting the app — transfers resume when you come back.
+Nothing lost to a dropped connection
+Uploading, staged and delivered are shown as separate states. Losing signal or quitting the app doesn't lose a file — it picks back up when you return.
 
-Deleted only after the desktop confirms
-The cloud is a relay only. The relayed copy is deleted as soon as the desktop app confirms the file landed on disk; the 7-day expiry is a backstop, not the main mechanism.
+The cloud is only a relay
+The relayed copy is deleted as soon as the desktop app confirms the file has landed on disk; the 7-day expiry is a backstop, not the main mechanism.
 
-Photo, video and audio
-All three capture modes share one viewfinder and file into the same project folder.
+Photo, video and audio in one viewfinder
+All three capture modes share one screen and file into the same project folder. Audio recording keeps going in the background and resumes automatically after a call interrupts it.
+
+One phone, every matter you're on
+Switch projects and each capture files itself into the right folder.
+
+Who it's for
+Due diligence and site visits for law firms, audit stocktakes for accounting firms, supply-chain factory inspections, site acceptance for engineering, insurance surveys, and anyone whose work is document-driven and needs what happens on site brought back into the project.
 
 Note: the app interface is currently in Simplified Chinese only. An AI WorkDeck account and the AI WorkDeck desktop app are required.

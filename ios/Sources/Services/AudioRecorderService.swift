@@ -85,6 +85,16 @@ final class AudioRecorderService: NSObject {
         recorder?.stop()
     }
 
+#if DEBUG
+    /// 只给上架截图用：摆出「正在录」的展示状态，不真开麦克风。
+    /// 真录一段要麦克风权限弹窗 + 宿主机的麦克风，两样都会把截图搞脏。
+    func beginFakeRecording(seconds: Int) {
+        guard Shot.isOn else { return }
+        isRecording = true
+        recordingSeconds = seconds
+    }
+#endif
+
     private func start(projectName: String) async {
         guard await ensureAuthorized() else {
             permissionDenied = true

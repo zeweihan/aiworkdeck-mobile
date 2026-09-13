@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8" />
+<title>AI WorkDeck 移动应用运营流程图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1600px;
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: #0d221b;
+    color: #eef5f1;
+    padding: 56px 64px 64px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .subtitle {
+    font-size: 16px;
+    color: rgba(238, 245, 241, 0.6);
+    margin-bottom: 40px;
+  }
+  .lane {
+    margin-bottom: 44px;
+  }
+  .lane-label {
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0d221b;
+    background: #7fd9a8;
+    padding: 6px 16px;
+    border-radius: 999px;
+    margin-bottom: 20px;
+  }
+  .lane-label.alt {
+    background: #ffd580;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+  }
+  .step {
+    flex: 1;
+    background: linear-gradient(180deg, #163a2d 0%, #10281f 100%);
+    border: 1px solid rgba(127, 217, 168, 0.35);
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    min-height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .arrow {
+    flex: 0 0 40px;
+    text-align: center;
+    font-size: 24px;
+    color: rgba(238, 245, 241, 0.55);
+  }
+  .note {
+    margin-top: 40px;
+    font-size: 13px;
+    color: rgba(238, 245, 241, 0.5);
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+  <h1>AI WorkDeck 移动应用运营流程图</h1>
+  <div class="subtitle">微信开放平台「移动应用」提交材料 · 2026-09-13</div>
+
+  <div class="lane">
+    <div class="lane-label">取证主流程</div>
+    <div class="row">
+      <div class="step">登录</div>
+      <div class="arrow">→</div>
+      <div class="step">选择项目</div>
+      <div class="arrow">→</div>
+      <div class="step">拍摄 / 录像 / 录音</div>
+      <div class="arrow">→</div>
+      <div class="step">加密上传至中转区</div>
+      <div class="arrow">→</div>
+      <div class="step">桌面端拉取落盘</div>
+      <div class="arrow">→</div>
+      <div class="step">中转副本删除</div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="lane-label alt">充值流程</div>
+    <div class="row">
+      <div class="step">设置</div>
+      <div class="arrow">→</div>
+      <div class="step">账户与充值</div>
+      <div class="arrow">→</div>
+      <div class="step">选择档位</div>
+      <div class="arrow">→</div>
+      <div class="step">微信支付</div>
+      <div class="arrow">→</div>
+      <div class="step">余额入账<br /><span style="font-weight:400;font-size:13px;color:rgba(238,245,241,0.6)">（服务端回调）</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    原图不进系统相册，云端只做中转；桌面端确认落盘后立即删除中转副本，7 天有效期仅为兜底机制。
+  </div>
+</body>
+</html>

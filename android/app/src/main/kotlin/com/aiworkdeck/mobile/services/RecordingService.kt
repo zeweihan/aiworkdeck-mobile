@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.aiworkdeck.mobile.MainActivity
+import com.aiworkdeck.mobile.ScreenshotMode
 import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.model.MediaKind
 import com.aiworkdeck.mobile.model.RelayProject
@@ -104,7 +105,8 @@ class RecordingService : Service() {
             } finally {
                 withContext(Dispatchers.Main) { finishService() }
             }
-            ServiceLocator.queueOrNull()?.kick()
+            // 截图模式下不踢队列：kick() 会把灌进去的「上传中」当尸体复位成「待传」
+            if (!ScreenshotMode.enabled) ServiceLocator.queueOrNull()?.kick()
         }
     }
 

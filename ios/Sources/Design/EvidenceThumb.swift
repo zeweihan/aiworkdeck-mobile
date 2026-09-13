@@ -57,6 +57,11 @@ actor ThumbLoader {
         let key = "\(id.uuidString)-\(Int(maxPixel))" as NSString
         if let hit = cache.object(forKey: key) { return hit }
 
+        // 截图模式的种子素材只有 jpg，录像那一件也指着 jpg：按图片解就行，
+        // 抽帧只会失败成占位块。Release 里这一段不编进去，走原样。
+#if DEBUG
+        let kind = Shot.isOn && kind == .video ? .photo : kind
+#endif
         let img: UIImage? = switch kind {
         case .photo: photoThumb(url: url, maxPixel: maxPixel)
         case .video: await videoThumb(url: url, maxPixel: maxPixel)
