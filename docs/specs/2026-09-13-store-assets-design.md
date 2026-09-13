@@ -27,7 +27,7 @@ dev-board 主卡 #617（iOS #618 / 安卓 #619 / 鸿蒙 #620）。2026-09-13。
 | 7 | 设置页（云端中转用量 + 本地原图说明） | 云端只做中转 | 桌面端确认落盘后立即删除中转副本，本地原图不会被自动删除 | The cloud is only a relay | Deleted the moment your desktop confirms; local originals are never auto-deleted |
 | 8 | 项目选择器（多个在办项目） | 一部手机，服务所有在办项目 | 切换项目，影像各归各的目录 | One phone, every matter you are on | Switch projects; each capture files itself into the right folder |
 
-安卓 / 鸿蒙第 6 张副题改为「常驻通知里看得见时长，切应用不中断」/ "Duration stays in the notification; switching apps doesn't stop it"。
+安卓第 6 张副题改为「常驻通知里看得见时长，切应用不中断」/ "Duration stays in the notification; switching apps doesn't stop it"；鸿蒙的系统长时任务通知不带时长，改为「切到后台、锁屏也继续录，来电中断后自动续录」/ "Keeps recording in the background and picks up again after a call"。
 
 ## 3. 视觉系统
 
