@@ -86,8 +86,8 @@
           "en-US": { "subtitle": "Duration stays in the notification; switching apps doesn't stop it" }
         },
         "harmony": {
-          "zh-Hans": { "subtitle": "常驻通知里看得见时长，切应用不中断" },
-          "en-US": { "subtitle": "Duration stays in the notification; switching apps doesn't stop it" }
+          "zh-Hans": { "subtitle": "切到后台、锁屏也继续录，来电中断后自动续录" },
+          "en-US": { "subtitle": "Keeps recording in the background and picks up again after a call" }
         }
       }
     },
