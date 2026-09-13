@@ -1,0 +1,117 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>wechat open platform operation flow</title>
+<!--
+  微信开放平台「应用运营流程图」。官方定义是「App 安装到手机后运行起来的界面截图」，
+  所以这里是真机截图串，不是框图。由 compose.mjs --flow 驱动 window.renderFlow(payload)。
+  配色与 frame.html 同源（docs/design/app-icon-1024-dark-green.png：#08462C / #68D7AC）。
+-->
+<style>
+  :root {
+    --brand-green: #08462c;
+    --brand-mint: #68d7ac;
+    --paper: #f6f8f7;      /* 极浅灰底 */
+    --shot-edge: rgba(8, 70, 44, 0.14);
+    --step-num: #08462c;
+    --step-text: #1d2b25;
+    --arrow: #3d8f68;
+    --font-zh: "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--paper); -webkit-font-smoothing: antialiased; }
+
+  #flow {
+    background: var(--paper);
+    font-family: var(--font-zh);
+    padding: 26px 34px 30px;
+  }
+
+  #head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 18px;
+  }
+  #head b { font-size: 21px; font-weight: 700; color: var(--brand-green); letter-spacing: -0.01em; }
+  #head span { font-size: 14px; color: #5a6b62; }
+
+  #row { display: flex; align-items: flex-start; }
+
+  .step { display: flex; flex-direction: column; align-items: center; }
+
+  .shot {
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid var(--shot-edge);
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(8, 70, 44, 0.1);
+  }
+  .shot img { display: block; width: 100%; height: 100%; }
+
+  .label {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 15px;
+    color: var(--step-text);
+    white-space: nowrap;
+  }
+  .label i {
+    font-style: normal;
+    font-weight: 700;
+    font-size: 12px;
+    color: #fff;
+    background: var(--step-num);
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .arrow {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+  }
+  .arrow svg { display: block; }
+</style>
+
+<div id="flow">
+  <div id="head"><b>AI WorkDeck</b><span>应用运行流程（安卓真机截图）</span></div>
+  <div id="row"></div>
+</div>
+
+<script>
+  window.renderFlow = (p) => {
+    const row = document.getElementById("row");
+    row.innerHTML = "";
+    p.steps.forEach((s, i) => {
+      if (i > 0) {
+        const a = document.createElement("div");
+        a.className = "arrow";
+        a.style.height = p.shotH + "px";
+        a.innerHTML =
+          '<svg width="' + p.arrowW + '" height="22" viewBox="0 0 40 22">' +
+          '<path d="M2 11 H30" stroke="var(--arrow)" stroke-width="2.4" stroke-linecap="round" fill="none"/>' +
+          '<path d="M26 5 L34 11 L26 17" stroke="var(--arrow)" stroke-width="2.4" ' +
+          'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+        row.appendChild(a);
+      }
+      const step = document.createElement("div");
+      step.className = "step";
+      step.style.width = p.shotW + "px";
+      step.innerHTML =
+        '<div class="shot" style="width:' + p.shotW + "px;height:" + p.shotH + 'px">' +
+        '<img src="' + s.src + '" alt="">' +
+        '</div><div class="label"><i>' + (i + 1) + "</i>" + s.text + "</div>";
+      row.appendChild(step);
+    });
+    const r = document.getElementById("flow").getBoundingClientRect();
+    return { width: Math.round(r.width), height: Math.ceil(r.height) };
+  };
+</script>

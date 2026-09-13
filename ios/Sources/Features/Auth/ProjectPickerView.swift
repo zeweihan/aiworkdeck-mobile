@@ -130,6 +130,14 @@ struct ProjectPickerView: View {
 
     private func load() async {
         loading = true; error = nil
+#if DEBUG
+        // 截图模式不打网络请求：等超时会截到一屏「正在读取」
+        if Shot.isOn {
+            projects = Shot.projects
+            loading = false
+            return
+        }
+#endif
         do {
             projects = try await API.shared.myProjects()
         } catch {

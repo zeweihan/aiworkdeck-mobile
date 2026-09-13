@@ -8,6 +8,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { CaptureItem, MediaKind, RelayProject } from '../model/Capture'
 import { Loc } from '../model/Loc'
 import { RecordingState } from './RecordingState'
+import { ScreenshotMode } from '../ScreenshotMode'
 import { ServiceLocator } from './ServiceLocator'
 
 const DOMAIN: number = 0x0000
@@ -167,9 +168,12 @@ export class RecorderService {
     }
     hilog.info(DOMAIN, TAG, '%{public}s', 'recording stored')
     // 上传不挡着返回：界面等的是「这一件已经进库」，传没传出去是队列自己的事
-    ServiceLocator.queue.kick().catch((e: Object): void => {
-      hilog.warn(DOMAIN, TAG, 'kick failed: %{public}s', messageOf(e))
-    })
+    // 截图模式下队列里摆的是灌进去的假件，一上传就会被打成 failed
+    if (!ScreenshotMode.enabled) {
+      ServiceLocator.queue.kick().catch((e: Object): void => {
+        hilog.warn(DOMAIN, TAG, 'kick failed: %{public}s', messageOf(e))
+      })
+    }
     const cb: ((item: CaptureItem) => void) | null = this.onStored
     if (cb !== null) cb(item)
     return item

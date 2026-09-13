@@ -56,3 +56,8 @@ android/.kotlin/
 # Python 字节码
 __pycache__/
 *.pyc
+
+# 商店截图管线的预演产物（占位原始屏合成），不入库
+scripts/store-shots/out-preview/
+scripts/store-shots/raw/
+ios/DerivedData-release/

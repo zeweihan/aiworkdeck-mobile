@@ -1,0 +1,314 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>store shot frame</title>
+<!--
+  商店截图合成模板。由 scripts/store-shots/compose.mjs 通过 window.render(payload) 驱动。
+  颜色取自 docs/design/app-icon-1024-dark-green.png（主色 #08462C，点缀 #68D7AC）。
+  别手改这里的文案；文案在 captions.json。
+-->
+<style>
+  :root {
+    /* 采样自 docs/design/app-icon-1024-dark-green.png */
+    --brand-green: #08462c;   /* 图标底色（主色） */
+    --brand-mint: #68d7ac;    /* 图标笔画色（点缀） */
+    --grad-top: #0d6541;      /* 渐变上端：主色提亮 */
+    --grad-mid: #08462c;      /* 渐变中段：主色本身 */
+    --grad-bottom: #031f14;   /* 渐变下端：主色压暗（不用纯黑） */
+    --title: #ffffff;
+    --subtitle: rgba(255, 255, 255, 0.72);
+    --bezel: #05130d;
+    --bezel-edge: rgba(255, 255, 255, 0.16);
+    --notch: #000000;
+
+    --font-zh: "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", "Heiti SC", sans-serif;
+    --font-en: "SF Pro Display", "SF Pro Text", "Inter", system-ui, "Helvetica Neue", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--grad-mid);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  #stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 55% at 50% 0%, rgba(104, 215, 172, 0.22) 0%, rgba(104, 215, 172, 0) 62%),
+      linear-gradient(180deg, var(--grad-top) 0%, var(--grad-mid) 46%, var(--grad-bottom) 100%);
+  }
+
+  /* 底部一层极淡的薄荷光晕，避免下半部分死沉 */
+  #stage::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -18%;
+    width: 130%;
+    height: 46%;
+    transform: translateX(-50%);
+    background: radial-gradient(50% 50% at 50% 50%, rgba(104, 215, 172, 0.13) 0%, rgba(104, 215, 172, 0) 70%);
+    pointer-events: none;
+  }
+
+  #header {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--header-gap, 14px);
+  }
+
+  #title {
+    font-family: var(--font-zh);
+    font-weight: 700;
+    color: var(--title);
+    letter-spacing: var(--title-tracking, -0.01em);
+    line-height: 1.2;
+    width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  #subtitle {
+    font-family: var(--font-zh);
+    font-weight: 400;
+    color: var(--subtitle);
+    line-height: 1.45;
+    width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  body[data-locale="en-US"] #title,
+  body[data-locale="en-US"] #subtitle { font-family: var(--font-en); }
+  body[data-locale="en-US"] #title { letter-spacing: -0.018em; }
+
+  /* ---- 设备边框 ---- */
+  #device {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bezel);
+    border: 1px solid var(--bezel-edge);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.55),
+      0 30px 70px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+
+  #screen {
+    position: absolute;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill; /* 尺寸由 compose.mjs 按原始屏宽高比算好，这里 1:1 不变形 */
+  }
+
+  /* iOS 灵动岛胶囊 */
+  #island {
+    position: absolute;
+    background: var(--notch);
+    border-radius: 999px;
+    display: none;
+  }
+  body[data-frame="ios"] #island { display: block; }
+
+  /* 安卓 / 鸿蒙 打孔摄像头 */
+  #punch {
+    position: absolute;
+    background: var(--notch);
+    border-radius: 50%;
+    display: none;
+  }
+  body[data-frame="punch"] #punch { display: block; }
+
+  /* ---- 1024×500 宣传图 ---- */
+  body[data-mode="feature"] #stage {
+    display: flex;
+    align-items: center;
+    gap: 6.2%;
+    padding: 0 7%;
+  }
+  #feature-icon {
+    flex: 0 0 auto;
+    width: 30%;
+    aspect-ratio: 1 / 1;
+    border-radius: 22.5%;
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  }
+  #feature-icon img { display: block; width: 100%; height: 100%; }
+  #feature-text { flex: 1 1 auto; min-width: 0; }
+  #feature-title {
+    font-family: var(--font-en);
+    font-weight: 700;
+    color: var(--title);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+  #feature-sub {
+    font-family: var(--font-zh);
+    font-weight: 500;
+    color: var(--subtitle);
+    line-height: 1.35;
+    margin-top: 3.2%;
+  }
+  body[data-locale="en-US"] #feature-sub { font-family: var(--font-en); }
+  #feature-rule {
+    width: 16%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--brand-mint);
+    margin-top: 5.5%;
+  }
+</style>
+
+<div id="stage">
+  <div id="header">
+    <div id="title"></div>
+    <div id="subtitle"></div>
+  </div>
+  <div id="device">
+    <div id="screen">
+      <img id="shot" alt="" />
+      <div id="island"></div>
+      <div id="punch"></div>
+    </div>
+  </div>
+
+  <div id="feature-icon" hidden><img id="feature-img" alt="" /></div>
+  <div id="feature-text" hidden>
+    <div id="feature-title"></div>
+    <div id="feature-rule"></div>
+    <div id="feature-sub"></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function lineCount(el) {
+    const lh = parseFloat(getComputedStyle(el).lineHeight);
+    return Math.round(el.scrollHeight / lh);
+  }
+
+  /**
+   * 在 box 高度内把文字缩到「不溢出且不超过 maxLines 行」的最大字号。
+   * 返回最终字号（px）。
+   */
+  function fitText(el, startPx, minPx, maxLines, boxPx) {
+    let size = startPx;
+    while (size > minPx) {
+      el.style.fontSize = size + "px";
+      if (lineCount(el) <= maxLines && el.scrollHeight <= boxPx + 0.5) return size;
+      size -= 0.5;
+    }
+    el.style.fontSize = minPx + "px";
+    return minPx;
+  }
+
+  /**
+   * 只量不画：给定字号上限，返回这段文字所需的字号。compose.mjs 先跑一遍
+   * 8 张取最小值，再统一渲染，保证同一端同一语言的字号一致。
+   */
+  window.measure = (p) => {
+    layout(p);
+    const titleSize = fitText($("title"), p.type.titleStart, p.type.titleMin, p.type.titleMaxLines, p.type.titleBox);
+    const subSize = fitText($("subtitle"), p.type.subStart, p.type.subMin, p.type.subMaxLines, p.type.subBox);
+    return { titleSize, subSize };
+  };
+
+  window.render = (p) => {
+    layout(p);
+    $("title").style.fontSize = p.type.titleSize + "px";
+    $("subtitle").style.fontSize = p.type.subSize + "px";
+    // 溢出自检：任何一项为真都让 compose.mjs 报错停下
+    const t = $("title"), s = $("subtitle");
+    return {
+      titleLines: lineCount(t),
+      subLines: lineCount(s),
+      titleOverflow: t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1,
+      subOverflow: s.scrollHeight > s.clientHeight + 1 || s.scrollWidth > s.clientWidth + 1,
+      headerOverflow: $("header").scrollHeight > $("header").clientHeight + 1,
+      headerBottom: $("header").getBoundingClientRect().bottom,
+      deviceTop: $("device").getBoundingClientRect().top,
+      deviceBottom: $("device").getBoundingClientRect().bottom,
+    };
+  };
+
+  function layout(p) {
+    document.body.dataset.locale = p.locale;
+    document.body.dataset.frame = p.frame;           // "ios" | "punch"
+    document.body.dataset.mode = p.mode || "shot";   // "shot" | "feature"
+
+    if (p.mode === "feature") return layoutFeature(p);
+
+    $("title").textContent = p.title;
+    $("subtitle").textContent = p.subtitle;
+    $("shot").src = p.shot;
+
+    const h = $("header");
+    h.style.top = p.header.top + "px";
+    h.style.left = p.header.side + "px";
+    h.style.right = p.header.side + "px";
+    h.style.height = p.header.height + "px";
+    h.style.setProperty("--header-gap", p.header.gap + "px");
+
+    const d = $("device");
+    d.style.width = p.device.w + "px";
+    d.style.height = p.device.h + "px";
+    d.style.top = p.device.top + "px";
+    d.style.borderRadius = p.device.radius + "px";
+
+    const sc = $("screen");
+    sc.style.left = p.device.bezel + "px";
+    sc.style.top = p.device.bezel + "px";
+    sc.style.width = p.device.screenW + "px";
+    sc.style.height = p.device.screenH + "px";
+    sc.style.borderRadius = Math.max(0, p.device.radius - p.device.bezel * 0.7) + "px";
+
+    const isl = $("island");
+    isl.style.width = p.cutout.w + "px";
+    isl.style.height = p.cutout.h + "px";
+    isl.style.top = p.cutout.top + "px";
+    isl.style.left = (p.device.screenW - p.cutout.w) / 2 + "px";
+
+    const pu = $("punch");
+    pu.style.width = p.cutout.d + "px";
+    pu.style.height = p.cutout.d + "px";
+    pu.style.top = p.cutout.top + "px";
+    pu.style.left = (p.device.screenW - p.cutout.d) / 2 + "px";
+  }
+
+  function layoutFeature(p) {
+    $("header").hidden = true;
+    $("device").hidden = true;
+    $("feature-icon").hidden = false;
+    $("feature-text").hidden = false;
+    $("feature-img").src = p.icon;
+    $("feature-title").textContent = p.title;
+    $("feature-sub").textContent = p.subtitle;
+    $("feature-title").style.fontSize = p.type.titleSize + "px";
+    $("feature-sub").style.fontSize = p.type.subSize + "px";
+  }
+</script>

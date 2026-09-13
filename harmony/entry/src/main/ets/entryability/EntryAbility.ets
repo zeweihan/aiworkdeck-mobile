@@ -5,6 +5,7 @@ import BuildProfile from 'BuildProfile';
 import { AppModel } from '../AppModel';
 import { RelayProject } from '../model/Capture';
 import { ServiceLocator } from '../services/ServiceLocator';
+import { ScreenshotMode } from '../ScreenshotMode';
 
 const DOMAIN: number = 0x0000;
 
@@ -20,7 +21,11 @@ export default class EntryAbility extends UIAbility {
     // 装配在这里而不是页面里：后台上传任务与录音服务（Task 5）都要拿同一批实例，
     // 装配两遍就等于两条互不知情的队列。
     ServiceLocator.init(this.context);
-    this.seeding = this.seedDebugProject(want);
+    // 上架截图模式（debug-only，见 ScreenshotMode）。必须在上界面之前定下来。
+    ScreenshotMode.configure(want);
+    this.seeding = ScreenshotMode.enabled
+      ? ScreenshotMode.seed(this.context)
+      : this.seedDebugProject(want);
     hilog.info(DOMAIN, 'workdeck', '%{public}s', 'EntryAbility onCreate');
   }
 

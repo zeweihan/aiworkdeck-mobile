@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,12 @@ class MainActivity : ComponentActivity() {
                 }.onFailure { albumLogger.warning("存相册失败: ${it.message}") }
             }
         }
+        // 上架截图模式（debug-only，见 ScreenshotMode）。必须在 bootstrap 之前定下来。
+        ScreenshotMode.configure(
+            on = intent.getBooleanExtra(ScreenshotMode.EXTRA, false),
+            screen = intent.getStringExtra(ScreenshotMode.EXTRA_SCREEN),
+            filesDir = filesDir,
+        )
         model.bootstrap()
         setContent { Root(model) }
     }
@@ -85,6 +92,21 @@ fun Root(model: AppModel) {
     var overlay by remember { mutableStateOf(Overlay.None) }
     // 全屏看大图的目标：同一天的件 + 起始下标。它盖在图集之上，图集盖在取景器之上。
     var viewer by remember { mutableStateOf<Pair<List<CaptureItem>, Int>?>(null) }
+
+    // 上架截图：由启动参数直接落到某一屏，不靠脚本点坐标（debug-only，见 ScreenshotMode）
+    val shotItems by model.currentItems.collectAsStateWithLifecycle()
+    LaunchedEffect(shotItems, ScreenshotMode.screen) {
+        when (ScreenshotMode.screen) {
+            "queue" -> overlay = Overlay.Queue
+            "library" -> overlay = Overlay.Library
+            "settings" -> overlay = Overlay.Settings
+            "viewer" -> {
+                overlay = Overlay.Library
+                val shown = shotItems.filter { it.kind != com.aiworkdeck.mobile.model.MediaKind.audio }
+                if (shown.isNotEmpty() && viewer == null) viewer = shown to 0
+            }
+        }
+    }
 
     val dark = didRestore && isSignedIn && project != null
     WorkdeckTheme(dark = dark) {

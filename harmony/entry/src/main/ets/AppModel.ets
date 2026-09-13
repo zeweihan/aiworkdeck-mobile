@@ -8,6 +8,7 @@ import { AlbumSaver } from './services/AlbumSaver'
 import { AccountUser, MediaUsage } from './services/ApiTypes'
 import { Loc } from './model/Loc'
 import { RecorderService } from './services/RecorderService'
+import { ScreenshotMode } from './ScreenshotMode'
 import { ServiceLocator } from './services/ServiceLocator'
 
 const DOMAIN: number = 0x0000
@@ -94,6 +95,19 @@ export class AppModel {
   async bootstrap(): Promise<void> {
     if (this.booted) return
     this.booted = true
+    // 上架截图模式：不碰网络、不起心跳，只把界面摆到「已登录 + 桌面端在线」这一格。
+    // 影像与当前项目由 ScreenshotMode.seed() 摊进沙盒，这里照常从磁盘读。
+    if (ScreenshotMode.enabled) {
+      this.signedIn = true
+      this.account = ScreenshotMode.account
+      this.desktopLastSeenMs = Date.now()
+      this.selectedProject = await this.readSelectedProject()
+      // 先把磁盘读完再换路由：Root 在换路由那一下就要按 items 决定查看器看哪一段
+      await this.refresh()
+      this.route = this.routeForState()
+      this.emit()
+      return
+    }
     try {
       await ServiceLocator.store.sweepOrphans()
     } catch (e) {
@@ -245,9 +259,12 @@ export class AppModel {
     ALBUM.saveIfEnabled(item).then((): void => this.scheduleRefresh()).catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'album save failed: %{public}s', messageOf(e))
     })
-    ServiceLocator.queue.kick().catch((e: Object): void => {
-      hilog.warn(DOMAIN, TAG, 'kick failed: %{public}s', messageOf(e))
-    })
+    // 截图模式下队列里摆的是灌进去的假件，一上传就会被打成 failed，那正是要拍的三段状态
+    if (!ScreenshotMode.enabled) {
+      ServiceLocator.queue.kick().catch((e: Object): void => {
+        hilog.warn(DOMAIN, TAG, 'kick failed: %{public}s', messageOf(e))
+      })
+    }
     return item
   }
 
@@ -288,9 +305,11 @@ export class AppModel {
     this.refresh().catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'foreground refresh failed: %{public}s', messageOf(e))
     })
-    ServiceLocator.queue.autoKick().catch((e: Object): void => {
-      hilog.warn(DOMAIN, TAG, 'foreground autoKick failed: %{public}s', messageOf(e))
-    })
+    if (!ScreenshotMode.enabled) {
+      ServiceLocator.queue.autoKick().catch((e: Object): void => {
+        hilog.warn(DOMAIN, TAG, 'foreground autoKick failed: %{public}s', messageOf(e))
+      })
+    }
     // 通话结束后用户直接切回应用的那条路上不一定有状态事件，回前台补问一次续录
     RecorderService.shared.resumeIfInterrupted().catch((e: Object): void => {
       hilog.warn(DOMAIN, TAG, 'foreground resume failed: %{public}s', messageOf(e))

@@ -1,5 +1,9 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppModel, Route } from '../AppModel'
+import { MediaKind } from '../model/Capture'
+import { CaptureItem } from '../model/Capture'
+import { ScreenshotMode } from '../ScreenshotMode'
+import { ViewerRequest } from './ViewerRequest'
 import { Tk } from '../design/Tokens'
 import { Home } from './Home'
 import { Library } from './Library'
@@ -57,6 +61,28 @@ struct Root {
     else if (this.route === Route.projects) this.stack.pushPath(new NavPathInfo(PAGE_PROJECTS, ''), false)
     else if (this.route === Route.home) this.stack.pushPath(new NavPathInfo(PAGE_HOME, ''), false)
     // boot：什么都不推，露出 Navigation 自己那张与主界面同色的空屏
+    this.applyScreenshotScreen()
+  }
+
+  /**
+   * 上架截图：由启动参数（`--ps awdScreen queue`）直接落到某一屏，不靠 uitest 点坐标
+   * （debug-only，见 ScreenshotMode）。查看器另外还要一个起始件，由 Viewer 页自己取第一件。
+   */
+  private applyScreenshotScreen(): void {
+    if (!ScreenshotMode.enabled || this.route !== Route.home) return
+    const s: string = ScreenshotMode.screen
+    if (s === 'queue') this.stack.pushPath(new NavPathInfo(PAGE_QUEUE, ''), false)
+    else if (s === 'library') this.stack.pushPath(new NavPathInfo(PAGE_LIBRARY, ''), false)
+    else if (s === 'settings') this.stack.pushPath(new NavPathInfo(PAGE_SETTINGS, ''), false)
+    else if (s === 'viewer') {
+      const shown: CaptureItem[] = AppModel.shared.currentItems()
+        .filter((i: CaptureItem): boolean => i.kind !== MediaKind.audio)
+      if (shown.length === 0) return
+      ViewerRequest.ids = shown.map((i: CaptureItem): string => i.id)
+      ViewerRequest.index = 0
+      this.stack.pushPath(new NavPathInfo(PAGE_LIBRARY, ''), false)
+      this.stack.pushPath(new NavPathInfo(PAGE_VIEWER, ''), false)
+    }
   }
 
   @Builder

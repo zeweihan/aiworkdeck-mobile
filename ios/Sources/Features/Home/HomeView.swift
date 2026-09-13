@@ -51,6 +51,17 @@ struct HomeView: View {
                 Task { await model.store(data: data, kind: .audio, at: at, location: loc) }
             }
             stamper.begin()
+#if DEBUG
+            // 截图模式不点相机、不录音：模拟器没有摄像头，权限弹窗还会挡住画面。
+            // 第 6 屏要的是「录音进行中」的首页，直接把录音的展示状态摆出来。
+            if Shot.isOn {
+                if Shot.screen == 6 {
+                    mode = .audio
+                    recorder.beginFakeRecording(seconds: 12 * 60 + 41)
+                }
+                return
+            }
+#endif
             if mode != .audio { await camera.start() }
         }
         .onChange(of: mode) { _, m in
@@ -199,6 +210,17 @@ struct HomeView: View {
         ZStack {
             if mode == .audio {
                 audioStage
+            } else if let seed = screenshotSeed {
+                // 模拟器没有摄像头，取景区是全黑的。截图模式下用一张现场照片顶上，
+                // 水印照旧叠在上面——叠加层本来就与相机会话无关。
+                GeometryReader { geo in
+                    Image(uiImage: seed)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
+                .overlay(alignment: .bottomLeading) { watermark }
             } else if camera.permissionDenied {
                 denied
             } else {
@@ -249,8 +271,21 @@ struct HomeView: View {
         return String(format: "%.5f, %.5f · ±%.0fm", l.lat, l.lon, l.accuracy)
     }
 
+    /// 截图模式下取景区放哪一张现场照片。Release 里恒为 nil，走真相机。
+    private var screenshotSeed: UIImage? {
+#if DEBUG
+        Shot.isOn ? Shot.sceneImage(Shot.screen) : nil
+#else
+        nil
+#endif
+    }
+
     private static func stamp(_ d: Date) -> String {
-        stampFormatter.string(from: d)
+#if DEBUG
+        // 水印上的秒也要定住：同一屏截两次不该差一秒
+        if Shot.isOn { return stampFormatter.string(from: Shot.stampDate) }
+#endif
+        return stampFormatter.string(from: d)
     }
 
     private static let stampFormatter: DateFormatter = {

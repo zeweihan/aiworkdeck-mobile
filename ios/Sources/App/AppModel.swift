@@ -34,6 +34,10 @@ final class AppModel {
     private(set) var didRestore = false
 
     static var today: String {
+#if DEBUG
+        // 截图模式把「今天」钉在归档日期上，否则水印上的真实日期与归档路径对不上
+        if Shot.isOn { return Shot.dateString }
+#endif
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
     }
@@ -71,6 +75,9 @@ final class AppModel {
 
     /// 拍完立刻踢一脚队列。不等用户手动点上传——现场没人会记得点。
     func kickUpload() {
+#if DEBUG
+        if Shot.isOn { return }
+#endif
         Task { await UploadQueue.shared.kick() }
     }
 
@@ -103,6 +110,9 @@ final class AppModel {
 
     /// 查投递回执：停在中转区的影像被桌面端取走后改成「已抵达」。
     func checkDelivered() {
+#if DEBUG
+        if Shot.isOn { return }
+#endif
         Task {
             cloudExpiry = await UploadQueue.shared.checkDelivered()
             await refresh()
@@ -127,6 +137,11 @@ final class AppModel {
     }
 
     func refresh() async {
+#if DEBUG
+        // 截图模式的画面全在内存里（Shot.items），本地仓库是空的——
+        // 这里照常读一次就会把演示数据冲成空屏（队列页每 20 秒问一次回执，第一下就冲没了）。
+        if Shot.isOn { return }
+#endif
         do {
             items = try await EvidenceStore.shared.loadAll()
         } catch {
@@ -135,16 +150,15 @@ final class AppModel {
     }
 
 #if DEBUG
-    /// 只给截图流程用：跳过登录与网络，直接摆出 DemoData 的画面。
+    /// 只给截图流程用：跳过登录与网络，直接摆出 Shot 的画面。
     private func seedForScreenshots() {
-        account = AccountUser(id: 1, username: "demo", displayName: "演示账号",
-                              avatarUrl: "", role: "USER")
-        // 项目要和 DemoData.recent 里每件记的项目一致：计数与图集现在都按件内项目派生，
+        account = Shot.account
+        // 项目要和 Shot.items 里每件记的项目一致：计数与图集现在都按件内项目派生，
         // 对不上就是一屏「0 / 0 / 0」
-        selectedProject = DemoData.relay
-        project = DemoData.project
-        items = DemoData.recent
-        link = DemoData.link
+        selectedProject = Shot.project
+        project = Shot.field
+        items = Shot.items
+        link = Shot.link
         didRestore = true
     }
 #endif
@@ -153,7 +167,7 @@ final class AppModel {
 #if DEBUG
         // 上架截图用的假状态。**只编进 Debug**——截图本来就不需要 Release 包，
         // 而把演示数据留在发行二进制里，早晚会有人在真机上撞进这条分支。
-        if ProcessInfo.processInfo.arguments.contains("-AWDScreenshotMode") {
+        if Shot.isOn {
             seedForScreenshots()
             return
         }

@@ -1,1 +1,1 @@
-Hashed at capture: SHA-256, time and coordinates travel with every shot, straight into the project folder on your computer.
+For lawyers, auditors and inspection engineers: shoot on your phone, and it's filed with a SHA-256 digest, time and coordinates into your project folder.

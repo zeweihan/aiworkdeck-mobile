@@ -45,6 +45,9 @@ private struct RootView: View {
             if !model.didRestore {
                 // 恢复会话前先给一张与主界面同色的空屏，避免登录页闪一下再跳走
                 Color(T.L.bg).ignoresSafeArea()
+            } else if isScreenshotting {
+                // 上架截图：用启动参数直接落到第 n 屏，不靠坐标点击一层层点进去
+                screenshotStage
             } else if !model.isSignedIn {
                 // 外壳浅色。取景首页与影像浏览自己强制深色，不跟随系统——
                 // 那两处的深色是功能性的，不是主题偏好。
@@ -61,6 +64,57 @@ private struct RootView: View {
         .animation(T.A.base, value: model.isSignedIn)
         .animation(T.A.base, value: model.selectedProject)
     }
+
+    /// Release 里恒为 false，整段截图分支被优化掉。
+    private var isScreenshotting: Bool {
+#if DEBUG
+        Shot.isOn
+#else
+        false
+#endif
+    }
+
+    /// 第 n 屏对应哪一页，见 docs/specs/2026-09-13-store-assets-design.md §2。
+    /// 1 / 2 首页取景，3 队列，4 图集，5 查看器，6 录音中，7 设置，8 项目选择器。
+    @ViewBuilder
+    private var screenshotStage: some View {
+#if DEBUG
+        switch Shot.screen {
+        case 3:
+            QueueView(onClose: {}).environment(model).preferredColorScheme(.light)
+        case 4:
+            LibraryView(onClose: {}).environment(model).preferredColorScheme(.dark)
+        case 5:
+            screenshotViewer
+        case 7:
+            SettingsView(onClose: {}).environment(model).preferredColorScheme(.light)
+        case 8:
+            ProjectPickerView().environment(model).preferredColorScheme(.light)
+        default:
+            HomeView(paused: false, onOpenLibrary: {}, onOpenQueue: {}, onOpenSettings: {})
+                .environment(model)
+                .preferredColorScheme(.dark)
+        }
+#else
+        EmptyView()
+#endif
+    }
+
+#if DEBUG
+    /// 查看器直接铺满，不必先进图集再点开——它本来就是全屏页。
+    @ViewBuilder
+    private var screenshotViewer: some View {
+        let day = LibraryGrouping.days(model.currentItems).first
+        let items = day?.items ?? []
+        if items.isEmpty {
+            Color(T.D.bg).ignoresSafeArea()
+        } else {
+            // 挑一张已落盘的照片：顶栏的状态点、时间、哈希前缀都要有内容
+            let i = items.firstIndex { $0.kind == .photo && $0.state == .arrived } ?? 0
+            ViewerView(items: items, index: i, onClose: {})
+        }
+    }
+#endif
 
     private var signedIn: some View {
         HomeView(
