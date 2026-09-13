@@ -11,16 +11,33 @@ struct SettingsView: View {
     @State private var albumError: String?
     @State private var usage: API.MediaUsage?
     @State private var balanceState: BalanceState = .unknown
+    @State private var showRecharge = false
 
-    /// 还没读完时（`.unknown`）与 `.hidden`（NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT）
-    /// 都不渲染余额那一行——前者避免加载中的一瞬间闪一下无意义占位再消失（N6：三态统一成
-    /// 「未知态不渲染」，不是先显示占位再消失），后者是三个永远不会自己恢复的终态，
-    /// 渲染成「稍后再试」是让用户对一句永不改变的报错反复重试（dev-board#425 二轮复审 N2）。
+    /// 本端走内购（契约 capabilities.recharge = "iap"）。取这个值而不是写死 true：
+    /// 契约改成别的通道时这一行会跟着变，界面不会偷偷留着一个错的入口。
+    private static let canRecharge = ContractCapabilities.recharge == "iap"
+
+    /// 还没读完时（`.unknown`）不渲染余额那一行，避免加载中闪一下无意义占位再消失
+    /// （N6：未知态不渲染，不是先显示占位再消失）。失败态怎么渲染**不在这里判**，
+    /// 交给 `API.balanceRowPlan`（唯一来源是 contract/schema/billing.schema.json 的 UI 映射，
+    /// 与小程序 utils/money.ts 逐条对齐）——自从 iOS 有了充值入口，NOT_CONNECTED 与
+    /// DISABLED / REVIEW_ACCOUNT 的呈现不再一样（dev-board#535）。
     private enum BalanceState {
         case unknown
         case ok(API.BillingBalance)
-        case hidden
-        case unavailable
+        case failed(API.BillingKind?)
+    }
+
+    /// 余额行 + 充值入口的渲染方案；`.unknown` 时两个都不渲染。
+    private var plan: API.BalanceRowPlan {
+        switch balanceState {
+        case .unknown:
+            return API.BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil)
+        case .ok:
+            return API.BalanceRowPlan(showRow: true, showRecharge: Self.canRecharge, textKey: nil)
+        case .failed(let kind):
+            return API.balanceRowPlan(kind: kind, canRecharge: Self.canRecharge)
+        }
     }
 
     var body: some View {
@@ -73,9 +90,22 @@ struct SettingsView: View {
 
                     group(tr("settings.account")) {
                         infoRow(tr("settings.signedIn"), model.account?.displayName ?? "—")
-                        // 还没读完 / .hidden 时整行不渲染，见 BalanceState 上的注释。
+                        // 还没读完时整行不渲染，见 BalanceState 上的注释。
                         if let caption = balanceCaption {
                             infoRow(tr("balance.title"), caption)
+                        }
+                        // 充值入口与余额行分开算：NOT_CONNECTED 时行在、入口也要在
+                        // （dev-board#535：触发 NOT_CONNECTED 的正是最该去充值把账户开出来的人）。
+                        if plan.showRecharge {
+                            Button(tr("recharge.entry")) { showRecharge = true }
+                                .font(T.F.small())
+                                .foregroundStyle(T.L.accent)
+                                .frame(minHeight: T.touchMin, alignment: .leading)
+                            if case .failed(.notConnected) = balanceState {
+                                Text(tr("recharge.openHint"))
+                                    .font(T.F.nano())
+                                    .foregroundStyle(T.L.fgFaint)
+                            }
                         }
                         infoRow(tr("settings.server"), Backend.baseURL.host ?? "—")
                         Button(tr("common.signOut")) { model.signOut(); onClose() }
@@ -107,21 +137,15 @@ struct SettingsView: View {
             // 按 kind 分支，不匹配 message 措辞（C2）；网络错误或解码失败一并落到
             // .unavailable。NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT 归并成 .hidden——
             // 三者都不会自己恢复，整行不渲染（N2）；映射表见 API.decodeBillingBalance。
-            .task {
-                if let result = try? await API.shared.billingBalance() {
-                    switch result {
-                    case .ok(let b): balanceState = .ok(b)
-                    case .hidden: balanceState = .hidden
-                    case .unavailable: balanceState = .unavailable
-                    }
-                } else {
-                    balanceState = .unavailable
-                }
-            }
+            .task { await loadBalance() }
             .navigationTitle(tr("home.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button(tr("common.close"), action: onClose) }
+            }
+            // 充值回来重拉一次余额：刚充的钱要在这一行上看得见，否则用户不知道到没到账
+            .sheet(isPresented: $showRecharge, onDismiss: { Task { await loadBalance() } }) {
+                RechargeView(onClose: { showRecharge = false })
             }
             // 不可逆，所以用 alert 而不是直接执行；文案要把「删什么、不删什么」
             // 都说全——只写「无法恢复」等于没说清代价。
@@ -145,6 +169,20 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// 读余额永不建号（C1）：这是一次纯读，未关联时服务端也不会替用户建号。
+    /// 按 kind 分支，不匹配 message 措辞（C2）；网络错误或解码失败一并落到 `.failed(nil)`，
+    /// 怎么渲染见 `plan`。
+    private func loadBalance() async {
+        if let result = try? await API.shared.billingBalance() {
+            switch result {
+            case .ok(let b): balanceState = .ok(b)
+            case .failed(let kind): balanceState = .failed(kind)
+            }
+        } else {
+            balanceState = .failed(nil)
         }
     }
 
@@ -193,15 +231,15 @@ struct SettingsView: View {
     }
 
     /// 统一账户余额展示。`nil` 表示这一行整个不渲染——`.unknown` 还没读完（N6：未知态不渲染，
-    /// 不是先显示占位再消失），`.hidden` 是 N2 的修法本身（不给「用同一手机号登录一次桌面端即可
-    /// 关联」这类对多数触发条件都无效的补救指引）；其余一切失败都归并成 balance.unavailable。
+    /// 不是先显示占位再消失），失败态按 `plan` 走（DISABLED / REVIEW_ACCOUNT 整行不渲染，
+    /// 不给对这些终态无效的补救指引）。
     private var balanceCaption: String? {
-        switch balanceState {
-        case .unknown, .hidden: return nil
-        case .ok(let balance):
+        if case .ok(let balance) = balanceState {
             return tr("balance.amount", ["amount": Self.formatAmount(cents: balance.balanceCents, currency: balance.currency)])
-        case .unavailable: return tr("balance.unavailable")
         }
+        let p = plan
+        guard p.showRow, let key = p.textKey else { return nil }
+        return tr(key)
     }
 
     /// 金额展示口径唯一来源：contract/schema/billing.schema.json 的展示口径说明段，

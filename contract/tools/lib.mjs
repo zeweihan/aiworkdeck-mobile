@@ -108,13 +108,11 @@ export const DEGRADED_NOTICE: Record<string, string> = ${q(notice)}
 }
 
 /**
- * 充值档位。只出小程序一份：wxvp 是微信小程序虚拟支付专有的道具表，
- * iOS 走 IAP（档位在 App Store Connect）、安卓走 wxpay-app、鸿蒙本端不做充值，
- * 给它们生成一份用不上的常量只会变成死代码。别端要用时在这里加渲染函数。
+ * 充值档位。**每一端只出它自己那个通道的那一段**：wxvp 是微信小程序虚拟支付专有的道具表，
+ * appstore 是 iOS 内购专有的商品表，互相生成一份用不上的常量只会变成死代码。
+ * 安卓/鸿蒙当前 recharge=external（只放引导入口、不下单），没有档位可给。
  */
 function renderTsProducts(c) {
-  const channels = Object.keys(c.products)
-  const iface = channels.map((ch) => `  ${ch}: readonly ContractProduct[]`).join('\n')
   return H('//') + `export interface ContractProduct {
   /** 微信公众平台上的道具 id */
   productId: string
@@ -123,10 +121,10 @@ function renderTsProducts(c) {
 }
 
 export interface ContractProducts {
-${iface}
+  wxvp: readonly ContractProduct[]
 }
 
-export const PRODUCTS: ContractProducts = ${JSON.stringify(c.products, null, 2)}
+export const PRODUCTS: ContractProducts = ${JSON.stringify({ wxvp: c.products.wxvp }, null, 2)}
 `
 }
 
@@ -154,6 +152,31 @@ ${num('Ty', t.Ty)}
 }
 `
 }
+/**
+ * iOS 档位：只出 appstore 段（见 renderTsProducts 的说明）。**价格不从这里渲染给用户**——
+ * 苹果按买家 storefront 本地化定价，界面上一律用 StoreKit 的 `Product.displayPrice`；
+ * amountCents 是站点币种面值，只用于下单时与官网权威表对账（对不上官网回 400 product_mismatch）。
+ */
+function renderSwiftProducts(c) {
+  const rows = c.products.appstore
+    .map((p) => `        ContractProduct(productId: ${q(p.productId)}, amountCents: ${p.amountCents}),`)
+    .join('\n')
+  return H('//') + `/// App Store Connect 上的消耗型商品。
+struct ContractProduct: Equatable, Sendable {
+    /// App Store Connect 上的商品 id
+    let productId: String
+    /// 站点币种面值，整数分；展示价格用 StoreKit 的 displayPrice，不要拿它自己格式化
+    let amountCents: Int
+}
+
+enum ContractProducts {
+    static let appstore: [ContractProduct] = [
+${rows}
+    ]
+}
+`
+}
+
 const swiftDict = (obj) => `[${Object.entries(obj).map(([k, v]) => `${q(k)}: ${q(v)}`).join(', ')}]`
 function renderSwiftStrings(c) {
   const rows = Object.entries(c.strings).map(([k, v]) => `        ${q(k)}: [${q('zh-Hans')}: ${q(v['zh-Hans'])}, ${q('en')}: ${q(v.en)}],`).join('\n')
@@ -196,7 +219,7 @@ function renderSwiftCaps(c) {
     /// true / false，或 "runtime" 表示运行时探测
     static let glassBlur: String = ${q(String(caps.glassBlur.ios))}
     static let deviceAttestation: Bool = ${caps.deviceAttestation.ios}
-    /// 充值通道："iap" / "virtual" / "wxpay-app"，或 "false" 表示本端不做充值
+    /// 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放
     static let recharge: String = ${q(String(caps.recharge.ios))}
     static let degradedNotice: [String: String] = ${swiftDict(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
@@ -273,7 +296,7 @@ object ContractCapabilities {
     /** "true" / "false" / "runtime" */
     const val glassBlur: String = ${kq(String(caps.glassBlur.android))}
     const val deviceAttestation: Boolean = ${caps.deviceAttestation.android}
-    /** 充值通道："iap" / "virtual" / "wxpay-app"，或 "false" 表示本端不做充值 */
+    /** 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放 */
     const val recharge: String = ${kq(String(caps.recharge.android))}
     val degradedNotice: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
@@ -425,6 +448,7 @@ export function outputs(c) {
     ['ios/Sources/Contract/Strings.swift', renderSwiftStrings(c)],
     ['ios/Sources/Contract/States.swift', renderSwiftStates(c)],
     ['ios/Sources/Contract/Capabilities.swift', renderSwiftCaps(c)],
+    ['ios/Sources/Contract/Products.swift', renderSwiftProducts(c)],
     [`${kt}/Tokens.kt`, renderKtTokens(c)],
     [`${kt}/Strings.kt`, renderKtStrings(c)],
     [`${kt}/States.kt`, renderKtStates(c)],

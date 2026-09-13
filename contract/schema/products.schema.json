@@ -1,14 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "充值档位表（dev-board#427）。**端上的档位列表只能来自这里**，不许在页面里手抄一份价格。\n\n价格的最终权威在官网侧（lib/payments 的权威表）：这里是四端与官网对齐的那一份副本，两边不一致时官网回 400 product_mismatch，Java 译成 REJECTED（fixtures/billing.json 的「档位与金额不符」用例）。改档位的顺序是：先在微信公众平台发布/下架道具，再改官网权威表，最后改这里跑 gen。\n\nwxvp = 微信小程序虚拟支付。微信单个道具上限 100 元，所以 amountCents 封顶 10000，没有 300 档。",
+  "description": "充值档位表（dev-board#427）。**端上的档位列表只能来自这里**，不许在页面里手抄一份价格。\n\n价格的最终权威在官网侧（lib/payments 的权威表）：这里是四端与官网对齐的那一份副本，两边不一致时官网回 400 product_mismatch，Java 译成 REJECTED（fixtures/billing.json 的「档位与金额不符」用例）。改档位的顺序是：先在微信公众平台发布/下架道具，再改官网权威表，最后改这里跑 gen。\n\nwxvp = 微信小程序虚拟支付。微信单个道具上限 100 元，所以 amountCents 封顶 10000，没有 300 档。\n\nappstore = iOS 内购（dev-board#426）。商品在 App Store Connect 上建（大陆版 App 6803309103 的消耗型 credits.cny.50/100/300），id 带点、价格无微信那条 100 元上限，所以与 wxvp 是两套约束。**端上只拿这张表当档位来源，价格文案一律用 StoreKit 的 Product.displayPrice**：苹果按买家 storefront 本地化，这里的 amountCents 只是站点币种面值，用于下单时与官网权威表对账。",
   "type": "object",
-  "required": ["wxvp"],
+  "required": ["wxvp", "appstore"],
   "additionalProperties": false,
   "properties": {
-    "wxvp": { "$ref": "#/$defs/tiers" }
+    "wxvp": { "$ref": "#/$defs/wxvpTiers" },
+    "appstore": { "$ref": "#/$defs/appstoreTiers" }
   },
   "$defs": {
-    "tiers": {
+    "wxvpTiers": {
       "type": "array",
       "minItems": 1,
       "items": {
@@ -18,6 +19,19 @@
         "properties": {
           "productId": { "$comment": "微信公众平台上道具的 id，与 Java 侧的 ^[a-z0-9_]{1,64}$ 同一套约束", "type": "string", "pattern": "^[a-z0-9_]{1,64}$" },
           "amountCents": { "$comment": "整数分，须与公众平台上该道具的价格逐分相等；微信单道具上限 100 元", "type": "integer", "exclusiveMinimum": 0, "maximum": 10000 }
+        }
+      }
+    },
+    "appstoreTiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["productId", "amountCents"],
+        "additionalProperties": false,
+        "properties": {
+          "productId": { "$comment": "App Store Connect 上的消耗型商品 id（反向域名式，带点）", "type": "string", "pattern": "^[a-z0-9.]{1,64}$" },
+          "amountCents": { "$comment": "站点币种（大陆版 CNY）面值，整数分。苹果 JWS 里的 price/currency 是买家 storefront 的本地币种，不能拿来入账——入账面值以这张表与官网 appstore-catalog 为准", "type": "integer", "exclusiveMinimum": 0 }
         }
       }
     }

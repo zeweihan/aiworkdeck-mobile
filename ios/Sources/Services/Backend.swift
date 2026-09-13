@@ -301,21 +301,44 @@ actor API {
         let outTradeNo: String?
     }
 
-    /// 读余额的三种结果，映射表见 contract/schema/billing.schema.json（唯一来源，四端逐条对齐）。
-    /// 本期只有读操作，没有充值界面——ALREADY_PAID / IDEMPOTENCY_CONFLICT 属于下单路径，
-    /// 不会从这个端点出现。
+    /// 读余额的两种结果。**怎么渲染由 `balanceRowPlan` 决定，不在这里收窄**——
+    /// 自从 iOS 有了充值入口（dev-board#426），NOT_CONNECTED 与 DISABLED / REVIEW_ACCOUNT
+    /// 的呈现不再一样（前者要显示余额行 + 充值入口，见 dev-board#535），把 kind 提前拍平成
+    /// 「显 / 不显」就再也分不出来了。kind 缺席（网络错误 / 解码失败 / 非 billing 专有的失败）
+    /// 一律是 `.failed(nil)`，按瞬时故障走 balance.unavailable——绝不能显示成「没有账户」或「余额 0」。
     enum BillingBalanceResult: Sendable {
         case ok(BillingBalance)
-        /// kind ∈ {NOT_CONNECTED, DISABLED, REVIEW_ACCOUNT}：三者都是**永远不会自己恢复的终态**
-        /// （没关联 / 本部署没开这个功能 / 审核演示账号），**整行余额都不渲染**——渲染成
-        /// balance.unavailable 等于让用户对着一句永不改变的「稍后再试」反复重试
-        /// （dev-board#425 二轮复审 N2）。不给误导性的补救指引：读余额一律 create=false，
-        /// 服务端不会替用户建号。
-        case hidden
-        /// 其余一切失败（UNAVAILABLE / NOT_FOUND / REJECTED / kind 缺席 / 网络错误 /
-        /// 解码失败）一律收窄成这一态，界面统一显示 balance.unavailable（稍后重试）——
-        /// 绝不能把上游故障显示成「没有账户」或「余额 0」。
-        case unavailable
+        case failed(BillingKind?)
+    }
+
+    /// 余额那一行与充值入口的渲染方案。
+    struct BalanceRowPlan: Equatable, Sendable {
+        let showRow: Bool
+        let showRecharge: Bool
+        /// 余额行的文案键；nil 表示这一行不渲染文案（整行不渲染，或成功路径直接显示金额）
+        let textKey: String?
+    }
+
+    /// 余额拉失败时该怎么渲染，唯一来源是 contract/schema/billing.schema.json 的 UI 映射
+    /// （一律按 kind 分支，**禁止匹配 message 措辞**）。与小程序 utils/money.ts 的
+    /// `balanceRowForError` 同一张表，逐条对齐：
+    ///  - DISABLED / REVIEW_ACCOUNT：整行不渲染、入口一并收起（本部署没开通 / 审核演示账号，
+    ///    审核员看到的必须是干净的设置页）；
+    ///  - NOT_CONNECTED：有真实支付通道的端（iOS 是 iap）渲染余额行 + balance.notConnected +
+    ///    **充值入口照常可见**——触发它的正是还没有统一账户、最该去充值把账户开出来的那批人，
+    ///    连入口一起藏掉就等于界面上找不到充值口（dev-board#535）；没有充值通道的端整行不渲染；
+    ///  - 其余（含 kind 缺席）：显示 balance.unavailable，入口保持可见——读不到余额不代表下不了单。
+    static func balanceRowPlan(kind: BillingKind?, canRecharge: Bool) -> BalanceRowPlan {
+        switch kind {
+        case .disabled, .reviewAccount:
+            return BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil)
+        case .notConnected:
+            return canRecharge
+                ? BalanceRowPlan(showRow: true, showRecharge: true, textKey: "balance.notConnected")
+                : BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil)
+        default:
+            return BalanceRowPlan(showRow: true, showRecharge: canRecharge, textKey: "balance.unavailable")
+        }
     }
 
     /// 判读裸响应或失败信封——这是 `billingBalance()` 真正在用的判读逻辑，抽成静态函数
@@ -324,17 +347,14 @@ actor API {
     /// 见 `ContractFixturesTests.testBillingBalanceKindMappingFixtures` 与
     /// `testBillingBalanceDecodeFixtures`）。
     static func decodeBillingBalance(status: Int, data: Data) -> BillingBalanceResult {
-        guard (200...299).contains(status) else { return .unavailable }
+        guard (200...299).contains(status) else { return .failed(nil) }
         // 先探 code 字段：出现即失败信封，没有才当裸对象解。反过来先按 BillingBalance
         // 硬解会在信封响应上报「缺字段」解码错误，而不是干净地落到失败分支。
         if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], obj["code"] != nil {
-            switch (try? JSONDecoder().decode(BillingEnvelope.self, from: data))?.kind {
-            case .notConnected, .disabled, .reviewAccount: return .hidden
-            default: return .unavailable
-            }
+            return .failed((try? JSONDecoder().decode(BillingEnvelope.self, from: data))?.kind)
         }
         guard let balance = try? JSONDecoder().decode(BillingBalance.self, from: data) else {
-            return .unavailable
+            return .failed(nil)
         }
         return .ok(balance)
     }
@@ -346,6 +366,156 @@ actor API {
         let (data, resp) = try await send(req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         return Self.decodeBillingBalance(status: status, data: data)
+    }
+
+    // MARK: 充值（iOS 内购，dev-board#426）
+
+    /// 业务失败信封（code 1 + kind）。`kind` 是**机器可读判别位**，调用方一律按它分支；
+    /// `message` 已由服务端 LangText 出成可读话术，原样展示即可，绝不按措辞匹配。
+    struct BillingError: LocalizedError, Sendable {
+        let message: String
+        let kind: BillingKind?
+        /// 只有 ALREADY_PAID / IDEMPOTENCY_CONFLICT 会带：App 被杀、本地没存下单号时靠它恢复。
+        let outTradeNo: String?
+        var errorDescription: String? { message }
+    }
+
+    /// 充值单。契约见 contract/schema/billing.schema.json 的 recharge 段：
+    /// **不适用的键在响应里不出现，解码后一律是 nil，不是空串**。
+    /// present=native 是 iOS 内购（服务端只建单，钱走 StoreKit），此时只有 appAccountToken 有值。
+    struct RechargeOrder: Equatable, Sendable {
+        let present: String
+        let outTradeNo: String
+        let amountCents: Int
+        let codeUrl: String?
+        let qrCode: String?
+        let redirectUrl: String?
+        let signData: String?
+        let paySig: String?
+        let signature: String?
+        /// present=native 必有：UUID，官网建单时落进 orders.providerRef。端上原样传给
+        /// `Product.PurchaseOption.appAccountToken`——StoreKit 2 只有这一个字段能可靠原样
+        /// 回到 JWS 里，这笔单与那笔交易全靠它挂钩。
+        let appAccountToken: String?
+    }
+
+    /// 服务端裸响应原文。可选键缺席时 JSONDecoder 解成 nil，正是契约要的。
+    private struct RawRechargeOrder: Decodable {
+        let present: String
+        let outTradeNo: String
+        let amountCents: Int
+        let codeUrl: String?
+        let qrCode: String?
+        let redirectUrl: String?
+        let signData: String?
+        let paySig: String?
+        let signature: String?
+        let appAccountToken: String?
+    }
+
+    struct RechargeStatus: Decodable, Equatable, Sendable {
+        let status: String
+        let paid: Bool
+        let amountCents: Int
+    }
+
+    /// 空串也当缺席（与小程序 `decodeRechargeOrder` 的 `optional()` 同口径）：
+    /// 契约钉的是「缺席 → null，不是空串」，上游万一出了空串也不该被当成有值。
+    private static func nonEmpty(_ v: String?) -> String? {
+        guard let v, !v.isEmpty else { return nil }
+        return v
+    }
+
+    /// 裸对象成功 / 信封失败共用同一个 200，先探 `code` 字段分流。返回 nil 表示不是失败信封。
+    private static func billingFailure(status: Int, data: Data) -> BillingError? {
+        guard (200...299).contains(status) else {
+            return BillingError(message: tr("recharge.failed"), kind: nil, outTradeNo: nil)
+        }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              obj["code"] != nil else { return nil }
+        let env = try? JSONDecoder().decode(BillingEnvelope.self, from: data)
+        return BillingError(message: env?.message ?? tr("recharge.failed"),
+                            kind: env?.kind, outTradeNo: env?.outTradeNo)
+    }
+
+    /// 下单响应的判读。抽成静态函数是为了让契约夹具直接驱动它
+    /// （见 `ContractFixturesTests.testRechargeOrderDecodeFixtures`）。
+    static func decodeRechargeOrder(status: Int, data: Data) throws -> RechargeOrder {
+        if let failure = billingFailure(status: status, data: data) { throw failure }
+        guard let raw = try? JSONDecoder().decode(RawRechargeOrder.self, from: data) else {
+            throw BillingError(message: tr("recharge.failed"), kind: nil, outTradeNo: nil)
+        }
+        return RechargeOrder(present: raw.present, outTradeNo: raw.outTradeNo, amountCents: raw.amountCents,
+                             codeUrl: nonEmpty(raw.codeUrl), qrCode: nonEmpty(raw.qrCode),
+                             redirectUrl: nonEmpty(raw.redirectUrl), signData: nonEmpty(raw.signData),
+                             paySig: nonEmpty(raw.paySig), signature: nonEmpty(raw.signature),
+                             appAccountToken: nonEmpty(raw.appAccountToken))
+    }
+
+    /// 查单与确认到账共用同一个 RechargeStatus 形状（所以契约里 confirm 不另起夹具段）。
+    static func decodeRechargeStatus(status: Int, data: Data) throws -> RechargeStatus {
+        if let failure = billingFailure(status: status, data: data) { throw failure }
+        guard let s = try? JSONDecoder().decode(RechargeStatus.self, from: data) else {
+            throw BillingError(message: tr("recharge.failed"), kind: nil, outTradeNo: nil)
+        }
+        return s
+    }
+
+    /// POST /api/mobile/billing/recharge 的请求体。**channel=appstore 时不带 wxCode**
+    /// （那是小程序虚拟支付换 openid + session_key 用的，内购这条路上根本没有微信）。
+    /// idempotencyKey 由客户端生成并**先落盘再发**，服务端不代生成。
+    static func rechargeBody(channel: String, productId: String,
+                             amountCents: Int, idempotencyKey: String) -> [String: Any] {
+        ["channel": channel, "productId": productId,
+         "amountCents": amountCents, "idempotencyKey": idempotencyKey]
+    }
+
+    /// POST /api/mobile/billing/recharge/confirm 的请求体。
+    /// outTradeNo **可省**：App 被杀后重放未完成交易时本地可能没存下单号，官网用 JWS 里的
+    /// appAccountToken 反查 providerRef；省掉时这个键不能出现（不是空串）。
+    static func confirmBody(outTradeNo: String?, signedTransaction: String) -> [String: Any] {
+        var body: [String: Any] = ["signedTransaction": signedTransaction]
+        if let outTradeNo, !outTradeNo.isEmpty { body["outTradeNo"] = outTradeNo }
+        return body
+    }
+
+    private func jsonPost(_ path: String, body: [String: Any]) throws -> URLRequest {
+        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return req
+    }
+
+    /// 建单。此时**还没有付钱**：服务端只落一笔 pending 单并给回 appAccountToken。
+    func billingRecharge(channel: String, productId: String,
+                         amountCents: Int, idempotencyKey: String) async throws -> RechargeOrder {
+        let req = try jsonPost("/api/mobile/billing/recharge",
+                               body: Self.rechargeBody(channel: channel, productId: productId,
+                                                       amountCents: amountCents, idempotencyKey: idempotencyKey))
+        let (data, resp) = try await send(req)
+        return try Self.decodeRechargeOrder(status: (resp as? HTTPURLResponse)?.statusCode ?? -1, data: data)
+    }
+
+    /// 把已验签交易的 JWS 交给服务端验签入账。**只有它回 paid 才可以 finish 这笔交易**——
+    /// 提前 finish 等于用户付了钱而我们永久失去入账凭据（design §4 客户端顺序）。
+    func billingRechargeConfirm(outTradeNo: String?, signedTransaction: String) async throws -> RechargeStatus {
+        let req = try jsonPost("/api/mobile/billing/recharge/confirm",
+                               body: Self.confirmBody(outTradeNo: outTradeNo, signedTransaction: signedTransaction))
+        let (data, resp) = try await send(req)
+        return try Self.decodeRechargeStatus(status: (resp as? HTTPURLResponse)?.statusCode ?? -1, data: data)
+    }
+
+    /// 查单。确认链路断了（比如 confirm 超时）时还能靠它看到到账结果。
+    func billingRechargeStatus(outTradeNo: String) async throws -> RechargeStatus {
+        var comps = URLComponents(url: Backend.baseURL.appendingPathComponent("/api/mobile/billing/recharge/status"),
+                                  resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "outTradeNo", value: outTradeNo)]
+        var req = URLRequest(url: comps.url!)
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let (data, resp) = try await send(req)
+        return try Self.decodeRechargeStatus(status: (resp as? HTTPURLResponse)?.statusCode ?? -1, data: data)
     }
 
     /// 把 multipart 信封写成磁盘文件，避免整份载荷进内存。

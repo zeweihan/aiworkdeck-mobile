@@ -142,27 +142,105 @@ final class ContractFixturesTests: XCTestCase {
         }
     }
 
-    /// billing.json 的 envelope 段驱动同一条生产判读路径，钉住 N2 的映射表（唯一来源见
-    /// contract/schema/billing.schema.json）：NOT_CONNECTED / DISABLED / REVIEW_ACCOUNT
-    /// 整行不渲染（`.hidden`）；其余（含 kind 缺席）都是 balance.unavailable（`.unavailable`）。
-    /// 把 `decodeBillingBalance` 里 `case .notConnected, .disabled, .reviewAccount: return .hidden`
-    /// 改坏（比如去掉 `.disabled, .reviewAccount`），这里必须变红——这就是这份测试存在的意义。
+    /// billing.json 的 envelope 段驱动同一条生产判读路径，钉住 UI 映射表（唯一来源见
+    /// contract/schema/billing.schema.json，与小程序 utils/money.ts 的 balanceRowForError 逐条对齐）：
+    /// DISABLED / REVIEW_ACCOUNT 整行不渲染、入口一并收起；NOT_CONNECTED 在有支付通道的端
+    /// （iOS = iap）显示余额行 + balance.notConnected + **充值入口照常可见**（dev-board#535）；
+    /// 其余（含 kind 缺席）显示 balance.unavailable 而入口保持可见。
+    /// 把 `balanceRowPlan` 的任何一条改坏，这里必须变红——这就是这份测试存在的意义。
     func testBillingBalanceKindMappingFixtures() throws {
-        let hiddenKinds: Set<String> = ["NOT_CONNECTED", "DISABLED", "REVIEW_ACCOUNT"]
         for k in try billingSection("envelope") {
             let name = k["name"] as! String
             let json = k["json"] as! [String: Any]
-            let kind = json["kind"] as? String
+            let kindText = json["kind"] as? String
             // ALREADY_PAID / IDEMPOTENCY_CONFLICT 只出现在下单/查单路径，走不到余额端点。
-            if kind == "ALREADY_PAID" || kind == "IDEMPOTENCY_CONFLICT" { continue }
+            if kindText == "ALREADY_PAID" || kindText == "IDEMPOTENCY_CONFLICT" { continue }
             let data = try JSONSerialization.data(withJSONObject: json)
-            let result = API.decodeBillingBalance(status: 200, data: data)
-            if let kind, hiddenKinds.contains(kind) {
-                guard case .hidden = result else { XCTFail("\(name)：kind=\(kind) 应该是 .hidden"); continue }
-            } else {
-                guard case .unavailable = result else {
-                    XCTFail("\(name)：kind=\(kind ?? "nil") 应该是 .unavailable"); continue
+            guard case .failed(let kind) = API.decodeBillingBalance(status: 200, data: data) else {
+                XCTFail("\(name)：失败信封应该解成 .failed"); continue
+            }
+            XCTAssertEqual(kind?.rawValue, kindText, name)
+
+            let plan = API.balanceRowPlan(kind: kind, canRecharge: true)
+            switch kindText {
+            case "DISABLED", "REVIEW_ACCOUNT":
+                XCTAssertEqual(plan, API.BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil), name)
+            case "NOT_CONNECTED":
+                XCTAssertEqual(plan, API.BalanceRowPlan(showRow: true, showRecharge: true,
+                                                        textKey: "balance.notConnected"), name)
+                // 没有支付通道的端仍旧整行不渲染——同一张表的另一半
+                XCTAssertEqual(API.balanceRowPlan(kind: kind, canRecharge: false),
+                               API.BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil), name)
+            default:
+                XCTAssertEqual(plan, API.BalanceRowPlan(showRow: true, showRecharge: true,
+                                                        textKey: "balance.unavailable"), name)
+            }
+        }
+    }
+
+    /// billing.json 的 recharge 段驱动生产解码路径 `API.decodeRechargeOrder`（dev-board#426）：
+    /// 缺席的可选键一律解成 nil、**不是空串**；present=native 的 appAccountToken 必须留住——
+    /// 丢了它这笔单与那笔 StoreKit 交易之间就再没有任何挂钩，苹果也没有按它反查的端点。
+    func testRechargeOrderDecodeFixtures() throws {
+        var presents = Set<String>()
+        for k in try billingSection("recharge") {
+            let name = k["name"] as! String
+            let json = k["json"] as! [String: Any]
+            let expect = k["expect"] as! [String: Any]
+            let order = try API.decodeRechargeOrder(status: 200,
+                                                    data: JSONSerialization.data(withJSONObject: json))
+            XCTAssertEqual(order.present, expect["present"] as! String, name)
+            XCTAssertEqual(order.outTradeNo, expect["outTradeNo"] as! String, name)
+            XCTAssertEqual(order.amountCents, expect["amountCents"] as! Int, name)
+            XCTAssertEqual(order.codeUrl, expect["codeUrl"] as? String, name)
+            XCTAssertEqual(order.qrCode, expect["qrCode"] as? String, name)
+            XCTAssertEqual(order.redirectUrl, expect["redirectUrl"] as? String, name)
+            XCTAssertEqual(order.signData, expect["signData"] as? String, name)
+            XCTAssertEqual(order.paySig, expect["paySig"] as? String, name)
+            XCTAssertEqual(order.signature, expect["signature"] as? String, name)
+            XCTAssertEqual(order.appAccountToken, expect["appAccountToken"] as? String, name)
+            // 键缺席要解成 nil，不能是「读到了一个空值」
+            XCTAssertNotEqual(order.appAccountToken, "", name)
+            presents.insert(order.present)
+        }
+        XCTAssertEqual(presents, ["qrcode", "redirect", "virtual", "native"],
+                       "四种 present 都要对过：只测 qrcode 发现不了 native 把 appAccountToken 解丢")
+    }
+
+    /// billing.json 的 status 段驱动 `API.decodeRechargeStatus`。confirm 与 status 两个端点
+    /// 共用这同一个形状（所以契约里 confirm 不另起夹具段），四种状态都要能解。
+    func testRechargeStatusDecodeFixtures() throws {
+        var seen = Set<String>()
+        for k in try billingSection("status") {
+            let name = k["name"] as! String
+            let json = k["json"] as! [String: Any]
+            let expect = k["expect"] as! [String: Any]
+            let s = try API.decodeRechargeStatus(status: 200,
+                                                 data: JSONSerialization.data(withJSONObject: json))
+            XCTAssertEqual(s.status, expect["status"] as! String, name)
+            XCTAssertEqual(s.paid, expect["paid"] as! Bool, name)
+            XCTAssertEqual(s.amountCents, expect["amountCents"] as! Int, name)
+            seen.insert(s.status)
+        }
+        XCTAssertEqual(seen, ["pending", "paid", "closed", "expired"])
+    }
+
+    /// 下单/确认路径上的失败信封必须抛成带 kind 的 `API.BillingError`，绝不能被当成成功解码。
+    /// ALREADY_PAID / IDEMPOTENCY_CONFLICT 还要把 outTradeNo 带出来——App 被杀、本地没存下单号时
+    /// 全靠它恢复。
+    func testRechargeEnvelopeFailsWithKindFixtures() throws {
+        for k in try billingSection("envelope") {
+            let name = k["name"] as! String
+            let json = k["json"] as! [String: Any]
+            let expect = k["expect"] as! [String: Any]
+            let data = try JSONSerialization.data(withJSONObject: json)
+            XCTAssertThrowsError(try API.decodeRechargeOrder(status: 200, data: data), name) { error in
+                guard let e = error as? API.BillingError else {
+                    XCTFail("\(name)：应该抛 API.BillingError"); return
                 }
+                XCTAssertEqual(e.kind?.rawValue, expect["kind"] as? String, name)
+                XCTAssertEqual(e.outTradeNo, expect["outTradeNo"] as? String, name)
+                XCTAssertEqual(e.message, expect["message"] as? String, name)
             }
         }
     }

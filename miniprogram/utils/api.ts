@@ -286,9 +286,13 @@ export function billingBalance(): Promise<BillingBalance> {
 /** 充值通道。不传这个字段是第一期行为（走站点默认通道）；小程序一律传 wxvp。 */
 export type RechargeChannel = 'wxvp'
 
+/** 契约的 present 全集（contract/schema/billing.schema.json）。小程序只会收到 virtual，
+ *  其余取值照样解码：解码器是契约的实现，不是本页的实现。 */
+export type RechargePresent = 'qrcode' | 'redirect' | 'virtual' | 'native'
+
 /** 服务端裸响应原文：不适用的键**不出现**（服务端 putIfPresent 对 null 与空串都不出键）。 */
 export interface RawRechargeOrder {
-  present: 'qrcode' | 'redirect' | 'virtual'
+  present: RechargePresent
   outTradeNo: string
   amountCents: number
   codeUrl?: string
@@ -297,13 +301,14 @@ export interface RawRechargeOrder {
   signData?: string
   paySig?: string
   signature?: string
+  appAccountToken?: string
 }
 
 /** 解码后的充值单：缺席的可选键一律是 null，不是空串也不是 undefined
  *  （contract/schema/billing.schema.json 的 recharge 段把这条钉死，
  *  contract/fixtures/billing.json 的 recharge 用例逐条对拍）。 */
 export interface RechargeOrder {
-  present: 'qrcode' | 'redirect' | 'virtual'
+  present: RechargePresent
   outTradeNo: string
   amountCents: number
   codeUrl: string | null
@@ -314,6 +319,9 @@ export interface RechargeOrder {
   signData: string | null
   paySig: string | null
   signature: string | null
+  /** present=native（iOS 内购，dev-board#426）：订单与 StoreKit 交易的挂钩 UUID。
+   *  小程序侧永远是 null，留在这里是因为解码器实现的是契约而不是某一端。 */
+  appAccountToken: string | null
 }
 
 export interface RechargeStatus {
@@ -337,6 +345,7 @@ export function decodeRechargeOrder(raw: RawRechargeOrder): RechargeOrder {
     signData: optional(raw.signData),
     paySig: optional(raw.paySig),
     signature: optional(raw.signature),
+    appAccountToken: optional(raw.appAccountToken),
   }
 }
 

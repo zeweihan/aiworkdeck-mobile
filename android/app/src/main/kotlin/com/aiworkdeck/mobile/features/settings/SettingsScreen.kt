@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aiworkdeck.contract.ContractCapabilities
 import com.aiworkdeck.mobile.AppModel
 import com.aiworkdeck.mobile.BuildConfig
 import com.aiworkdeck.mobile.design.Fonts
@@ -53,6 +54,12 @@ import kotlinx.coroutines.launch
 
 /** 用量读不到时的占位。一条「—」比一行报错更符合这行信息的分量。 */
 private const val DASH = "—"
+
+/**
+ * 本端的充值通道，唯一来源是 contract/capabilities.json。当前是 "external"：还没接通支付，
+ * 入口只弹一句「去哪里充」。改回 "wxpay-app"（#428 真接通）时这里会跟着变，界面不会留错入口。
+ */
+private val RECHARGE_CHANNEL: String = ContractCapabilities.recharge
 
 /**
  * 设置。四组：影像（存相册）、归档目标（项目与云端用量）、账号（服务器、退出、注销）、关于。
@@ -74,6 +81,7 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
     // 再消失（dev-board#425 二轮复审 N6）。只有查到「该显示金额」或「该显示错误文案」两条路径
     // 才会把它翻成 false。
     var hideBalanceRow by remember { mutableStateOf(true) }
+    var showRechargeNotice by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
@@ -149,6 +157,14 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     if (!hideBalanceRow) {
                         InfoRow(tr("balance.title"), balanceCaption(balance, balanceErrorKey))
                     }
+                    // 安卓还没接通支付通道（微信开放平台 APP 支付未开通，dev-board#428），
+                    // 契约 capabilities.recharge = "external"：入口照放，点开只说明去哪里充。
+                    // **不跟着余额行显隐**——入口依赖新用户没有的状态正是 2026-09-09
+                    // 「充值在哪」那起事故本身（contract/schema/billing.schema.json 的 UI 映射、
+                    // docs/MOBILE_DEV_DISCIPLINE.md §1）。
+                    if (RECHARGE_CHANNEL != "false") {
+                        TextAction(tr("recharge.entry"), color = Tk.L.accent) { showRechargeNotice = true }
+                    }
                     TextAction(tr("common.signOut"), color = Tk.S.failed) { model.signOut(); onClose() }
                     // 各应用商店的账号删除要求（与 App Store 5.1.1(v)）都指向这个入口。
                     // 放在退出登录下面、字号更小：它比退出重得多，不该长得一样容易误点。
@@ -165,6 +181,18 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     InfoRow(tr("settings.package"), BuildConfig.APPLICATION_ID)
                 }
             }
+        }
+
+        // 本端还不能充值时的说明。只有一个「知道了」：这不是一个待办，是一句去哪儿充的指路。
+        if (showRechargeNotice) {
+            AlertDialog(
+                onDismissRequest = { showRechargeNotice = false },
+                title = { Text(tr("recharge.external.title")) },
+                text = { Text(tr("recharge.external.body")) },
+                confirmButton = {
+                    TextButton(onClick = { showRechargeNotice = false }) { Text(tr("common.close")) }
+                },
+            )
         }
 
         // 不可逆，所以走二次确认；文案把「删什么、不删什么」都说全——
