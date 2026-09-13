@@ -1,4 +1,5 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { ContractCapabilities } from 'contract'
 import { AppModel } from '../AppModel'
 import { tr } from '../design/L10n'
 import { Tk } from '../design/Tokens'
@@ -14,6 +15,13 @@ const TAG: string = 'Settings'
 
 /** 用量读不到时的占位。一条「—」比一行报错更符合这行信息的分量。 */
 const DASH: string = '—'
+
+/**
+ * 本端的充值通道，唯一来源是 contract/capabilities.json。当前是 'external'：鸿蒙没有支付通道，
+ * 入口照放、点开只说明去哪儿充。**不能什么都不渲染**——让用户在界面上找不到充值口正是
+ * 2026-09-09 那起事故（docs/MOBILE_DEV_DISCIPLINE.md §1）。
+ */
+const RECHARGE_CHANNEL: string = ContractCapabilities.recharge
 
 /** 服务器地址只显示主机名——协议与路径对用户没有意义。 */
 function hostOf(url: string): string {
@@ -174,6 +182,13 @@ export struct Settings {
     this.eyebrow(tr('settings.account'))
     this.infoRow(tr('settings.signedIn'), this.accountName())
     this.infoRow(tr('settings.server'), hostOf(BASE_URL))
+    if (RECHARGE_CHANNEL !== 'false') {
+      Text(tr('recharge.entry'))
+        .fontSize(Tk.Ty.small)
+        .fontColor(Tk.L.accent)
+        .height(Tk.touchMin)
+        .onClick((): void => this.showRechargeNotice())
+    }
     Text(tr('common.signOut'))
       .fontSize(Tk.Ty.small)
       .fontColor(Tk.S.failed)
@@ -253,6 +268,19 @@ export struct Settings {
     const pct: number = (u.usedBytes / u.quotaBytes) * 100
     if (pct < 0) return 0
     return pct > 100 ? 100 : pct
+  }
+
+  /** 本端还不能充值时的说明。只有一个「关闭」：这不是待办，是一句去哪儿充的指路。 */
+  private showRechargeNotice(): void {
+    this.getUIContext().showAlertDialog({
+      title: tr('recharge.external.title'),
+      message: tr('recharge.external.body'),
+      autoCancel: true,
+      confirm: {
+        value: tr('common.close'),
+        action: (): void => {},
+      },
+    })
   }
 
   /**

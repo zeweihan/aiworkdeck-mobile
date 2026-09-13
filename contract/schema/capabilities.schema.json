@@ -40,11 +40,11 @@
                       "android": { "$ref": "#/$defs/blur" }, "harmony": { "$ref": "#/$defs/blur" },
                       "degradedNotice": { "$ref": "#/$defs/notice" } } },
     "blur": { "enum": [true, false, "runtime"] },
-    "rechargeRow": { "$comment": "充值通道；false = 本端不做充值", "type": "object",
+    "rechargeRow": { "$comment": "充值通道；external = 本端暂无支付通道，只放入口把用户引到别的端（recharge.external.* 那两句）；false = 本端连入口都不放", "type": "object",
       "required": ["ios", "miniprogram", "android", "harmony"], "additionalProperties": false,
       "properties": { "ios": { "$ref": "#/$defs/channel" }, "miniprogram": { "$ref": "#/$defs/channel" },
                       "android": { "$ref": "#/$defs/channel" }, "harmony": { "$ref": "#/$defs/channel" },
                       "degradedNotice": { "$ref": "#/$defs/notice" } } },
-    "channel": { "enum": ["iap", "virtual", "wxpay-app", false] }
+    "channel": { "enum": ["iap", "virtual", "wxpay-app", "external", false] }
   }
 }

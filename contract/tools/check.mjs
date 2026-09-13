@@ -152,8 +152,10 @@ const FIXTURE_CONSUMERS = {
   billing: {
     balance: ['ios', 'miniprogram', 'android'], envelope: ['ios', 'miniprogram', 'android'],
     // 小程序虚拟支付（dev-board#427）起，recharge / status 两段由 tests/contract.test.ts 走
-    // 生产解码路径消费（readEnvelope + decodeRechargeOrder / decodeRechargeStatus）
-    recharge: ['miniprogram'], status: ['miniprogram'],
+    // 生产解码路径消费（readEnvelope + decodeRechargeOrder / decodeRechargeStatus）；
+    // iOS 内购（dev-board#426）起同样由 ios/Tests/ContractFixturesTests 驱动
+    // API.decodeRechargeOrder / API.decodeRechargeStatus（含 present=native 与 appAccountToken）
+    recharge: ['miniprogram', 'ios'], status: ['miniprogram', 'ios'],
   },
 }
 function checkFixtureConsumers(c, notes) {

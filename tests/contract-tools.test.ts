@@ -77,6 +77,7 @@ test('gen：每个生成物都带 GENERATED 头且落在约定路径', () => {
     'miniprogram/utils/contract/states.ts', 'miniprogram/utils/contract/strings.ts', 'miniprogram/utils/contract/capabilities.ts',
     'miniprogram/utils/contract/products.ts',
     'ios/Sources/Contract/Tokens.swift', 'ios/Sources/Contract/Strings.swift', 'ios/Sources/Contract/States.swift', 'ios/Sources/Contract/Capabilities.swift',
+    'ios/Sources/Contract/Products.swift',
     'android/contract/src/main/kotlin/com/aiworkdeck/contract/Tokens.kt', 'android/contract/src/main/kotlin/com/aiworkdeck/contract/Strings.kt',
     'android/contract/src/main/kotlin/com/aiworkdeck/contract/States.kt', 'android/contract/src/main/kotlin/com/aiworkdeck/contract/Capabilities.kt',
     'harmony/contract/src/main/ets/Tokens.ets', 'harmony/contract/src/main/ets/Strings.ets', 'harmony/contract/src/main/ets/States.ets', 'harmony/contract/src/main/ets/Capabilities.ets', 'harmony/contract/Index.ets',
@@ -197,7 +198,7 @@ test('check：Android Kotlin 内联文案要红', () => {
 test('check：capabilities 端名打错要红（改之前 gen 出 "undefined" 而 check 全绿）', () => {
   const dir = tempCopy()
   const p = join(dir, 'contract', 'capabilities.json')
-  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "wxpay-app"', '"andriod": "wxpay-app"'))
+  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "external"', '"andriod": "external"'))
   const r = runChecks(dir, { quick: true })
   assert.ok(r.problems.some((m) => m.includes('capabilities.json') && m.includes('android')), r.problems.join('\n'))
 })
@@ -205,7 +206,7 @@ test('check：capabilities 端名打错要红（改之前 gen 出 "undefined" �
 test('check：capabilities 取值越界要红', () => {
   const dir = tempCopy()
   const p = join(dir, 'contract', 'capabilities.json')
-  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "wxpay-app"', '"android": "wxpay-ap"'))
+  writeFileSync(p, readFileSync(p, 'utf8').replace('"android": "external"', '"android": "externl"'))
   const r = runChecks(dir, { quick: true })
   assert.ok(r.problems.some((m) => m.includes('capabilities.json') && m.includes('recharge')), r.problems.join('\n'))
 })

@@ -1,0 +1,64 @@
+{
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "50.00",
+      "familyShareable" : false,
+      "internalID" : "6803309151",
+      "localizations" : [
+        {
+          "description" : "为 AI WorkDeck 统一账户充值 50 元额度",
+          "displayName" : "50 元额度",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "credits.cny.50",
+      "referenceName" : "Credits CNY 50",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "100.00",
+      "familyShareable" : false,
+      "internalID" : "6803309152",
+      "localizations" : [
+        {
+          "description" : "为 AI WorkDeck 统一账户充值 100 元额度",
+          "displayName" : "100 元额度",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "credits.cny.100",
+      "referenceName" : "Credits CNY 100",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "300.00",
+      "familyShareable" : false,
+      "internalID" : "6803309153",
+      "localizations" : [
+        {
+          "description" : "为 AI WorkDeck 统一账户充值 300 元额度",
+          "displayName" : "300 元额度",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "credits.cny.300",
+      "referenceName" : "Credits CNY 300",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_locale" : "zh_CN",
+    "_storefront" : "CHN"
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

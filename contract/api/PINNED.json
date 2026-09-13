@@ -1,6 +1,6 @@
 {
-  "serverCommit": "3c1fb90f452bdcb942474f8d1aae0ae85fa35f77",
-  "sha256": "551e19fad4d66cb6048dec63fcd3f2f25899d247f9b04a6afce5489e76a0bceb",
-  "pulledAt": "2026-09-09T07:54:12.551Z",
-  "note": "钉自 /Users/zewei/Documents/2024-2044/5-Tech/1-2 checkba_cloud/.claude/worktrees/wx-phone-login 的干净工作区，照 serverCommit 可复现。"
+  "serverCommit": "929830b89ba4e975b871296746ea7304bf901001",
+  "sha256": "415b5de5ec7f92cdda4fb93224464299251f15420d6873740f8ff46faaa55b03",
+  "pulledAt": "2026-09-13T13:35:23.640Z",
+  "note": "钉自 /Users/zewei/Documents/2024-2044/5-Tech/1-2 checkba_cloud/.claude/worktrees/pin-master 的干净工作区，照 serverCommit 可复现。"
 }

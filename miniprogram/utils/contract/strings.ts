@@ -536,6 +536,34 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "充值后即开通统一账户",
     "en": "Topping up opens your unified account"
   },
+  "recharge.ios.priceLoading": {
+    "zh-Hans": "正在获取价格…",
+    "en": "Loading prices…"
+  },
+  "recharge.ios.storeUnavailable": {
+    "zh-Hans": "暂时无法连接 App Store，请稍后再试",
+    "en": "App Store unavailable. Try again later."
+  },
+  "recharge.ios.pending": {
+    "zh-Hans": "购买已提交，正在确认到账…",
+    "en": "Purchase submitted, confirming…"
+  },
+  "recharge.ios.restore": {
+    "zh-Hans": "恢复未完成的购买",
+    "en": "Restore pending purchases"
+  },
+  "recharge.ios.restoreNone": {
+    "zh-Hans": "没有未完成的购买",
+    "en": "No pending purchases"
+  },
+  "recharge.external.title": {
+    "zh-Hans": "App 内充值开通中",
+    "en": "In-app top-up coming soon"
+  },
+  "recharge.external.body": {
+    "zh-Hans": "请先在微信小程序「AI WorkDeck」的「我的 → 充值」里充值，余额四端通用",
+    "en": "Top up in the WeChat mini program for now; balance is shared across devices"
+  },
   "notify.channel.upload": {
     "zh-Hans": "上传",
     "en": "Uploads"
