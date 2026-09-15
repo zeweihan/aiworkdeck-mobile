@@ -14,6 +14,9 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
       - uses: android-actions/setup-android@v3
+        with:
+          # SDK 源端已下线 `tools` 包，action 默认 packages 含它会让 sdkmanager 退 1（dev-board#668）
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew :app:testIntlDebugUnitTest :app:assembleIntlDebug :app:assembleCnDebug --console=plain
       - name: 大陆变体不得含 GMS
