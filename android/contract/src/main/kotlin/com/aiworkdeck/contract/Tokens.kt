@@ -4,31 +4,31 @@ package com.aiworkdeck.contract
 /** 颜色为 ARGB Long；间距单位 dp，字号单位 sp。 */
 object T {
     object L {
-        const val bg: Long = 0xFFFFFFFFL
-        const val sunken: Long = 0xFFFAFAFAL
-        const val fg: Long = 0xFF0A0E1AL
-        const val fgMuted: Long = 0xFF6B7280L
-        const val fgFaint: Long = 0xFF9CA3AFL
-        const val rule: Long = 0xFFECEEF1L
-        const val ruleStrong: Long = 0xFFD4D8DEL
-        const val accent: Long = 0xFF1E3A8AL
-        const val accentWash: Long = 0xFFF4F6FBL
+        const val bg: Long = 0xFFFCFBF7L
+        const val sunken: Long = 0xFFF1EFE7L
+        const val fg: Long = 0xFF2B2A26L
+        const val fgMuted: Long = 0xFF6B675CL
+        const val fgFaint: Long = 0xFFA8A296L
+        const val rule: Long = 0xFFEAE7DDL
+        const val ruleStrong: Long = 0xFFDDD8CAL
+        const val accent: Long = 0xFF2E5A50L
+        const val accentWash: Long = 0xFFE3EDE9L
     }
     object D {
-        const val bg: Long = 0xFF0A0B0DL
-        const val surface: Long = 0xFF141619L
-        const val fg: Long = 0xFFF5F6F7L
-        const val fgMuted: Long = 0xFF8A8F98L
+        const val bg: Long = 0xFF191713L
+        const val surface: Long = 0xFF221F1AL
+        const val fg: Long = 0xFFEDE9DFL
+        const val fgMuted: Long = 0xFFB0AA9CL
         const val rule: Long = 0x1AFFFFFFL
     }
     object S {
-        const val waiting: Long = 0xFFC2410CL
-        const val moving: Long = 0xFF1E3A8AL
-        const val arrived: Long = 0xFF15803DL
-        const val failed: Long = 0xFFB91C1CL
-        const val waitingOnDark: Long = 0xFFF97316L
-        const val movingOnDark: Long = 0xFF60A5FAL
-        const val arrivedOnDark: Long = 0xFF4ADE80L
+        const val waiting: Long = 0xFF8A6320L
+        const val moving: Long = 0xFF3C5A73L
+        const val arrived: Long = 0xFF2E5A50L
+        const val failed: Long = 0xFFB5483CL
+        const val waitingOnDark: Long = 0xFFD19C3DL
+        const val movingOnDark: Long = 0xFF93B3C6L
+        const val arrivedOnDark: Long = 0xFF89A8A0L
     }
     object Sp {
         const val s1: Int = 4

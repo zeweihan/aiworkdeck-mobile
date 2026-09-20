@@ -14,5 +14,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node contract/tools/check.mjs
+      - run: node scripts/check-palette.mjs
       - run: npm run typecheck
       - run: npm test

@@ -88,8 +88,8 @@ sips -g pixelWidth -g pixelHeight -g hasAlpha fastlane/screenshots/zh-Hans/01.pn
 ## 视觉
 
 - 底色采样自 `docs/design/app-icon-1024-dark-green.png`：
-  主色 **`#08462C`**（图标底），点缀 **`#68D7AC`**（图标笔画）。
-  页面渐变上浅下深 `#0D6541 → #08462C → #031F14`（主色提亮 / 主色 / 主色压暗，不用纯黑），
+  主色 **`#2E5A50`**（图标底），点缀 **`#89A8A0`**（图标笔画，东方清雅配色 dev-board#731）。
+  页面渐变上浅下深 `#4C8576 → #2E5A50 → #254A41`（主色提亮 / 主色 / 主色压暗，不用纯黑），
   顶部叠一层薄荷径向光晕。三个值都写在 `templates/frame.html` 的 `:root` 里。
 - 设备边框：iOS 画 iPhone 17 Pro Max 风格圆角 + 灵动岛胶囊（自己画，没用 Apple 官方 bezel 素材）；
   安卓 / 鸿蒙用通用圆角 + 顶部居中打孔。边框尺寸由原始屏的真实宽高比算出，**截图 1:1 不拉伸**。

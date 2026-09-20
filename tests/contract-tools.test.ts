@@ -91,7 +91,7 @@ test('gen：wxss 间距 ×2 出 rpx，字号 px，旧变量名保留', () => {
   assert.match(wxss, /--s4: 32rpx;/)
   assert.match(wxss, /--gutter: 40rpx;/)
   assert.match(wxss, /--t-body: 15px;/)
-  assert.match(wxss, /--st-moving: #1E3A8A;/)
+  assert.match(wxss, /--st-moving: #3C5A73;/)
   assert.match(wxss, /--dk-rule: rgba\(255, 255, 255, 0\.10\);/)
   assert.match(wxss, /--touch-min: 88rpx;/)
   assert.match(wxss, /\.label \{/)  // footer 工具类保留
@@ -100,7 +100,7 @@ test('gen：wxss 间距 ×2 出 rpx，字号 px，旧变量名保留', () => {
 test('gen：Swift 令牌保留 T.L/T.D/T.S/T.Sp 调用面', () => {
   const swift = outputs(loadContract(ROOT)).get('ios/Sources/Contract/Tokens.swift')!
   assert.match(swift, /enum T \{/)
-  assert.match(swift, /static let accent = Color\(hex: 0x1E3A8A\)/)
+  assert.match(swift, /static let accent = Color\(hex: 0x2E5A50\)/)
   assert.match(swift, /static let rule = Color\(\.sRGB, red: 1\.000, green: 1\.000, blue: 1\.000, opacity: 0\.10\)/)
   assert.match(swift, /static let gutter: CGFloat = 20/)
   assert.match(swift, /static let body: CGFloat = 15/)
