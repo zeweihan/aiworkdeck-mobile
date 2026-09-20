@@ -45,9 +45,9 @@ page {
   margin-left: 0;
 }
 
-.tally__num--waiting { color: #F97316; }
-.tally__num--moving  { color: #60A5FA; }
-.tally__num--arrived { color: #4ADE80; }
+.tally__num--waiting { color: var(--st-waiting-dk); }
+.tally__num--moving  { color: var(--st-moving-dk); }
+.tally__num--arrived { color: var(--st-arrived-dk); }
 
 .tally__label {
   font-size: var(--t-nano);
@@ -154,8 +154,8 @@ page {
 }
 
 .cell__check--on {
-  background: #60A5FA;
-  border-color: #60A5FA;
+  background: var(--st-moving-dk);
+  border-color: var(--st-moving-dk);
 }
 
 .cell--checked::after {
@@ -165,9 +165,9 @@ page {
   background: rgba(0, 0, 0, 0.35);
 }
 
-.dot--waiting { background: #F97316; }
-.dot--moving  { background: #60A5FA; }
-.dot--arrived { background: #4ADE80; }
+.dot--waiting { background: var(--st-waiting-dk); }
+.dot--moving  { background: var(--st-moving-dk); }
+.dot--arrived { background: var(--st-arrived-dk); }
 .dot--failed  { background: var(--st-failed); }
 
 /* ---- 列表 ------------------------------------------------------------------ */
@@ -195,8 +195,8 @@ page {
 }
 
 .row__check--on {
-  background: #60A5FA;
-  border-color: #60A5FA;
+  background: var(--st-moving-dk);
+  border-color: var(--st-moving-dk);
 }
 
 .row__thumb {

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""把白底 K 字标图标翻转成深绿底反色版（dev-board#412）。
+"""把白底 K 字标图标翻转成深色底反色版（dev-board#412，配色随 dev-board#731 换代）。
 
-输入：docs/design/app-icon-1024-white.png（旧白底原图，纯白底 + 深绿括号/斜杠 + 薄荷绿箭头）
-输出：ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png（深绿底 + 白括号/斜杠 + 薄荷绿箭头）
+输入：docs/design/app-icon-1024-white.png（旧白底原图，纯白底 + 旧深绿括号/斜杠 + 旧薄荷绿箭头，未重出）
+输出：ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png（新深绿底 + 白括号/斜杠 + 新薄荷绿箭头）
       docs/design/app-icon-1024-dark-green.png（同一张，供小程序/安卓商店后台上传）
       --foreground <path>：另存一张去掉深绿底、带真 alpha 的 RGBA 字标（供 android-icon.sh 用，
       不进仓）。用同一份覆盖率算 alpha，比 ImageMagick 的 -fuzz + -transparent 干净得多：
       后者只能给出 0/255 的硬 alpha，会在字标外圈留一整圈深绿描边。
 
 原理：没有矢量源，只能从 PNG 栅格反推。把每个像素看成三种纯色的线性混合
-      p = a·DG + b·MINT + c·WHITE（a+b+c=1，即抗锯齿边缘的覆盖率），
-      用最小二乘解出 (a, b)，再按 新 = a·WHITE + b·MINT + c·DG 重合成。
+      p = a·SRC_DG + b·SRC_MINT + c·WHITE（a+b+c=1，即抗锯齿边缘的覆盖率），
+      用最小二乘解出 (a, b)，再按 新 = a·WHITE + b·OUT_MINT + c·OUT_DG 重合成。
+      解覆盖率的基色（SRC_*）必须匹配源图里实际存在的颜色，重合成的目标色（OUT_*）
+      才是当前品牌色——两者不是同一组常量，换品牌色只改 OUT_*，SRC_* 要等源图本身重画再改。
       这样边缘的过渡自然反转，不会留白色毛边或深绿残边。
 
 用法：python3 scripts/mobile-icon-recolor.py [--foreground out.png]  （从仓库任意目录跑都行）
@@ -26,12 +28,17 @@ OUT_IOS = ROOT / "ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png
 OUT_DOC = ROOT / "docs/design/app-icon-1024-dark-green.png"
 
 # 从原图括号内部 / 箭头内部（腐蚀后）取的中位色，见 dev-board#412。
-DG = np.array([0x08, 0x46, 0x2C], float)    # #08462C 深绿
-MINT = np.array([0x68, 0xD7, 0xAC], float)  # #68D7AC 薄荷绿
+# 源图 app-icon-1024-white.png 本身没有重新出（仍是旧配色的白底原图），
+# 所以解覆盖率用的基色必须仍是源图里实际存在的旧色，否则最小二乘会解出错误的 (a, b)。
+SRC_DG = np.array([0x08, 0x46, 0x2C], float)    # #08462C 旧深绿（源图实际像素色）
+SRC_MINT = np.array([0x68, 0xD7, 0xAC], float)  # #68D7AC 旧薄荷绿（源图实际像素色）
 WHITE = np.array([255.0, 255.0, 255.0])
+# 重合成目标色（dev-board#731 东方清雅配色）：解出的覆盖率不变，只把输出色换成新品牌色。
+OUT_DG = np.array([0x2E, 0x5A, 0x50], float)    # #2E5A50 墨竹青（design/tokens/awd-palette.json brand.mark-deep）
+OUT_MINT = np.array([0x89, 0xA8, 0xA0], float)  # #89A8A0 竹月青（design/tokens/awd-palette.json brand.mark-light）
 # 纯色吸附半径（RGB 欧氏距离）。原图三块纯色内部有压缩噪点（距纯色最大 23.8），
-# 而 DG/MINT/WHITE 两两间距最近也有 176.9，所以 25 只吃掉噪点、不吃抗锯齿过渡带。
-# 必须在 RGB 空间吸附而不是在 (a,b) 上：DG-WHITE 与 MINT-WHITE 两个方向近乎共线，
+# 而 SRC_DG/SRC_MINT/WHITE 两两间距最近也有 176.9，所以 25 只吃掉噪点、不吃抗锯齿过渡带。
+# 必须在 RGB 空间吸附而不是在 (a,b) 上：SRC_DG-WHITE 与 SRC_MINT-WHITE 两个方向近乎共线，
 # 最小二乘病态，几个灰度的噪点会被放大成 ±0.2 的覆盖率抖动。
 SNAP = 25.0
 
@@ -43,8 +50,8 @@ opts = args.parse_args()
 src = np.asarray(Image.open(SRC).convert("RGB"), dtype=float)
 h, w, _ = src.shape
 
-# 解 p - WHITE = a·(DG-WHITE) + b·(MINT-WHITE)
-basis = np.stack([DG - WHITE, MINT - WHITE], axis=1)          # 3x2
+# 解 p - WHITE = a·(SRC_DG-WHITE) + b·(SRC_MINT-WHITE)
+basis = np.stack([SRC_DG - WHITE, SRC_MINT - WHITE], axis=1)  # 3x2
 coef = np.linalg.lstsq(basis, (src - WHITE).reshape(-1, 3).T, rcond=None)[0]  # 2xN
 a, b = coef[0], coef[1]
 
@@ -56,13 +63,13 @@ a, b = a * scale, b * scale
 
 # 纯色区吸附：去掉噪点，保证底色/括号/箭头各自是完全一致的单一色。
 flat = src.reshape(-1, 3)
-for ref, (va, vb) in ((DG, (1.0, 0.0)), (MINT, (0.0, 1.0)), (WHITE, (0.0, 0.0))):
+for ref, (va, vb) in ((SRC_DG, (1.0, 0.0)), (SRC_MINT, (0.0, 1.0)), (WHITE, (0.0, 0.0))):
     m = np.linalg.norm(flat - ref, axis=1) < SNAP
     a[m], b[m] = va, vb
 
-# 反色重合成：原来的深绿 → 白，白底 → 深绿，薄荷绿不动。
-out = (a[:, None] * WHITE + b[:, None] * MINT
-       + (1.0 - a - b)[:, None] * DG)
+# 反色重合成：原来的深绿 → 白，白底 → 新深绿，箭头换成新薄荷绿。
+out = (a[:, None] * WHITE + b[:, None] * OUT_MINT
+       + (1.0 - a - b)[:, None] * OUT_DG)
 out = np.clip(out, 0, 255).round().astype(np.uint8).reshape(h, w, 3)
 
 img = Image.fromarray(out, "RGB")  # 无 alpha：iOS 图标不允许透明通道
@@ -77,7 +84,7 @@ if opts.foreground:
     # alpha 就是两者的覆盖率之和；颜色按覆盖率归一化（非预乘），缩放时不会渗出深绿。
     cov = np.clip(a + b, 0.0, 1.0)
     denom = np.maximum(cov, 1e-9)[:, None]
-    rgb = (a[:, None] * WHITE + b[:, None] * MINT) / denom
+    rgb = (a[:, None] * WHITE + b[:, None] * OUT_MINT) / denom
     rgb = np.where(cov[:, None] > 0, rgb, WHITE)
     rgba = np.concatenate([rgb, (cov * 255.0)[:, None]], axis=1)
     rgba = np.clip(rgba, 0, 255).round().astype(np.uint8).reshape(h, w, 4)

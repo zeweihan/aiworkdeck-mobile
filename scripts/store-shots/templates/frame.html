@@ -3,20 +3,21 @@
 <title>store shot frame</title>
 <!--
   商店截图合成模板。由 scripts/store-shots/compose.mjs 通过 window.render(payload) 驱动。
-  颜色取自 docs/design/app-icon-1024-dark-green.png（主色 #08462C，点缀 #68D7AC）。
+  颜色取自 docs/design/app-icon-1024-dark-green.png（主色 #2E5A50，点缀 #89A8A0；
+  东方清雅配色换代见 dev-board#731，色源 design/tokens/awd-palette.json）。
   别手改这里的文案；文案在 captions.json。
 -->
 <style>
   :root {
-    /* 采样自 docs/design/app-icon-1024-dark-green.png */
-    --brand-green: #08462c;   /* 图标底色（主色） */
-    --brand-mint: #68d7ac;    /* 图标笔画色（点缀） */
-    --grad-top: #0d6541;      /* 渐变上端：主色提亮 */
-    --grad-mid: #08462c;      /* 渐变中段：主色本身 */
-    --grad-bottom: #031f14;   /* 渐变下端：主色压暗（不用纯黑） */
+    /* 采样自 docs/design/app-icon-1024-dark-green.png，渐变三档取自 awd-palette.json */
+    --brand-green: #2e5a50;   /* 图标底色（主色，brand.mark-deep） */
+    --brand-mint: #89a8a0;    /* 图标笔画色（点缀，brand.mark-light） */
+    --grad-top: #4c8576;      /* 渐变上端：主色提亮（roles.dark.accent-hover） */
+    --grad-mid: #2e5a50;      /* 渐变中段：主色本身 */
+    --grad-bottom: #254a41;   /* 渐变下端：主色压暗（roles.light.accent-hover，不用纯黑） */
     --title: #ffffff;
     --subtitle: rgba(255, 255, 255, 0.72);
-    --bezel: #05130d;
+    --bezel: #141210;         /* roles.dark.canvas */
     --bezel-edge: rgba(255, 255, 255, 0.16);
     --notch: #000000;
 
@@ -41,7 +42,7 @@
     height: 100%;
     overflow: hidden;
     background:
-      radial-gradient(120% 55% at 50% 0%, rgba(104, 215, 172, 0.22) 0%, rgba(104, 215, 172, 0) 62%),
+      radial-gradient(120% 55% at 50% 0%, rgba(137, 168, 160, 0.22) 0%, rgba(137, 168, 160, 0) 62%),
       linear-gradient(180deg, var(--grad-top) 0%, var(--grad-mid) 46%, var(--grad-bottom) 100%);
   }
 
@@ -54,7 +55,7 @@
     width: 130%;
     height: 46%;
     transform: translateX(-50%);
-    background: radial-gradient(50% 50% at 50% 50%, rgba(104, 215, 172, 0.13) 0%, rgba(104, 215, 172, 0) 70%);
+    background: radial-gradient(50% 50% at 50% 50%, rgba(137, 168, 160, 0.13) 0%, rgba(137, 168, 160, 0) 70%);
     pointer-events: none;
   }
 

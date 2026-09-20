@@ -57,6 +57,12 @@
   background: var(--rule-strong);
 }
 
+/* 忙碌态背景是 --rule-strong（浅暖灰 #DDD8CA），白字对比只有 1.4:1，读不出来；
+ * 换成 --fg（对 --rule-strong 10:1）。非忙碌态背景是 --accent（深墨竹青），白字保留。 */
+.pay--busy .pay__text {
+  color: var(--fg);
+}
+
 .pay__text {
   color: #FFFFFF;
   font-size: var(--t-heading);

@@ -93,12 +93,13 @@ struct ThumbPlaceholder: View {
 
     private var fill: LinearGradient {
         let pair: (Color, Color) = switch (onDark, kind) {
-        case (true, .photo): (Color(hex: 0x2A2E35), Color(hex: 0x1B1E23))
-        case (true, .video): (Color(hex: 0x2C312D), Color(hex: 0x1C201D))
-        case (true, .audio): (Color(hex: 0x322E28), Color(hex: 0x201D19))
-        case (false, .photo): (Color(hex: 0xEDEFF2), Color(hex: 0xE6E9EE))
-        case (false, .video): (Color(hex: 0xE7EAE8), Color(hex: 0xDFE4E1))
-        case (false, .audio): (Color(hex: 0xF0EDE7), Color(hex: 0xE9E4DC))
+        // 东方清雅体系（dev-board#731 #732 #733）：暖中性为底，三种媒体类型靠竹月青/浅茶金做极浅色相区分。
+        case (true, .photo): (Color(hex: 0x2B2721), Color(hex: 0x201C17))
+        case (true, .video): (Color(hex: 0x272E28), Color(hex: 0x1B211C))
+        case (true, .audio): (Color(hex: 0x2E2820), Color(hex: 0x201A13))
+        case (false, .photo): (Color(hex: 0xEDEAE0), Color(hex: 0xE6E1D3))
+        case (false, .video): (Color(hex: 0xE6EBE3), Color(hex: 0xDCE4DC))
+        case (false, .audio): (Color(hex: 0xF0EAE0), Color(hex: 0xE9E0D2))
         }
         return LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing)
     }

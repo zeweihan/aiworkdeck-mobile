@@ -44,12 +44,16 @@ const P = {
 
 // 原样写 '#'，交给下面的 encodeURIComponent 编码。
 // 别在这里预先写成 '%23'——会被二次编码成 '%2523'，图标全部不显示。
-const NAVY = '#1E3A8A'
-const SLATE = '#475569'
+//
+// 东方清雅体系（dev-board#731 #732 #733）换色：常量名保留（第三方/跨代码引用面广，
+// 改名代价不划算），但 NAVY 这个名字现在承载的已经不是藏青，而是墨竹青 #2E5A50——
+// 名字留着别改，看到时别被字面意思带偏。
+const NAVY = '#2E5A50'
+const SLATE = '#6B675C'
 const WHITE = '#FFFFFF'
-const AMBER = '#B45309'
-const GREEN = '#15803D'
-const FAINT = '#94A3B8'
+const AMBER = '#B8842B'
+const GREEN = '#4C7A52'
+const FAINT = '#A8A296'
 
 export const Icon = {
   cameraWhite: svg(P.camera, WHITE, 28),

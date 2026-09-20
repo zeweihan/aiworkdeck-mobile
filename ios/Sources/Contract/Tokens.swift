@@ -4,33 +4,33 @@ import SwiftUI
 /// 设计令牌。F（字体）与 A（动效）在 Design/Typography.swift 里以 extension 补齐。
 enum T {
     enum L {
-        static let bg = Color(hex: 0xFFFFFF)
-        static let sunken = Color(hex: 0xFAFAFA)
-        static let fg = Color(hex: 0x0A0E1A)
-        static let fgMuted = Color(hex: 0x6B7280)
-        static let fgFaint = Color(hex: 0x9CA3AF)
-        static let rule = Color(hex: 0xECEEF1)
-        static let ruleStrong = Color(hex: 0xD4D8DE)
-        static let accent = Color(hex: 0x1E3A8A)
-        static let accentWash = Color(hex: 0xF4F6FB)
+        static let bg = Color(hex: 0xFCFBF7)
+        static let sunken = Color(hex: 0xF1EFE7)
+        static let fg = Color(hex: 0x2B2A26)
+        static let fgMuted = Color(hex: 0x6B675C)
+        static let fgFaint = Color(hex: 0xA8A296)
+        static let rule = Color(hex: 0xEAE7DD)
+        static let ruleStrong = Color(hex: 0xDDD8CA)
+        static let accent = Color(hex: 0x2E5A50)
+        static let accentWash = Color(hex: 0xE3EDE9)
     }
 
     enum D {
-        static let bg = Color(hex: 0x0A0B0D)
-        static let surface = Color(hex: 0x141619)
-        static let fg = Color(hex: 0xF5F6F7)
-        static let fgMuted = Color(hex: 0x8A8F98)
+        static let bg = Color(hex: 0x191713)
+        static let surface = Color(hex: 0x221F1A)
+        static let fg = Color(hex: 0xEDE9DF)
+        static let fgMuted = Color(hex: 0xB0AA9C)
         static let rule = Color(.sRGB, red: 1.000, green: 1.000, blue: 1.000, opacity: 0.10)
     }
 
     enum S {
-        static let waiting = Color(hex: 0xC2410C)
-        static let moving = Color(hex: 0x1E3A8A)
-        static let arrived = Color(hex: 0x15803D)
-        static let failed = Color(hex: 0xB91C1C)
-        static let waitingOnDark = Color(hex: 0xF97316)
-        static let movingOnDark = Color(hex: 0x60A5FA)
-        static let arrivedOnDark = Color(hex: 0x4ADE80)
+        static let waiting = Color(hex: 0x8A6320)
+        static let moving = Color(hex: 0x3C5A73)
+        static let arrived = Color(hex: 0x2E5A50)
+        static let failed = Color(hex: 0xB5483C)
+        static let waitingOnDark = Color(hex: 0xD19C3D)
+        static let movingOnDark = Color(hex: 0x93B3C6)
+        static let arrivedOnDark = Color(hex: 0x89A8A0)
     }
 
     enum Sp {

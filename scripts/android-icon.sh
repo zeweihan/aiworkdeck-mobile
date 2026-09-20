@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 从 iOS 1024×1024 图标源生成安卓自适应图标（前景/单色）+ 商店用 512×512 大图。
 # 源：ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png
-#     （深绿 #08462C 满底 + 白括号/斜杠 + 薄荷绿 #68D7AC 箭头，见 dev-board#412）。
+#     （深绿 #2E5A50 满底 + 白括号/斜杠 + 薄荷绿 #89A8A0 箭头，见 dev-board#412、配色换代见 dev-board#731）。
 # 用法：scripts/android-icon.sh   （从仓库任意目录跑都行，路径按脚本自身位置解析）
 #
 # 产物（进仓提交，体积很小）：
@@ -17,7 +17,7 @@ SRC="$ROOT/ios/Resources/Assets.xcassets/AppIcon.appiconset/Icon-1024.png"
 RES="$ROOT/android/app/src/main/res"
 STORE_DIR="$ROOT/android/store"
 
-BG="#08462C"   # 深绿底色，与 Icon-1024.png / scripts/mobile-icon-recolor.py 里的 DG 同值
+BG="#2E5A50"   # 深绿底色，与 Icon-1024.png / scripts/mobile-icon-recolor.py 里的 OUT_DG 同值
 
 command -v magick >/dev/null || { echo "需要 ImageMagick（brew install imagemagick）" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "需要 python3（含 numpy 与 Pillow）" >&2; exit 1; }

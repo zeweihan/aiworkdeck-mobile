@@ -292,7 +292,7 @@ Page({
       title: t('delete.title', { n: ids.length }),
       content: deleteWarning(states),
       confirmText: t('library.delete'),
-      confirmColor: '#B91C1C',
+      confirmColor: '#B5483C', // danger（dev-board#731 #732 #733；原生 API 参数无法用 CSS 变量）
       success: (res) => {
         if (!res.confirm) return
         removeItems(ids)

@@ -4,17 +4,18 @@
 <!--
   微信开放平台「应用运营流程图」。官方定义是「App 安装到手机后运行起来的界面截图」，
   所以这里是真机截图串，不是框图。由 compose.mjs --flow 驱动 window.renderFlow(payload)。
-  配色与 frame.html 同源（docs/design/app-icon-1024-dark-green.png：#08462C / #68D7AC）。
+  配色与 frame.html 同源（docs/design/app-icon-1024-dark-green.png：#2E5A50 / #89A8A0，
+  东方清雅配色换代见 dev-board#731，色源 design/tokens/awd-palette.json）。
 -->
 <style>
   :root {
-    --brand-green: #08462c;
-    --brand-mint: #68d7ac;
-    --paper: #f6f8f7;      /* 极浅灰底 */
-    --shot-edge: rgba(8, 70, 44, 0.14);
-    --step-num: #08462c;
-    --step-text: #1d2b25;
-    --arrow: #3d8f68;
+    --brand-green: #2e5a50;
+    --brand-mint: #89a8a0;
+    --paper: #f1efe7;      /* 玉脂白（awd-palette roles.light.bg） */
+    --shot-edge: rgba(46, 90, 80, 0.14);
+    --step-num: #2e5a50;
+    --step-text: #2b2a26;  /* awd-palette roles.light.text */
+    --arrow: #3e6e62;      /* awd-palette roles.dark.accent，作为介于主色与薄荷之间的中间调 */
     --font-zh: "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", sans-serif;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,7 +34,7 @@
     padding-bottom: 18px;
   }
   #head b { font-size: 21px; font-weight: 700; color: var(--brand-green); letter-spacing: -0.01em; }
-  #head span { font-size: 14px; color: #5a6b62; }
+  #head span { font-size: 14px; color: #6b675c; }  /* awd-palette roles.light.text-2 */
 
   #row { display: flex; align-items: flex-start; }
 
@@ -44,7 +45,7 @@
     border-radius: 14px;
     border: 1px solid var(--shot-edge);
     background: #fff;
-    box-shadow: 0 6px 18px rgba(8, 70, 44, 0.1);
+    box-shadow: 0 6px 18px rgba(46, 90, 80, 0.1);
   }
   .shot img { display: block; width: 100%; height: 100%; }
 
