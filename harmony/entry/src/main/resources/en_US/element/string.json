@@ -14,7 +14,7 @@
     },
     {
       "name": "perm_camera",
-      "value": "Used to take on-site evidence photos and videos. Captures are kept inside the app and are not written to your system album."
+      "value": "Used to take on-site evidence photos and videos. Captures are kept inside the app; if you turn on \"Also save to the system album\" in Settings, a copy also goes to your album."
     },
     {
       "name": "perm_microphone",
