@@ -120,6 +120,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "小程序切到后台或锁屏后录音可能中断，请保持微信在前台",
     "en": "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground."
   },
+  "cap.noIntlAccount": {
+    "zh-Hans": "小程序只支持大陆版账号。国际版账号请下载 AI WorkDeck App 登录。",
+    "en": "The mini program supports Mainland China accounts only. Download the AI WorkDeck app to sign in with an international account."
+  },
   "home.audio.backgroundOk": {
     "zh-Hans": "切到后台、锁屏也会继续录音",
     "en": "Keeps recording in the background and when locked"
@@ -195,6 +199,22 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "login.useSms": {
     "zh-Hans": "用短信验证码登录",
     "en": "Sign in with SMS code"
+  },
+  "login.region.cn": {
+    "zh-Hans": "大陆版账号",
+    "en": "Mainland China account"
+  },
+  "login.region.intl": {
+    "zh-Hans": "国际版账号",
+    "en": "International account"
+  },
+  "login.region.intlHint": {
+    "zh-Hans": "在 workdeck.ai 注册的账号，用邮箱验证码登录",
+    "en": "For accounts registered at workdeck.ai. Sign in with an email code."
+  },
+  "login.getApp": {
+    "zh-Hans": "下载 App",
+    "en": "Get the app"
   },
   "project.eyebrow": {
     "zh-Hans": "归档到",
@@ -444,6 +464,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "服务器",
     "en": "Server"
   },
+  "settings.region": {
+    "zh-Hans": "账号区域",
+    "en": "Account region"
+  },
   "settings.deleteAccount": {
     "zh-Hans": "注销账号",
     "en": "Delete account"
@@ -575,6 +599,38 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "notify.channel.recording": {
     "zh-Hans": "录音",
     "en": "Recording"
+  },
+  "download.title": {
+    "zh-Hans": "下载 AI WorkDeck App",
+    "en": "Get the AI WorkDeck app"
+  },
+  "download.ios": {
+    "zh-Hans": "iPhone / iPad",
+    "en": "iPhone / iPad"
+  },
+  "download.ios.hint": {
+    "zh-Hans": "在 App Store 搜索「AI WorkDeck」，或复制链接到浏览器打开",
+    "en": "Search \"AI WorkDeck\" in the App Store, or copy the link and open it in a browser"
+  },
+  "download.ios.copy": {
+    "zh-Hans": "复制 App Store 链接",
+    "en": "Copy App Store link"
+  },
+  "download.copied": {
+    "zh-Hans": "链接已复制",
+    "en": "Link copied"
+  },
+  "download.android": {
+    "zh-Hans": "安卓",
+    "en": "Android"
+  },
+  "download.harmony": {
+    "zh-Hans": "鸿蒙",
+    "en": "HarmonyOS"
+  },
+  "download.comingSoon": {
+    "zh-Hans": "即将上线",
+    "en": "Coming soon"
   },
   "file.prefix.media": {
     "zh-Hans": "现场影像",

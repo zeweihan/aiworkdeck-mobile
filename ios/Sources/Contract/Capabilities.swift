@@ -9,5 +9,7 @@ enum ContractCapabilities {
     static let deviceAttestation: Bool = true
     /// 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放
     static let recharge: String = "iap"
-    static let degradedNotice: [String: String] = ["backgroundUpload": "cap.noBackgroundUpload", "continuousSegments": "cap.segmentedRecording", "backgroundRecording": "cap.noBackgroundRecording"]
+    /// 能否登录国际站（workdeck.ai）账号
+    static let intlAccount: Bool = true
+    static let degradedNotice: [String: String] = ["backgroundUpload": "cap.noBackgroundUpload", "continuousSegments": "cap.segmentedRecording", "backgroundRecording": "cap.noBackgroundRecording", "intlAccount": "cap.noIntlAccount"]
 }

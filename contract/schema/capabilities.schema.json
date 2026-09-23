@@ -9,7 +9,7 @@
     "clients": { "$comment": "端名与顺序都钉死：lib.mjs 的四个渲染函数按这些名字取值", "const": ["ios", "miniprogram", "android", "harmony"] },
     "capabilities": {
       "type": "object",
-      "required": ["backgroundUpload", "maxVideoSeconds", "continuousSegments", "glassBlur", "deviceAttestation", "backgroundRecording", "recharge"],
+      "required": ["backgroundUpload", "maxVideoSeconds", "continuousSegments", "glassBlur", "deviceAttestation", "backgroundRecording", "recharge", "intlAccount"],
       "additionalProperties": false,
       "properties": {
         "backgroundUpload": { "$ref": "#/$defs/boolRow" },
@@ -18,7 +18,8 @@
         "glassBlur": { "$ref": "#/$defs/blurRow" },
         "deviceAttestation": { "$ref": "#/$defs/boolRow" },
         "backgroundRecording": { "$ref": "#/$defs/boolRow" },
-        "recharge": { "$ref": "#/$defs/rechargeRow" }
+        "recharge": { "$ref": "#/$defs/rechargeRow" },
+        "intlAccount": { "$comment": "能否登录国际站（workdeck.ai）账号。小程序 false：微信请求域名必须 ICP 备案，.ai 域名备不了（dev-board#837）", "$ref": "#/$defs/boolRow" }
       }
     }
   },

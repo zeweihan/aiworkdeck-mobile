@@ -8,13 +8,15 @@ export interface ContractCapabilitiesShape {
   deviceAttestation: boolean
   backgroundRecording: boolean
   recharge: string
+  intlAccount: boolean
   degradedNotice: Record<string, string>
 }
 
 const contractCapabilities_degradedNotice: Record<string, string> = {
   "backgroundUpload": "cap.noBackgroundUpload",
   "continuousSegments": "cap.segmentedRecording",
-  "backgroundRecording": "cap.noBackgroundRecording"
+  "backgroundRecording": "cap.noBackgroundRecording",
+  "intlAccount": "cap.noIntlAccount"
 }
 
 export const ContractCapabilities: ContractCapabilitiesShape = {
@@ -26,5 +28,6 @@ export const ContractCapabilities: ContractCapabilitiesShape = {
   deviceAttestation: false,
   backgroundRecording: true,
   recharge: "external",
+  intlAccount: true,
   degradedNotice: contractCapabilities_degradedNotice
 }
