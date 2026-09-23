@@ -94,13 +94,13 @@ targetTemplates:
         # 只要二进制链接到引用了受限 API 的 SDK 就必须声明，否则 ITMS-90683 直接拒。
         # Claws 在这上面被拒过一次 build，这里一次写全。
         NSCameraUsageDescription: >-
-          拍摄现场资料与取证影像。影像只保存在本应用内，不写入系统相册。
+          拍摄现场资料与取证影像。原图保存在本应用内；「同时存入系统相册」开启时（默认开启）会另存一份到系统相册，可在设置中关闭。
         NSMicrophoneUsageDescription: >-
           现场录音取证与录像收声都需要使用麦克风，录到的声音只作为取证记录保存。
         NSLocationWhenInUseUsageDescription: >-
           记录每张影像的拍摄地点，写入归档信息。仅在拍摄时读取一次，不做后台定位。
         NSPhotoLibraryAddUsageDescription: >-
-          在你主动导出某张影像时，将其存入系统相册。
+          「同时存入系统相册」开启时（默认开启），把拍摄的照片和录像另存一份到系统相册；可在设置中关闭。
 
   # 录音 Live Activity 的 WidgetKit 扩展（dev-board#404）。扩展里只编：共享的属性与
   # 停止意图、卡片视图、以及 tr() 所需的词典与令牌（L10n + 生成物 Strings/Tokens +
