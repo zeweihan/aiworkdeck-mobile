@@ -286,13 +286,13 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         // 界面上就是「按了快门，计数不动，也没有任何报错」（dev-board#461 的症状之一）。
         if let error {
             cameraLog.error("photo capture failed: \(error.localizedDescription, privacy: .public)")
-            let message = "拍照失败：\(error.localizedDescription)"
+            let message = tr("error.captureFailed", ["reason": error.localizedDescription])
             Task { @MainActor [weak self] in self?.onError?(message) }
             return
         }
         guard let data = photo.fileDataRepresentation() else {
             cameraLog.error("photo capture produced no data")
-            Task { @MainActor [weak self] in self?.onError?("拍照失败：没有拿到图像数据") }
+            Task { @MainActor [weak self] in self?.onError?(tr("error.captureNoData")) }
             return
         }
         let at = Date()

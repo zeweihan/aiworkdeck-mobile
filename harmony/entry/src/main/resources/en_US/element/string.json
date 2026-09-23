@@ -1,0 +1,32 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "AI WorkDeck field evidence capture"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "AI WorkDeck field evidence capture"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "AI WorkDeck"
+    },
+    {
+      "name": "perm_camera",
+      "value": "Used to take on-site evidence photos and videos. Captures are kept inside the app and are not written to your system album."
+    },
+    {
+      "name": "perm_microphone",
+      "value": "Used to record on-site audio evidence and to capture sound while recording video. Recordings are kept only as evidence records."
+    },
+    {
+      "name": "perm_location",
+      "value": "Used to record where each photo or video was taken, as part of its archive details. Location is read once per capture and never tracked in the background."
+    },
+    {
+      "name": "perm_background",
+      "value": "Used to keep recording after you tap Start and switch away or lock the screen. Recording ends when you tap Stop."
+    }
+  ]
+}

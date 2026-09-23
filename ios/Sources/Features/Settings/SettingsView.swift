@@ -29,7 +29,11 @@ struct SettingsView: View {
     }
 
     /// 余额行 + 充值入口的渲染方案；`.unknown` 时两个都不渲染。
+    /// 国际区计费未开通（dev-board#664）：行与入口一律不渲染，也不去拉余额。
     private var plan: API.BalanceRowPlan {
+        guard AccountRegion.current.billingEnabled else {
+            return API.BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil)
+        }
         switch balanceState {
         case .unknown:
             return API.BalanceRowPlan(showRow: false, showRecharge: false, textKey: nil)
@@ -72,7 +76,7 @@ struct SettingsView: View {
                                 .padding(.top, T.Sp.s2)
                         }
 
-                        infoRow("本地原图", "上传成功后不会自动删除。现场不可复现，我们不替你做这个决定。")
+                        infoRow(tr("settings.originals"), tr("settings.originals.hint"))
                     }
 
                     group(tr("settings.archiveTarget")) {
@@ -107,6 +111,8 @@ struct SettingsView: View {
                                     .foregroundStyle(T.L.fgFaint)
                             }
                         }
+                        // 区域登录后固定，这里只读；换区要退出登录后在登录页重选。
+                        infoRow(tr("settings.region"), tr(AccountRegion.current.labelKey))
                         infoRow(tr("settings.server"), Backend.baseURL.host ?? "—")
                         Button(tr("common.signOut")) { model.signOut(); onClose() }
                             .font(T.F.small())
@@ -124,7 +130,7 @@ struct SettingsView: View {
 
                     group(tr("settings.about")) {
                         infoRow(tr("settings.version"), Device.facts.appVersion)
-                        infoRow("遇到问题", "hi@aiworkdeck.com")
+                        infoRow(tr("settings.help"), "hi@aiworkdeck.com")
                     }
                 }
                 .padding(.horizontal, T.Sp.gutter)
@@ -160,13 +166,13 @@ struct SettingsView: View {
             // 都说全——只写「无法恢复」等于没说清代价。
             .alert(tr("settings.deleteAccount.title"), isPresented: $confirmDelete) {
                 Button(tr("common.cancel"), role: .cancel) {}
-                Button("注销", role: .destructive) { Task { await runDelete() } }
+                Button(tr("settings.deleteAccount.action"), role: .destructive) { Task { await runDelete() } }
             } message: {
                 Text(tr("settings.deleteAccount.confirm"))
             }
-            .alert("注销失败", isPresented: Binding(
+            .alert(tr("settings.deleteAccount.failed"), isPresented: Binding(
                 get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
-                Button("好", role: .cancel) { deleteError = nil }
+                Button(tr("common.ok"), role: .cancel) { deleteError = nil }
             } message: {
                 Text(deleteError ?? "")
             }
@@ -174,7 +180,7 @@ struct SettingsView: View {
                 if deleting {
                     ZStack {
                         Color.black.opacity(0.25).ignoresSafeArea()
-                        ProgressView("正在注销")
+                        ProgressView(tr("settings.deleteAccount.deleting"))
                     }
                 }
             }
@@ -190,6 +196,7 @@ struct SettingsView: View {
         // 上架截图上摆一个编出来的余额，等于对着审核和用户报一个假数。
         if Shot.isOn { return }
 #endif
+        guard AccountRegion.current.billingEnabled else { return }
         if let result = try? await API.shared.billingBalance() {
             switch result {
             case .ok(let b): balanceState = .ok(b)
@@ -276,7 +283,7 @@ struct SettingsView: View {
         if await AlbumSaver.ensureAuthorized() {
             albumError = nil
         } else {
-            albumError = "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开，否则这个开关不会生效。"
+            albumError = tr("settings.album.denied")
         }
     }
 }

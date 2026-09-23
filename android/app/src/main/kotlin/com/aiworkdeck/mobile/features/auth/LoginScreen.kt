@@ -35,11 +35,31 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.aiworkdeck.mobile.AppModel
-import com.aiworkdeck.mobile.BuildConfig
+import com.aiworkdeck.contract.ContractCapabilities
+import com.aiworkdeck.contract.T
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.aiworkdeck.mobile.design.Fonts
 import com.aiworkdeck.mobile.design.Hairline
 import com.aiworkdeck.mobile.design.Tk
 import com.aiworkdeck.mobile.design.tr
+import com.aiworkdeck.mobile.services.AccountRegion
 import com.aiworkdeck.mobile.services.ApiError
 import com.aiworkdeck.mobile.services.ServiceLocator
 import com.aiworkdeck.mobile.services.Unauthorized
@@ -47,8 +67,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-private enum class Method { Phone, Email }
+internal enum class Method { Phone, Email }
 private enum class Step { Identity, Code }
+
+/** 这个区域能用哪几种登录方式。国际站没有短信通道，只剩邮箱（dev-board#837）。 */
+internal fun loginMethods(region: AccountRegion): List<Method> =
+    if (region.allowsPhoneLogin) Method.entries.toList() else listOf(Method.Email)
+
+/** 进登录页（或切了区域）时默认选中的方式：大陆站照旧先手机号，国际站只有邮箱。 */
+internal fun defaultMethod(region: AccountRegion): Method = loginMethods(region).first()
 
 /**
  * 首屏登录：手机号或邮箱 + 验证码。镜像 iOS `LoginView`。
@@ -57,15 +84,18 @@ private enum class Step { Identity, Code }
  * - 手机号：注册与登录合一，号码没见过后端就建号。只走中国大陆短信通道。
  * - 邮箱：同样是注册登录合一，未注册的地址也会收到码，验过就建号。
  *
- * 默认哪一种由 [BuildConfig.DEFAULT_LOGIN] 决定：短信只有阿里云的大陆签名、发不到境外号码，
- * 让海外用户一进门就对着一个填不了的手机号框，是在浪费他一次尝试。两条路两个版本都留着——
- * 带 +86 号码的人在境外照样收得到码。
+ * 右上角一个胶囊开关选账号区域（大陆版 / 海外版，两套账号不通，dev-board#837）。区域决定主机、
+ * 可用方式与界面语言：短信只有阿里云的大陆签名，海外站没有短信通道，海外版只给邮箱，
+ * 标题下说明一句，整屏换英文。区域缺省按 flavor（[com.aiworkdeck.mobile.BuildConfig.DEFAULT_REGION]），
+ * 选过就记在本机。
  */
 @Composable
-fun LoginScreen(model: AppModel, defaultLogin: String = BuildConfig.DEFAULT_LOGIN) {
+fun LoginScreen(model: AppModel) {
     val backend = ServiceLocator.backend
+    val prefs = ServiceLocator.prefs
     val scope = rememberCoroutineScope()
-    var method by remember { mutableStateOf(if (defaultLogin == "sms") Method.Phone else Method.Email) }
+    var region by remember { mutableStateOf(prefs.accountRegion) }
+    var method by remember { mutableStateOf(defaultMethod(region)) }
     var step by remember { mutableStateOf(Step.Identity) }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -119,6 +149,23 @@ fun LoginScreen(model: AppModel, defaultLogin: String = BuildConfig.DEFAULT_LOGI
         Modifier.fillMaxSize().background(Tk.L.bg).safeDrawingPadding()
             .padding(horizontal = Tk.Sp.gutter),
     ) {
+        if (ContractCapabilities.intlAccount) {
+            Row(Modifier.fillMaxWidth().padding(top = Tk.Sp.s2), horizontalArrangement = Arrangement.End) {
+                // 切区域 = 换一套账号体系：回到填标识那一步，输入、报错、冷却全清，免得带着上一站的状态；
+                // 界面语言当场跟着换
+                RegionToggle(region, enabled = !busy) {
+                    // 记新区、清掉上一区的项目、界面语言当场换（AppModel.switchAccountRegion）
+                    val next = model.switchAccountRegion()
+                    region = next
+                    method = defaultMethod(next)
+                    step = Step.Identity
+                    phone = ""; email = ""; code = ""
+                    error = null
+                    cooldown = 0
+                }
+            }
+        }
+
         Spacer(Modifier.weight(1f))
 
         Eyebrow(tr(if (step == Step.Identity) "login.title" else "login.codeTitle"))
@@ -130,6 +177,12 @@ fun LoginScreen(model: AppModel, defaultLogin: String = BuildConfig.DEFAULT_LOGI
             },
             style = Fonts.display(), color = Tk.L.fg, modifier = Modifier.padding(top = Tk.Sp.s2),
         )
+        if (step == Step.Identity && region == AccountRegion.intl) {
+            Text(
+                tr("login.region.intlHint"), style = Fonts.micro(), color = Tk.L.fgFaint,
+                modifier = Modifier.padding(top = Tk.Sp.s1),
+            )
+        }
         if (step == Step.Code) {
             Text(
                 text = tr("login.sentTo", mapOf("to" to mask(method, identity))),
@@ -137,7 +190,7 @@ fun LoginScreen(model: AppModel, defaultLogin: String = BuildConfig.DEFAULT_LOGI
             )
         }
 
-        if (step == Step.Identity) {
+        if (step == Step.Identity && loginMethods(region).size > 1) {
             MethodPicker(method, Modifier.padding(top = Tk.Sp.s4)) {
                 if (method != it) { method = it; code = ""; error = null }
             }
@@ -220,6 +273,55 @@ fun LoginScreen(model: AppModel, defaultLogin: String = BuildConfig.DEFAULT_LOGI
 @Composable
 internal fun Eyebrow(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = Fonts.nano(), color = Tk.L.fgMuted, modifier = modifier)
+}
+
+/**
+ * 区域开关：一条圆角轨道里并排两个短标签，滑块垫在当前那一个下面，点胶囊任意处翻到另一边，
+ * 滑块按动画令牌滑过去。整个胶囊是一个可点目标（外层撑到 touchMin 高），读屏念 login.region.a11y + 当前标签。
+ * 颜色全用现有令牌：轨道 sunken + rule 描边，滑块 accent，选中字反白（bg）。
+ */
+@Composable
+private fun RegionToggle(current: AccountRegion, enabled: Boolean, onToggle: () -> Unit) {
+    val density = LocalDensity.current
+    // 两个标签各自量出来的位置与宽度：中英文标签长短不一，不能假设两格等宽
+    val slots = remember { mutableStateMapOf<AccountRegion, Pair<Dp, Dp>>() }
+    val shape = RoundedCornerShape(percent = 50)
+    val a11y = tr("login.region.a11y")
+    val valueLabel = tr(current.labelKey)
+    Box(
+        Modifier.heightIn(min = Tk.touchMin)
+            .clickable(enabled = enabled, role = Role.Switch) { onToggle() }
+            // 读屏只念一句「切换…」+ 当前标签，不把轨道里两个标签再各念一遍
+            .clearAndSetSemantics {
+                contentDescription = a11y
+                stateDescription = valueLabel
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.clip(shape).background(Tk.L.sunken).border(1.dp, Tk.L.rule, shape).padding(Tk.Sp.s1 / 2)) {
+            slots[current]?.let { (x, w) ->
+                val spec = tween<Dp>(T.Motion.baseMs)
+                val thumbX by animateDpAsState(x, spec, label = "regionThumbX")
+                val thumbW by animateDpAsState(w, spec, label = "regionThumbW")
+                Box(Modifier.matchParentSize()) {
+                    Box(Modifier.offset(x = thumbX).width(thumbW).fillMaxHeight().clip(shape).background(Tk.L.accent))
+                }
+            }
+            Row {
+                for (r in AccountRegion.entries) {
+                    Text(
+                        text = tr(r.labelKey),
+                        style = Fonts.small(), color = if (r == current) Tk.L.bg else Tk.L.fgMuted,
+                        modifier = Modifier
+                            .onGloballyPositioned { c ->
+                                slots[r] = with(density) { c.positionInParent().x.toDp() to c.size.width.toDp() }
+                            }
+                            .padding(horizontal = Tk.Sp.s3, vertical = Tk.Sp.s1),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**

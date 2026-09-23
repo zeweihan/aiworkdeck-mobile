@@ -1,13 +1,36 @@
 import { sendLoginCode, verifyLoginCode, wxPhoneLogin } from '../../utils/api'
 import type { ApiError } from '../../utils/api'
 import type { Metrics } from '../../utils/layout'
-import { t } from '../../utils/i18n'
+import { t, setLocale } from '../../utils/i18n'
+import { CAPS } from '../../utils/contract/capabilities'
+import { localeFor, regionView, type LoginRegion } from '../../utils/region'
 
 interface AppGlobal {
   globalData: { metrics: Metrics }
 }
 
 const COUNTDOWN_SECONDS = 60
+
+/**
+ * 本页所有经 data 绑定的契约文案。切区域会改语言（海外版 → en），改完要整组重新 setData，
+ * 界面才会跟着换——t() 只在调用时取词，不会自己触发重绘。
+ */
+function boundTexts(region: LoginRegion) {
+  const regionLabel = t(region === 'intl' ? 'login.region.intl' : 'login.region.cn')
+  return {
+    navTitle: t('login.title'),
+    phoneLabel: t('login.phone'),
+    codeLabel: t('login.codeTitle'),
+    submitText: t('login.title'),
+    wxPhoneText: t('login.wxPhone'),
+    useSmsText: t('login.useSms'),
+    regionCnText: t('login.region.cn'),
+    regionIntlText: t('login.region.intl'),
+    // 小程序没有 aria-value，把当前值拼进标签里读出来
+    regionA11y: `${t('login.region.a11y')}: ${regionLabel}`,
+    getAppText: t('login.getApp'),
+  }
+}
 
 Page({
   data: {
@@ -17,29 +40,37 @@ Page({
     sendingCode: false,
     loggingIn: false,
     countdown: 0,
-    navTitle: t('login.title'),
-    phoneLabel: t('login.phone'),
-    codeLabel: t('login.codeTitle'),
-    submitText: t('login.title'),
     codeButtonText: t('login.sendCode'),
     sendDisabled: true,
     submitDisabled: true,
     /** 一键登录是首屏；短信表单默认折叠，用户点开或一键登录走不通时才展开 */
     smsOpen: false,
     wxLoggingIn: false,
-    wxPhoneText: t('login.wxPhone'),
-    useSmsText: t('login.useSms'),
+    /** 账号区域（dev-board#839）：大陆版默认，行为与原登录页一致；
+     *  海外版在小程序里不可登录（CAPS.intlAccount），换成英文说明 + 下载 App 入口 */
+    region: 'cn' as LoginRegion,
+    ...boundTexts('cn'),
+    ...regionView('cn', CAPS.intlAccount),
   },
 
   timer: null as ReturnType<typeof setInterval> | null,
 
   onLoad() {
     const app = getApp<AppGlobal>()
-    this.setData({ metrics: app.globalData.metrics })
+    // 每次进登录页都从大陆版起步，语言跟着复位（上一次停在海外版时模块级语言还是 en）
+    setLocale(localeFor('cn'))
+    this.setData({
+      metrics: app.globalData.metrics,
+      region: 'cn',
+      ...boundTexts('cn'),
+      ...regionView('cn', CAPS.intlAccount),
+    })
   },
 
   onUnload() {
     if (this.timer) clearInterval(this.timer)
+    // 其余页面只有中文界面：离开登录页时把语言还回去
+    setLocale(localeFor('cn'))
   },
 
   /** 手机号 / 验证码 / 倒计时 / 请求中任一变化后，统一重算两个按钮的态。 */
@@ -56,6 +87,19 @@ Page({
           ? `${countdown}s 后重新获取`
           : t('login.sendCode'),
     })
+  },
+
+  /** 胶囊开关：点任意位置翻到另一边，语言随区域立即切换，整组文案重绑。 */
+  onToggleRegion() {
+    const region: LoginRegion = this.data.region === 'cn' ? 'intl' : 'cn'
+    setLocale(localeFor(region))
+    this.setData({ region, ...boundTexts(region), ...regionView(region, CAPS.intlAccount) }, () =>
+      this.refreshButtons(),
+    )
+  },
+
+  onGetApp() {
+    wx.navigateTo({ url: '/pages/download/download' })
   },
 
   onOpenSms() {

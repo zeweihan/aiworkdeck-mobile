@@ -21,7 +21,7 @@ final class RecordingActivityController {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         end()
         activity = try? Activity.request(
-            attributes: RecordingActivityAttributes(projectName: projectName),
+            attributes: RecordingActivityAttributes(projectName: projectName, locale: L10n.locale),
             content: .init(state: state, staleDate: nil))
     }
 

@@ -9,7 +9,7 @@ final class AppModel {
     // 协变的 Self，编译器直接拒。
     var project = FieldProject(
         id: "local",
-        name: "未选择项目",
+        name: tr("project.none"),
         archivePath: tr("archive.path", ["date": AppModel.today])
     )
     var items: [CaptureItem] = []
@@ -97,6 +97,25 @@ final class AppModel {
     /// 切项目：清掉选择回到选择页。已拍的影像各自记着自己的项目，切项目不改变它们的去向。
     func clearProjectSelection() {
         selectedProject = nil
+    }
+
+    /// 登录页切账号区域（dev-board#837）。两个区域是两套账号体系：上一区域的项目目录是另一个
+    /// 账号的桌面端推上来的，拿到新区域用等于把新拍的影像寻址到一台新账号不认识的电脑上。
+    /// 所以切区域时把跟上一账号项目目录挂钩的状态全部清掉——已选项目（含持久化）、首页项目名、
+    /// 中转区到期表、上传队列给旧记录兜底用的目标项目——登录新区域后一定先落到项目选择页。
+    /// 已拍影像各自记着拍摄时的项目，不动（队列行为见报告，沿用现状）。
+    func switchRegion(to region: AccountRegion) {
+        AccountRegion.current = region
+        L10n.apply(region: region)
+        selectedProject = nil
+        project = FieldProject(id: "local", name: tr("project.none"),
+                               archivePath: tr("archive.path", ["date": AppModel.today]))
+        cloudExpiry = [:]
+        Task {
+            await UploadQueue.shared.configure(project: nil) { [weak self] in
+                await self?.refresh()
+            }
+        }
     }
 
     /// 用户在图集里多选删除：原图与记录一起删。
@@ -218,7 +237,7 @@ final class AppModel {
             kickUpload()
             await saveToAlbumIfEnabled()
         } catch {
-            lastError = "保存失败：\(error.localizedDescription)"
+            lastError = tr("error.saveFailed", ["reason": error.localizedDescription])
         }
     }
 

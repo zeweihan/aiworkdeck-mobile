@@ -120,6 +120,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "小程序切到后台或锁屏后录音可能中断，请保持微信在前台",
     "en": "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground."
   },
+  "cap.noIntlAccount": {
+    "zh-Hans": "小程序只支持大陆版账号。海外版账号请下载 AI WorkDeck App 登录。",
+    "en": "The mini program supports China accounts only. Download the AI WorkDeck app to sign in with a Global account."
+  },
   "home.audio.backgroundOk": {
     "zh-Hans": "切到后台、锁屏也会继续录音",
     "en": "Keeps recording in the background and when locked"
@@ -195,6 +199,26 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "login.useSms": {
     "zh-Hans": "用短信验证码登录",
     "en": "Sign in with SMS code"
+  },
+  "login.region.cn": {
+    "zh-Hans": "大陆版",
+    "en": "China"
+  },
+  "login.region.intl": {
+    "zh-Hans": "海外版",
+    "en": "Global"
+  },
+  "login.region.intlHint": {
+    "zh-Hans": "海外版账号在 workdeck.ai 注册，用邮箱验证码登录",
+    "en": "Global accounts are registered at workdeck.ai. Sign in with an email code."
+  },
+  "login.region.a11y": {
+    "zh-Hans": "切换大陆版或海外版账号",
+    "en": "Switch between China and Global accounts"
+  },
+  "login.getApp": {
+    "zh-Hans": "下载 App",
+    "en": "Get the app"
   },
   "project.eyebrow": {
     "zh-Hans": "归档到",
@@ -444,6 +468,10 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "服务器",
     "en": "Server"
   },
+  "settings.region": {
+    "zh-Hans": "账号区域",
+    "en": "Account region"
+  },
   "settings.deleteAccount": {
     "zh-Hans": "注销账号",
     "en": "Delete account"
@@ -576,6 +604,38 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "zh-Hans": "录音",
     "en": "Recording"
   },
+  "download.title": {
+    "zh-Hans": "下载 AI WorkDeck App",
+    "en": "Get the AI WorkDeck app"
+  },
+  "download.ios": {
+    "zh-Hans": "iPhone / iPad",
+    "en": "iPhone / iPad"
+  },
+  "download.ios.hint": {
+    "zh-Hans": "在 App Store 搜索「AI WorkDeck」，或复制链接到浏览器打开",
+    "en": "Search \"AI WorkDeck\" in the App Store, or copy the link and open it in a browser"
+  },
+  "download.ios.copy": {
+    "zh-Hans": "复制 App Store 链接",
+    "en": "Copy App Store link"
+  },
+  "download.copied": {
+    "zh-Hans": "链接已复制",
+    "en": "Link copied"
+  },
+  "download.android": {
+    "zh-Hans": "安卓",
+    "en": "Android"
+  },
+  "download.harmony": {
+    "zh-Hans": "鸿蒙",
+    "en": "HarmonyOS"
+  },
+  "download.comingSoon": {
+    "zh-Hans": "即将上线",
+    "en": "Coming soon"
+  },
   "file.prefix.media": {
     "zh-Hans": "现场影像",
     "en": "Field media"
@@ -583,5 +643,165 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "file.prefix.audio": {
     "zh-Hans": "现场录音",
     "en": "Field audio"
+  },
+  "error.server": {
+    "zh-Hans": "服务器出错（{code}），稍后再试",
+    "en": "Server error ({code}). Try again shortly."
+  },
+  "queue.unknownState": {
+    "zh-Hans": "记录状态无法识别：{state}",
+    "en": "Unrecognized record state: {state}"
+  },
+  "project.none": {
+    "zh-Hans": "未选择项目",
+    "en": "No project selected"
+  },
+  "project.emptyHint": {
+    "zh-Hans": "在电脑上用同一账号登录 AI WorkDeck 并保持运行，项目会在一分钟内出现在这里。",
+    "en": "Sign in to AI WorkDeck on your computer with the same account and keep it running. Projects appear here within a minute."
+  },
+  "error.saveFailed": {
+    "zh-Hans": "保存失败：{reason}",
+    "en": "Couldn't save: {reason}"
+  },
+  "error.loginNoData": {
+    "zh-Hans": "登录响应缺少数据",
+    "en": "The sign-in response was empty."
+  },
+  "error.uploadRejected": {
+    "zh-Hans": "上传被拒绝",
+    "en": "Upload rejected"
+  },
+  "error.badResponse": {
+    "zh-Hans": "无法解析服务器响应",
+    "en": "Couldn't read the server response."
+  },
+  "error.generic": {
+    "zh-Hans": "操作失败",
+    "en": "Something went wrong."
+  },
+  "error.captureFailed": {
+    "zh-Hans": "拍照失败：{reason}",
+    "en": "Couldn't take the photo: {reason}"
+  },
+  "error.captureNoData": {
+    "zh-Hans": "拍照失败：没有拿到图像数据",
+    "en": "Couldn't take the photo: no image data."
+  },
+  "home.queue.a11yHint": {
+    "zh-Hans": "查看上传队列",
+    "en": "Opens the upload queue"
+  },
+  "home.gps.locating": {
+    "zh-Hans": "GPS 定位中",
+    "en": "GPS locating"
+  },
+  "home.stampFeatures": {
+    "zh-Hans": "SHA-256 · GPS · 时间戳",
+    "en": "SHA-256 · GPS · Timestamp"
+  },
+  "home.thumb.a11y": {
+    "zh-Hans": "最近影像，本项目共 {n} 张",
+    "en": "Latest capture, {n} in this project"
+  },
+  "home.desktop.waited": {
+    "zh-Hans": "已等待 {t}",
+    "en": "waiting {t}"
+  },
+  "home.permission.micHint": {
+    "zh-Hans": "去「设置 → Workdeck → 麦克风」打开后再回来。",
+    "en": "Turn it on in Settings → Workdeck → Microphone, then come back."
+  },
+  "home.permission.cameraHint": {
+    "zh-Hans": "去「设置 → Workdeck → 相机」打开后再回来。",
+    "en": "Turn it on in Settings → Workdeck → Camera, then come back."
+  },
+  "library.emptyHint": {
+    "zh-Hans": "拍摄后会归入当前项目。",
+    "en": "New captures go into the current project."
+  },
+  "library.viewing.a11y": {
+    "zh-Hans": "正在看 {name}，切换项目",
+    "en": "Viewing {name}. Switch project"
+  },
+  "library.columns.a11y": {
+    "zh-Hans": "{n} 列，切换列数",
+    "en": "{n} columns. Change column count"
+  },
+  "library.toList.a11y": {
+    "zh-Hans": "切换到列表",
+    "en": "Switch to list"
+  },
+  "library.toGrid.a11y": {
+    "zh-Hans": "切换到网格",
+    "en": "Switch to grid"
+  },
+  "library.capture.a11y": {
+    "zh-Hans": "拍摄",
+    "en": "Capture"
+  },
+  "common.back": {
+    "zh-Hans": "返回",
+    "en": "Back"
+  },
+  "common.ok": {
+    "zh-Hans": "好",
+    "en": "OK"
+  },
+  "time.secondsAgo": {
+    "zh-Hans": "{n} 秒前",
+    "en": "{n}s ago"
+  },
+  "time.minutesAgo": {
+    "zh-Hans": "{n} 分钟前",
+    "en": "{n} min ago"
+  },
+  "time.hoursAgo": {
+    "zh-Hans": "{n} 小时前",
+    "en": "{n} h ago"
+  },
+  "time.daysAgo": {
+    "zh-Hans": "{n} 天前",
+    "en": "{n} d ago"
+  },
+  "settings.originals": {
+    "zh-Hans": "本地原图",
+    "en": "Local originals"
+  },
+  "settings.originals.hint": {
+    "zh-Hans": "上传成功后不会自动删除。现场不可复现，我们不替你做这个决定。",
+    "en": "Not deleted automatically after upload. A scene can't be re-shot, so that call stays yours."
+  },
+  "settings.help": {
+    "zh-Hans": "遇到问题",
+    "en": "Need help"
+  },
+  "settings.deleteAccount.action": {
+    "zh-Hans": "注销",
+    "en": "Delete"
+  },
+  "settings.deleteAccount.failed": {
+    "zh-Hans": "注销失败",
+    "en": "Couldn't delete account"
+  },
+  "settings.deleteAccount.deleting": {
+    "zh-Hans": "正在注销",
+    "en": "Deleting account"
+  },
+  "settings.album.denied": {
+    "zh-Hans": "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开，否则这个开关不会生效。",
+    "en": "No permission to save to Photos. Turn it on in Settings → AI WorkDeck → Photos, or this switch has no effect."
+  },
+  "album.denied": {
+    "zh-Hans": "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开。",
+    "en": "No permission to save to Photos. Turn it on in Settings → AI WorkDeck → Photos."
+  },
+  "queue.expiresOn": {
+    "zh-Hans": "云端保存至 {date}，请尽快在桌面端接收",
+    "en": "Kept in the cloud until {date}. Collect it on your desktop soon."
+  },
+  "queue.emptyHint": {
+    "zh-Hans": "拍摄后会自动排队上传到当前项目。",
+    "en": "New captures queue up automatically for the current project."
   }
 }

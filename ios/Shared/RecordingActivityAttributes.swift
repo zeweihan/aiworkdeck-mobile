@@ -13,4 +13,7 @@ struct RecordingActivityAttributes: ActivityAttributes {
     }
 
     var projectName: String
+    /// 开始录音那一刻的界面语言（dev-board#837：海外版是英文）。扩展是另一个进程，
+    /// 读不到 App 的语言状态，只能随属性带过去。可选：旧版本起的活动解出来是 nil，按中文显示。
+    var locale: String? = nil
 }

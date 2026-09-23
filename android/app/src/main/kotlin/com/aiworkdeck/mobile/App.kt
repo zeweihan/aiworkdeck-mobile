@@ -4,6 +4,8 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.video.VideoFrameDecoder
+import com.aiworkdeck.mobile.design.L10n
+import com.aiworkdeck.mobile.services.AccountRegion
 import com.aiworkdeck.mobile.services.Backend
 import com.aiworkdeck.mobile.services.BackendUploader
 import com.aiworkdeck.mobile.services.EvidenceStore
@@ -26,9 +28,16 @@ import java.io.File
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
-        val prefs = Prefs(this)
+        val prefs = Prefs(this, AccountRegion.ofDefault(BuildConfig.DEFAULT_REGION))
         val store = EvidenceStore(File(filesDir, "FieldEvidence"), deviceFacts())
-        val backend = Backend(BuildConfig.BASE_URL, SessionStores.create(this))
+        // 主机跟着账号区域现取，不在这里定死：登录页换区后同一个 Backend 下一个请求就打新主机
+        val backend = Backend(
+            baseUrlProvider = { prefs.accountRegion.baseUrl },
+            session = SessionStores.create(this),
+            languageProvider = { prefs.accountRegion.appLanguage },
+        )
+        // 界面语言跟随区域（已存值或 flavor 缺省）；要在任何一屏、任何通知渠道建出来之前定好
+        L10n.follow(prefs.accountRegion)
         ServiceLocator.prefs = prefs
         ServiceLocator.store = store
         ServiceLocator.backend = backend

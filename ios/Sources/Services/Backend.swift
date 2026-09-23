@@ -1,20 +1,82 @@
 import Foundation
 import Security
 
+/// 账号区域（dev-board#837）。大陆站与国际站是**两套账号体系**，同一个人在两边是两个号，
+/// 所以区域跟着账号走，不跟着设备语言或系统地区走——只能由用户在登录页自己选。
+///
+/// 区域只在未登录的登录页切换；登录后固定，换区 = 退出登录后在登录页重选。
+/// 存 UserDefaults 就够：它是偏好，不是凭据。
+enum AccountRegion: String, CaseIterable, Sendable {
+    /// 大陆站：手机号验证码（阿里云大陆短信）+ 邮箱验证码，已开通计费。
+    case cn
+    /// 国际站：没有短信通道（Twilio 未开、阿里云国际短信未开通），只走邮箱验证码；
+    /// 计费尚未开通（dev-board#664）。
+    case intl
+
+    static let defaultsKey = "accountRegion"
+
+    /// 缺省区域。**存量已登录用户没有这个键，必须落到大陆站**——他们的会话是大陆站发的，
+    /// 缺省成别的区域等于升级后所有老用户的请求打到一个不认这个会话的主机上。
+    static let fallback: AccountRegion = .cn
+
+    var baseURL: URL {
+        switch self {
+        case .cn:   URL(string: "https://addin.aiworkdeck.com")!
+        case .intl: URL(string: "https://addin.workdeck.ai")!
+        }
+    }
+
+    /// 界面显示名的契约键。
+    var labelKey: String { "login.region.\(rawValue)" }
+
+    /// 手机号验证码登录只在大陆站可用；国际站那边 `sms-login/send-code` 会因为网关未启用而失败。
+    var allowsPhoneLogin: Bool { self == .cn }
+
+    /// 余额与充值入口。国际站计费未开通（dev-board#664），那边的余额行与入口整个不渲染。
+    var billingEnabled: Bool { self == .cn }
+
+    /// 存的值读不懂（空、旧版本写的、被手改过）一律按缺省处理，不崩、不猜。
+    static func resolve(_ stored: String?) -> AccountRegion {
+        stored.flatMap(AccountRegion.init(rawValue:)) ?? fallback
+    }
+
+    static func load(from defaults: UserDefaults) -> AccountRegion {
+        resolve(defaults.string(forKey: defaultsKey))
+    }
+
+    static func save(_ region: AccountRegion, to defaults: UserDefaults) {
+        defaults.set(region.rawValue, forKey: defaultsKey)
+    }
+
+    static var current: AccountRegion {
+        get { load(from: .standard) }
+        set { save(newValue, to: .standard) }
+    }
+}
+
+extension AccountRegion {
+    /// 请求头 `X-App-Language`：后端据此选报错语言。
+    var appLanguage: String { self == .intl ? "en-US" : "zh-CN" }
+}
+
+/// 语言跟账号区域走（dev-board#837）：大陆版 zh-Hans，海外版 en。
+extension L10n {
+    static func locale(for region: AccountRegion) -> String {
+        region == .intl ? "en" : "zh-Hans"
+    }
+
+    /// 启动时按解析出的区域设一次；登录页切区域时再设一次，当场生效。
+    static func apply(region: AccountRegion) {
+        let l = locale(for: region)
+        if locale != l { locale = l }
+    }
+}
+
 /// 后端地址。整个 App 只在这里指向服务器——
 /// 所以绝不能写死在调用点上。
 enum Backend {
-    /// **当前指大陆站。**
-    ///
-    /// 手机号验证码登录只在大陆站可用——国际站没有短信通道（Twilio 未开、
-    /// 阿里云国际短信未开通），那边按设计走邮箱验证码。指到国际站的话
-    /// `sms-login/send-code` 会因为网关未启用而失败，不是 bug 是设计。
-    ///
-    /// 国际版要能用，得先做邮箱验证码登录界面；在那之前这个值不该改。
-    static let baseURL = URL(string: "https://addin.aiworkdeck.com")!
-
-    /// 国际站。等移动端有了邮箱登录界面再切过去。
-    static let internationalURL = URL(string: "https://addin.workdeck.ai")!
+    /// 当前账号区域的主机。**每次请求现读**，不缓存：登录页切区域后下一次请求就该打到新主机上。
+    static var baseURL: URL { AccountRegion.current.baseURL }
 }
 
 // MARK: - 会话存储
@@ -123,6 +185,15 @@ struct AccountUser: Decodable {
 actor API {
     static let shared = API()
 
+    /// 所有发往后端的请求都从这里起：当前区域的主机由调用方拼好传进来，这里补会话头与
+    /// 语言头——后端据 `X-App-Language` 选报错语言（海外版 en-US，大陆版 zh-CN）。
+    static func request(_ url: URL) -> URLRequest {
+        var req = URLRequest(url: url)
+        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        req.setValue(AccountRegion.current.appLanguage, forHTTPHeaderField: "X-App-Language")
+        return req
+    }
+
     private let session: URLSession = {
         let c = URLSessionConfiguration.default
         c.timeoutIntervalForRequest = 20
@@ -140,7 +211,7 @@ actor API {
     func verifyLoginCode(phone: String, code: String) async throws -> LoginResult {
         let r = try await post("/api/auth/sms-login/verify",
                                body: ["phone": phone, "code": code], as: LoginResult.self)
-        guard let r else { throw APIError(message: "登录响应缺少数据") }
+        guard let r else { throw APIError(message: tr("error.loginNoData")) }
         SessionStore.current = r.sessionId
         return r
     }
@@ -156,7 +227,7 @@ actor API {
     func verifyMailLoginCode(email: String, code: String) async throws -> LoginResult {
         let r = try await post("/api/auth/mail-login/verify",
                                body: ["email": email, "code": code], as: LoginResult.self)
-        guard let r else { throw APIError(message: "登录响应缺少数据") }
+        guard let r else { throw APIError(message: tr("error.loginNoData")) }
         SessionStore.current = r.sessionId
         return r
     }
@@ -191,11 +262,10 @@ actor API {
     /// 所以这里不需要「先建记录再传字节」的两段式。
     func upload(item: CaptureItem, project: RelayProject, fileName: String,
                 progress: @Sendable @escaping (Double) -> Void) async throws {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/mobile/media"))
+        var req = Self.request(Backend.baseURL.appendingPathComponent("/api/mobile/media"))
         req.httpMethod = "POST"
         let boundary = "awd-\(UUID().uuidString)"
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
 
         let iso = ISO8601DateFormatter()
         // 三分支写死：录音落成 "video" 会被桌面端当录像归档，静默错档比报错更糟。
@@ -230,7 +300,7 @@ actor API {
         }
         // 后端这条返回 {code,...}；code 非 0 也算失败
         if let env = try? JSONDecoder().decode(CodeOnly.self, from: data), env.code != 0 {
-            throw APIError(message: env.message ?? "上传被拒绝")
+            throw APIError(message: env.message ?? tr("error.uploadRejected"))
         }
     }
 
@@ -258,14 +328,13 @@ actor API {
         var comps = URLComponents(url: Backend.baseURL.appendingPathComponent("/api/mobile/media/status"),
                                   resolvingAgainstBaseURL: false)!
         comps.queryItems = [URLQueryItem(name: "clientMediaIds", value: clientMediaIds.joined(separator: ","))]
-        var req = URLRequest(url: comps.url!)
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let req = Self.request(comps.url!)
         let (data, resp) = try await send(req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+            throw APIError(message: tr("error.server", ["code": String((resp as? HTTPURLResponse)?.statusCode ?? -1)]))
         }
         do { return try JSONDecoder().decode([MediaStatus].self, from: data) }
-        catch { throw APIError(message: "无法解析服务器响应") }
+        catch { throw APIError(message: tr("error.badResponse")) }
     }
 
     // MARK: 账单
@@ -361,8 +430,7 @@ actor API {
 
     /// 裸对象或失败信封共用同一个 200；判读逻辑在 `decodeBillingBalance`（可测）。
     func billingBalance() async throws -> BillingBalanceResult {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent("/api/mobile/billing/balance"))
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let req = Self.request(Backend.baseURL.appendingPathComponent("/api/mobile/billing/balance"))
         let (data, resp) = try await send(req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         return Self.decodeBillingBalance(status: status, data: data)
@@ -480,10 +548,9 @@ actor API {
     }
 
     private func jsonPost(_ path: String, body: [String: Any]) throws -> URLRequest {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        var req = Self.request(Backend.baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         return req
     }
@@ -512,8 +579,7 @@ actor API {
         var comps = URLComponents(url: Backend.baseURL.appendingPathComponent("/api/mobile/billing/recharge/status"),
                                   resolvingAgainstBaseURL: false)!
         comps.queryItems = [URLQueryItem(name: "outTradeNo", value: outTradeNo)]
-        var req = URLRequest(url: comps.url!)
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let req = Self.request(comps.url!)
         let (data, resp) = try await send(req)
         return try Self.decodeRechargeStatus(status: (resp as? HTTPURLResponse)?.statusCode ?? -1, data: data)
     }
@@ -544,46 +610,41 @@ actor API {
 
     /// 裸响应（无信封）的 GET。
     private func getRaw<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
+        let req = Self.request(Backend.baseURL.appendingPathComponent(path))
         let (data, resp) = try await send(req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+            throw APIError(message: tr("error.server", ["code": String((resp as? HTTPURLResponse)?.statusCode ?? -1)]))
         }
         do { return try JSONDecoder().decode(T.self, from: data) }
-        catch { throw APIError(message: "无法解析服务器响应") }
+        catch { throw APIError(message: tr("error.badResponse")) }
     }
 
     /// 裸响应（无信封）的 POST。
     private func postRaw<T: Decodable>(_ path: String, body: [String: Any],
                                        as type: T.Type) async throws -> T {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        var req = Self.request(Backend.baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let sid = SessionStore.current { req.setValue(sid, forHTTPHeaderField: "X-Session-Id") }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, resp) = try await send(req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw APIError(message: "服务器返回 \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+            throw APIError(message: tr("error.server", ["code": String((resp as? HTTPURLResponse)?.statusCode ?? -1)]))
         }
         do { return try JSONDecoder().decode(T.self, from: data) }
-        catch { throw APIError(message: "无法解析服务器响应") }
+        catch { throw APIError(message: tr("error.badResponse")) }
     }
 
     private func send(_ req: URLRequest) async throws -> (Data, URLResponse) {
         do { return try await session.data(for: req) }
-        catch { throw APIError(message: "连不上服务器，检查网络后重试") }
+        catch { throw APIError(message: tr("error.network")) }
     }
 
     private func post<T: Decodable>(_ path: String,
                                     body: [String: String],
                                     as type: T.Type) async throws -> T? {
-        var req = URLRequest(url: Backend.baseURL.appendingPathComponent(path))
+        var req = Self.request(Backend.baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let sid = SessionStore.current {
-            req.setValue(sid, forHTTPHeaderField: "X-Session-Id")
-        }
         req.httpBody = try JSONEncoder().encode(body)
 
         let (data, resp): (Data, URLResponse)
@@ -592,24 +653,24 @@ actor API {
         } catch {
             // 网络层失败要与业务失败分开说。用户看到「验证码错误」和看到
             // 「连不上服务器」会做完全不同的事。
-            throw APIError(message: "连不上服务器，检查网络后重试")
+            throw APIError(message: tr("error.network"))
         }
 
         guard let http = resp as? HTTPURLResponse else {
-            throw APIError(message: "服务器响应异常")
+            throw APIError(message: tr("error.badResponse"))
         }
         guard (200...299).contains(http.statusCode) else {
-            throw APIError(message: "服务器返回 \(http.statusCode)")
+            throw APIError(message: tr("error.server", ["code": String(http.statusCode)]))
         }
 
         let env: Envelope<T>
         do {
             env = try JSONDecoder().decode(Envelope<T>.self, from: data)
         } catch {
-            throw APIError(message: "无法解析服务器响应")
+            throw APIError(message: tr("error.badResponse"))
         }
         guard env.code == 0 else {
-            throw APIError(message: env.message ?? "操作失败")
+            throw APIError(message: env.message ?? tr("error.generic"))
         }
         return env.data
     }

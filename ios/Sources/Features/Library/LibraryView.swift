@@ -236,7 +236,7 @@ struct LibraryView: View {
             Text(tr("library.empty"))
                 .font(T.F.body())
                 .foregroundStyle(T.D.fg)
-            Text("拍摄后会归入当前项目。")
+            Text(tr("library.emptyHint"))
                 .font(T.F.micro())
                 .foregroundStyle(T.D.fgMuted)
         }
@@ -267,7 +267,7 @@ struct LibraryView: View {
                     .foregroundStyle(T.D.fg)
                     .frame(width: T.touchMin, height: T.touchMin)
             }
-            .accessibilityLabel("返回")
+            .accessibilityLabel(tr("common.back"))
 
             VStack(alignment: .leading, spacing: 2) {
                 projectMenu
@@ -316,7 +316,7 @@ struct LibraryView: View {
                     .foregroundStyle(T.D.fgMuted)
             }
         }
-        .accessibilityLabel("正在看 \(viewing.name)，切换项目")
+        .accessibilityLabel(tr("library.viewing.a11y", ["name": viewing.name]))
     }
 
     private var tallyRow: some View {
@@ -353,14 +353,14 @@ struct LibraryView: View {
             if isGrid && !selecting {
                 toolButton(
                     columns == 2 ? "square.grid.2x2" : columns == 3 ? "square.grid.3x3" : "square.grid.4x3.fill",
-                    label: "\(columns) 列，切换列数"
+                    label: tr("library.columns.a11y", ["n": String(columns)])
                 ) {
                     columns = columns >= 4 ? 2 : columns + 1
                 }
             }
             if !selecting {
                 toolButton(isGrid ? "list.bullet" : "square.grid.2x2",
-                           label: isGrid ? "切换到列表" : "切换到网格") {
+                           label: isGrid ? tr("library.toList.a11y") : tr("library.toGrid.a11y")) {
                     viewMode = isGrid ? "list" : "grid"
                 }
             }
@@ -472,7 +472,7 @@ private struct ShutterButton: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         }
-        .accessibilityLabel("拍摄")
+        .accessibilityLabel(tr("library.capture.a11y"))
         .accessibilityAddTraits(.isButton)
     }
 }

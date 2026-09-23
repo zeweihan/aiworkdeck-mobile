@@ -44,6 +44,7 @@ import com.aiworkdeck.mobile.design.Tk
 import com.aiworkdeck.mobile.design.WorkdeckTheme
 import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.features.auth.Eyebrow
+import com.aiworkdeck.mobile.features.auth.errorText
 import com.aiworkdeck.mobile.features.queue.TextAction
 import com.aiworkdeck.mobile.features.queue.noRipple
 import com.aiworkdeck.mobile.services.ApiError
@@ -62,12 +63,14 @@ private const val DASH = "—"
 private val RECHARGE_CHANNEL: String = ContractCapabilities.recharge
 
 /**
- * 设置。四组：影像（存相册）、归档目标（项目与云端用量）、账号（服务器、退出、注销）、关于。
+ * 设置。四组：影像（存相册）、归档目标（项目与云端用量）、账号（区域、服务器、退出、注销）、关于。
  * 镜像 iOS `SettingsView`。
  */
 @Composable
 fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
     val prefs = ServiceLocator.prefs
+    // 区域登录后固定（只在未登录的登录页能换），进页面读一次即可
+    val region = remember { prefs.accountRegion }
     val project by model.selectedProject.collectAsStateWithLifecycle()
     val account by model.account.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -90,6 +93,8 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
     LaunchedEffect(Unit) { usage = try { model.mediaUsage() } catch (_: Exception) { null } }
     // 同上，余额读不到时不能拖垮整个设置页；两种业务失败态分别降级显示。
     LaunchedEffect(Unit) {
+        // 国际站计费未开通（dev-board#664）：不拉、不显示，hideBalanceRow 保持默认 true
+        if (!region.showsBilling) return@LaunchedEffect
         try {
             balance = model.billingBalance()
             hideBalanceRow = false
@@ -148,7 +153,8 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
 
                 Group(tr("settings.account")) {
                     InfoRow(tr("settings.signedIn"), account?.displayName ?: DASH)
-                    InfoRow(tr("settings.server"), Uri.parse(BuildConfig.BASE_URL).host ?: DASH)
+                    InfoRow(tr("settings.region"), tr(region.labelKey))
+                    InfoRow(tr("settings.server"), Uri.parse(region.baseUrl).host ?: DASH)
                     // 本期只展示余额：不放充值入口、不放任何指向官网充值的文案或链接
                     // （App Store 3.1.3 一旦出现站外购买行动号召就会触发强制内购）。
                     // NOT_CONNECTED/DISABLED/REVIEW_ACCOUNT 与「还没拉完」共用 hideBalanceRow
@@ -162,7 +168,8 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     // **不跟着余额行显隐**——入口依赖新用户没有的状态正是 2026-09-09
                     // 「充值在哪」那起事故本身（contract/schema/billing.schema.json 的 UI 映射、
                     // docs/MOBILE_DEV_DISCIPLINE.md §1）。
-                    if (RECHARGE_CHANNEL != "false") {
+                    // 国际站计费未开通（dev-board#664），入口一并不出现；大陆站照旧。
+                    if (region.showsBilling && RECHARGE_CHANNEL != "false") {
                         TextAction(tr("recharge.entry"), color = Tk.L.accent) { showRechargeNotice = true }
                     }
                     TextAction(tr("common.signOut"), color = Tk.S.failed) { model.signOut(); onClose() }
@@ -213,7 +220,7 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                                     confirmingDelete = false
                                     onClose()
                                 } catch (e: Exception) {
-                                    deleteError = e.message ?: tr("error.network")
+                                    deleteError = errorText(e)
                                     confirmingDelete = false
                                 }
                                 deleting = false

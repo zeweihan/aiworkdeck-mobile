@@ -169,7 +169,7 @@ struct HomeView: View {
         .onTapGesture(perform: onOpenQueue)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tallyA11y)
-        .accessibilityHint("查看上传队列")
+        .accessibilityHint(tr("home.queue.a11yHint"))
         .accessibilityAddTraits(.isButton)
     }
 
@@ -267,7 +267,7 @@ struct HomeView: View {
     }
 
     private var coordLine: String {
-        guard let l = stamper.last else { return "GPS 定位中" }
+        guard let l = stamper.last else { return tr("home.gps.locating") }
         return String(format: "%.5f, %.5f · ±%.0fm", l.lat, l.lon, l.accuracy)
     }
 
@@ -333,7 +333,7 @@ struct HomeView: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 Spacer()
-                Text("SHA-256 · GPS · 时间戳")
+                Text(tr("home.stampFeatures"))
                     .font(T.F.nano())
                     .tracking(0.4)
                     .foregroundStyle(.white.opacity(0.35))
@@ -403,7 +403,7 @@ struct HomeView: View {
             .frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("最近影像，本项目共 \(model.currentItems.count) 张")
+        .accessibilityLabel(tr("home.thumb.a11y", ["n": String(model.currentItems.count)]))
     }
 
     private var counter: some View {
@@ -420,7 +420,7 @@ struct HomeView: View {
         .onTapGesture(perform: onOpenQueue)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint("查看上传队列")
+        .accessibilityHint(tr("home.queue.a11yHint"))
     }
 
     private var shutter: some View {
@@ -464,7 +464,7 @@ struct HomeView: View {
         guard model.link.isOnline else {
             // 离线时说清楚已经等了多久 —— 照片悬在中转区这件事不能藏
             if let t = model.link.lastSyncedAt {
-                return "\(tr("home.desktop.offline")) · 已等待 \(RelativeTime.short(t))"
+                return "\(tr("home.desktop.offline")) · \(tr("home.desktop.waited", ["t": RelativeTime.short(t)]))"
             }
             return tr("home.desktop.offline")
         }
@@ -522,14 +522,14 @@ struct HomeView: View {
     private var micDenied: some View {
         permissionStage(
             title: tr("home.permission.mic"),
-            hint: "去「设置 → Workdeck → 麦克风」打开后再回来。"
+            hint: tr("home.permission.micHint")
         )
     }
 
     private var denied: some View {
         permissionStage(
             title: tr("home.permission.camera"),
-            hint: "去「设置 → Workdeck → 相机」打开后再回来。"
+            hint: tr("home.permission.cameraHint")
         )
     }
 

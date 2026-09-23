@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 
 /** 本机偏好：文件 "prefs"，非敏感设置（相册开关、当前项目、图集的看法），不加密。仅此文件依赖 Android，不参与 JVM 单测。 */
-class Prefs(context: Context) {
+class Prefs(context: Context, private val defaultRegion: AccountRegion) : RegionPrefs {
     private val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
@@ -24,7 +24,15 @@ class Prefs(context: Context) {
         get() = prefs.getString(KEY_DEVICE_ID, null) ?: UUID.randomUUID().toString().lowercase()
             .also { prefs.edit().putString(KEY_DEVICE_ID, it).apply() }
 
-    var selectedProject: RelayProject?
+    /**
+     * 账号区域（dev-board#837）。没存过就是 flavor 缺省值——包括本功能上线前就登录着的老用户，
+     * 他们因此零迁移、仍打原来的主机。只由登录页（未登录态）写入。
+     */
+    override var accountRegion: AccountRegion
+        get() = AccountRegion.resolve(prefs.getString(KEY_ACCOUNT_REGION, null), defaultRegion)
+        set(value) { prefs.edit().putString(KEY_ACCOUNT_REGION, value.raw).apply() }
+
+    override var selectedProject: RelayProject?
         get() = prefs.getString(KEY_SELECTED_PROJECT, null)?.let {
             try { json.decodeFromString<RelayProject>(it) } catch (e: Exception) { null }
         }
@@ -58,6 +66,7 @@ class Prefs(context: Context) {
 
     private companion object {
         const val KEY_SAVE_TO_ALBUM = "saveToAlbum"
+        const val KEY_ACCOUNT_REGION = "accountRegion"
         const val KEY_SELECTED_PROJECT = "selectedProject"
         const val KEY_DEVICE_ID = "deviceId"
         const val KEY_LIBRARY_COLUMNS = "libraryColumns"

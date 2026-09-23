@@ -9,23 +9,38 @@ import SwiftUI
 ///   不该再区别对待。
 ///
 /// 邮箱这条是国际版能用的前提：境外收不到中国短信，只有手机号那条等于门是锁死的。
-struct LoginView: View {
-    @Environment(AppModel.self) private var model
+/// 登录方式。放在文件级而不是 LoginView 里私有，是为了让「按区域可用的方式」能直接单测。
+enum LoginMethod: Equatable, Sendable {
+    case phone, email
 
-    private enum Method { case phone, email }
-    private enum Step { case identity, code }
+    /// 该区域能用哪几种方式，按界面上的顺序。国际站没有短信通道，只剩邮箱。
+    static func available(in region: AccountRegion) -> [LoginMethod] {
+        region.allowsPhoneLogin ? [.phone, .email] : [.email]
+    }
 
     /// 进门先看见哪一种。
     ///
-    /// 短信通道只有阿里云的大陆签名，**发不到境外号码**，所以国际版默认邮箱：
-    /// 让海外用户一进门就对着一个填不了的手机号框，是在浪费他一次尝试。
-    /// 手机号那条对国际版仍然留着——带 +86 号码的人在境外照样收得到码，
-    /// 那是国际版的主要人群之一，砍掉等于把他们挡在门外。
-    private static var defaultMethod: Method {
-        Bundle.main.bundleIdentifier == "com.aiworkdeck.mobile.cn" ? .phone : .email
+    /// 国际区只有邮箱，没得选。大陆区保持原样：按包名定——短信通道只有阿里云的
+    /// 大陆签名，**发不到境外号码**，非大陆包默认邮箱，免得海外用户一进门就对着
+    /// 一个填不了的手机号框；大陆包默认手机号。
+    static func defaultMethod(in region: AccountRegion, bundleID: String?) -> LoginMethod {
+        guard region.allowsPhoneLogin else { return .email }
+        return bundleID == "com.aiworkdeck.mobile.cn" ? .phone : .email
     }
+}
 
-    @State private var method: Method = LoginView.defaultMethod
+struct LoginView: View {
+    @Environment(AppModel.self) private var model
+
+    private typealias Method = LoginMethod
+    private enum Step { case identity, code }
+
+    /// 区域在登录页现选现存：API 每次请求现读 `AccountRegion.current`，
+    /// 所以这里一改，下一次发码就打到新主机上。
+    @State private var region: AccountRegion = .current
+    @Namespace private var regionNS
+    @State private var method: Method = LoginMethod.defaultMethod(in: .current,
+                                                                  bundleID: Bundle.main.bundleIdentifier)
     @State private var step: Step = .identity
     @State private var phone = ""
     @State private var email = ""
@@ -37,6 +52,10 @@ struct LoginView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if ContractCapabilities.intlAccount {
+                HStack { Spacer(); regionToggle }.padding(.top, T.Sp.s2)
+            }
+
             Spacer(minLength: 0)
 
             Eyebrow(text: tr(step == .identity ? "login.title" : "login.codeTitle"))
@@ -45,6 +64,15 @@ struct LoginView: View {
                 .foregroundStyle(T.L.fg)
                 .padding(.top, T.Sp.s2)
 
+            if step == .identity, region == .intl {
+                Text(tr("login.region.intlHint"))
+                    .font(T.F.micro())
+                    .foregroundStyle(T.L.fgFaint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, T.Sp.s1)
+                    .transition(.opacity)
+            }
+
             if step == .code {
                 Text(tr("login.sentTo", ["to": masked]))
                     .font(T.F.micro())
@@ -52,7 +80,9 @@ struct LoginView: View {
                     .padding(.top, T.Sp.s1)
             }
 
-            if step == .identity { methodPicker.padding(.top, T.Sp.s4) }
+            if step == .identity, LoginMethod.available(in: region).count > 1 {
+                methodPicker.padding(.top, T.Sp.s4)
+            }
 
             field.padding(.top, step == .identity ? T.Sp.s5 : T.Sp.s8)
             Hairline().padding(.top, T.Sp.s3)
@@ -98,11 +128,59 @@ struct LoginView: View {
 
     // MARK: - 输入
 
+    /// 大陆版 / 海外版：右上角一个胶囊开关，点哪儿都翻到另一边（参照云厂商 App 的「中国站 / 国际站」）。
+    /// 两边是两套账号体系，选错了发码必然失败。切换当场生效：主机、登录方式、界面语言
+    /// （海外版英文）一起换；回到填标识那一步、清掉输入与报错——上一区域填到一半的东西
+    /// 在新区域没有意义；冷却也归零，那是上一台主机的冷却。
+    private var regionToggle: some View {
+        Button {
+            let r: AccountRegion = region == .cn ? .intl : .cn
+            model.switchRegion(to: r)
+            withAnimation(T.A.base) {
+                region = r
+                method = LoginMethod.defaultMethod(in: r, bundleID: Bundle.main.bundleIdentifier)
+                step = .identity
+                phone = ""
+                email = ""
+                code = ""
+                error = nil
+                cooldown = 0
+            }
+            focused = true
+        } label: {
+            HStack(spacing: 0) {
+                ForEach(AccountRegion.allCases, id: \.self) { r in
+                    Text(tr(r.labelKey))
+                        .font(T.F.micro())
+                        .foregroundStyle(region == r ? T.L.bg : T.L.fgMuted)
+                        .padding(.horizontal, T.Sp.s3)
+                        .padding(.vertical, T.Sp.s1)
+                        .background {
+                            if region == r {
+                                Capsule().fill(T.L.accent)
+                                    .matchedGeometryEffect(id: "regionThumb", in: regionNS)
+                            }
+                        }
+                }
+            }
+            .padding(2)
+            .background(Capsule().fill(T.L.sunken))
+            .overlay(Capsule().stroke(T.L.ruleStrong, lineWidth: 1))
+            .frame(minHeight: T.touchMin)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(tr("login.region.a11y"))
+        .accessibilityValue(tr(region.labelKey))
+        .accessibilityAddTraits(.isButton)
+    }
+
     /// 两个方式之间切换。切换要清掉另一路的输入与报错，否则会出现
     /// 「填了邮箱、报的是手机号那条的错」这种对不上号的状态。
     private var methodPicker: some View {
         HStack(spacing: T.Sp.s5) {
-            ForEach([Method.phone, Method.email], id: \.self) { m in
+            ForEach(LoginMethod.available(in: region), id: \.self) { m in
                 Button {
                     guard method != m else { return }
                     withAnimation(T.A.base) {

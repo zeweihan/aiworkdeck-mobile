@@ -1,0 +1,56 @@
+/* 下载 App 页。视觉语汇照抄登录页 / 「我的」页：纯白底、发丝线分区（.rule 来自 tokens.wxss）、
+ * 无卡片阴影。每个平台一行：名称在左、状态在右；iOS 多一句说明和一个复制链接的胶囊按钮。 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  /* min-height 由页面按导航栏高度算，见 download.wxml */
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+
+.row {
+  padding: var(--s4) var(--s1);
+}
+
+.row__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.row__name {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.row__status {
+  flex-shrink: 0;
+  font-size: var(--t-small);
+  color: var(--fg-faint);
+}
+
+.row__hint {
+  display: block;
+  margin-top: var(--s1);
+  font-size: var(--t-small);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+/* 与 start 页「复制地址」同款胶囊：强调色浅底，不做实心块 */
+.copy-btn {
+  margin-top: var(--s3);
+  width: fit-content;
+  padding: 0 var(--s5);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.copy-btn__text {
+  font-size: var(--t-small);
+  font-weight: 500;
+}

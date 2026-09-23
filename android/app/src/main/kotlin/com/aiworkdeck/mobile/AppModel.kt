@@ -9,7 +9,9 @@ import com.aiworkdeck.mobile.model.MediaKind
 import com.aiworkdeck.mobile.model.RelayProject
 import com.aiworkdeck.mobile.model.TransferState
 import com.aiworkdeck.mobile.model.TransferTally
+import com.aiworkdeck.mobile.services.AccountRegion
 import com.aiworkdeck.mobile.services.AccountUser
+import com.aiworkdeck.mobile.services.switchAccountRegion
 import com.aiworkdeck.mobile.services.BillingBalance
 import com.aiworkdeck.mobile.services.Loc
 import com.aiworkdeck.mobile.services.LoginResult
@@ -181,6 +183,19 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             UploadWorker.enqueue(getApplication<Application>())
             queue.kick()
         }
+    }
+
+    /**
+     * 登录页翻区域（只在未登录态）。除了偏好里的项目，内存里恢复出来的当前项目也一并清掉：
+     * 本地有项目、会话却没了的情况下 bootstrap 会把它读进来，不清的话登进另一站会直接落到它上面。
+     */
+    fun switchAccountRegion(): AccountRegion {
+        val next = switchAccountRegion(prefs)
+        _selectedProject.value = null
+        _desktopOnline.value = false
+        lastProjectsSeenAt = null
+        viewModelScope.launch { refresh() }
+        return next
     }
 
     /** 切项目：清掉选择回到选择页。已拍的影像各自记着自己的项目，切项目不改变它们的去向。 */

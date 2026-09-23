@@ -1,18 +1,23 @@
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { ContractCapabilities } from 'contract'
 import { AppModel } from '../AppModel'
-import { Pill, PrimaryButton } from '../design/Components'
-import { tr } from '../design/L10n'
+import { Pill, PrimaryButton, SegmentToggle } from '../design/Components'
+import { LOCALE_ZH, trIn } from '../design/L10n'
 import { Tk } from '../design/Tokens'
 import { LoginResult } from '../services/ApiTypes'
+import {
+  AccountRegion, LoginMethod, defaultLoginMethodOf, loginMethodsOf,
+} from '../model/AccountRegion'
 import { ServiceLocator } from '../services/ServiceLocator'
 import { errorText, toast } from './Feedback'
-
-enum Method { phone = 'phone', email = 'email' }
 
 enum Step { identity = 'identity', code = 'code' }
 
 const CODE_LENGTH: number = 6
 const PHONE_LENGTH: number = 11
 const RESEND_SECONDS: number = 60
+const DOMAIN: number = 0x0000
+const TAG: string = 'Login'
 
 function digitsOnly(s: string): string {
   let out: string = ''
@@ -31,8 +36,8 @@ export function looksLikeEmail(email: string): boolean {
 }
 
 /** 回显发到哪去了，但不把标识完整重复一遍——旁边有人时那是一次不必要的泄露。 */
-function mask(method: Method, value: string): string {
-  if (method === Method.phone) {
+function mask(method: LoginMethod, value: string): string {
+  if (method === LoginMethod.phone) {
     return value.length < 7 ? value : `${value.substring(0, 3)}****${value.substring(value.length - 4)}`
   }
   const at: number = value.indexOf('@')
@@ -47,10 +52,16 @@ function mask(method: Method, value: string): string {
  *
  * 两条路径语义相同（注册与登录合一，号码/地址没见过后端就建号），差别只在通道：
  * 短信只走中国大陆。鸿蒙只发大陆（spec H3），所以默认短信，邮箱留着给带境外号的人。
+ *
+ * 顶部的账号区域切换（dev-board#837）：大陆站与国际站是两套账号。国际站没有短信通道，
+ * 选国际时只剩邮箱。区域只在这一屏能改，登录后固定。
  */
 @Component
 export struct Login {
-  @State method: Method = Method.phone
+  /** 界面语言的可观察副本：换区时 ServiceLocator 改写它，经 t() 用到文案的控件当场重绘。 */
+  @StorageProp('awdLocale') locale: string = LOCALE_ZH
+  @State region: AccountRegion = ServiceLocator.region
+  @State method: LoginMethod = defaultLoginMethodOf(ServiceLocator.region)
   @State step: Step = Step.identity
   @State phone: string = ''
   @State email: string = ''
@@ -66,17 +77,20 @@ export struct Login {
   build() {
     NavDestination() {
       Column() {
+        if (ContractCapabilities.intlAccount) {
+          this.regionToggle()
+        }
         Blank()
         this.header()
-        if (this.step === Step.identity) {
+        if (this.step === Step.identity && loginMethodsOf(this.region).length > 1) {
           Row({ space: Tk.Sp.s2 }) {
             Pill({
-              label: tr('login.phone'), selected: this.method === Method.phone,
-              onTap: (): void => this.pick(Method.phone),
+              label: this.t('login.phone'), selected: this.method === LoginMethod.phone,
+              onTap: (): void => this.pick(LoginMethod.phone),
             })
             Pill({
-              label: tr('login.email'), selected: this.method === Method.email,
-              onTap: (): void => this.pick(Method.email),
+              label: this.t('login.email'), selected: this.method === LoginMethod.email,
+              onTap: (): void => this.pick(LoginMethod.email),
             })
           }
           .margin({ top: Tk.Sp.s4 })
@@ -84,7 +98,7 @@ export struct Login {
         this.field()
         Divider().color(Tk.L.rule).margin({ top: Tk.Sp.s3 })
         PrimaryButton({
-          label: this.step === Step.identity ? tr('login.sendCode') : tr('login.title'),
+          label: this.step === Step.identity ? this.t('login.sendCode') : this.t('login.title'),
           isEnabled: this.canSubmit() && !this.busy,
           onTap: (): void => this.submit(),
         })
@@ -94,7 +108,7 @@ export struct Login {
         }
         Blank()
         Divider().color(Tk.L.rule)
-        Text(tr('login.help'))
+        Text(this.t('login.help'))
           .fontSize(Tk.Ty.nano)
           .fontColor(Tk.L.fgFaint)
           .margin({ top: Tk.Sp.s3, bottom: Tk.Sp.s6 })
@@ -108,17 +122,40 @@ export struct Login {
     .backgroundColor(Tk.L.bg)
   }
 
+  /** 右上角的区域开关：一个胶囊、点一下翻到另一边（见 SegmentToggle）。 */
+  @Builder
+  regionToggle() {
+    Row() {
+      Blank()
+      SegmentToggle({
+        leftLabel: this.t('login.region.cn'),
+        rightLabel: this.t('login.region.intl'),
+        rightOn: this.region === AccountRegion.intl,
+        a11yLabel: this.t('login.region.a11y'),
+        onToggle: (): void => this.switchRegion(
+          this.region === AccountRegion.intl ? AccountRegion.cn : AccountRegion.intl),
+      })
+    }
+    .width('100%')
+    .margin({ top: Tk.Sp.s2 })
+  }
+
   @Builder
   header() {
     Column({ space: Tk.Sp.s1 }) {
-      Text(this.step === Step.identity ? tr('login.title') : tr('login.codeTitle'))
+      Text(this.step === Step.identity ? this.t('login.title') : this.t('login.codeTitle'))
         .fontSize(Tk.Ty.nano)
         .fontColor(Tk.L.fgMuted)
       Text(this.title())
         .fontSize(Tk.Ty.display)
         .fontColor(Tk.L.fg)
+      if (this.step === Step.identity && this.region === AccountRegion.intl) {
+        Text(this.t('login.region.intlHint'))
+          .fontSize(Tk.Ty.micro)
+          .fontColor(Tk.L.fgFaint)
+      }
       if (this.step === Step.code) {
-        Text(tr('login.sentTo', { 'to': mask(this.method, this.identity()) }))
+        Text(this.t('login.sentTo', { 'to': mask(this.method, this.identity()) }))
           .fontSize(Tk.Ty.micro)
           .fontColor(Tk.L.fgFaint)
       }
@@ -140,8 +177,8 @@ export struct Login {
           .backgroundColor(Tk.L.bg)
           .padding(0)
           .onChange((v: string): void => this.onCode(v))
-      } else if (this.method === Method.phone) {
-        TextInput({ text: this.phone, placeholder: tr('login.phonePlaceholder') })
+      } else if (this.method === LoginMethod.phone) {
+        TextInput({ text: this.phone, placeholder: this.t('login.phonePlaceholder') })
           .type(InputType.PhoneNumber)
           .maxLength(PHONE_LENGTH)
           .fontSize(Tk.Ty.title)
@@ -153,7 +190,7 @@ export struct Login {
             this.phone = digitsOnly(v).substring(0, PHONE_LENGTH)
           })
       } else {
-        TextInput({ text: this.email, placeholder: tr('login.emailPlaceholder') })
+        TextInput({ text: this.email, placeholder: this.t('login.emailPlaceholder') })
           .type(InputType.Email)
           .fontSize(Tk.Ty.title)
           .fontColor(Tk.L.fg)
@@ -172,13 +209,13 @@ export struct Login {
   @Builder
   codeActions() {
     Row({ space: Tk.Sp.s5 }) {
-      Text(this.cooldown > 0 ? tr('login.resendIn', { 's': this.cooldown }) : tr('login.resend'))
+      Text(this.cooldown > 0 ? this.t('login.resendIn', { 's': this.cooldown }) : this.t('login.resend'))
         .fontSize(Tk.Ty.small)
         .fontColor(this.cooldown > 0 || this.busy ? Tk.L.fgFaint : Tk.L.accent)
         .onClick((): void => {
           if (this.cooldown === 0 && !this.busy) this.send()
         })
-      Text(this.method === Method.phone ? tr('login.changePhone') : tr('login.changeEmail'))
+      Text(this.method === LoginMethod.phone ? this.t('login.changePhone') : this.t('login.changeEmail'))
         .fontSize(Tk.Ty.small)
         .fontColor(Tk.L.fgMuted)
         .onClick((): void => {
@@ -192,26 +229,49 @@ export struct Login {
 
   // ---- 行为 ----
 
+  /** 按本页订阅的语言取文案——读 this.locale 就是让 ArkUI 记下依赖，语言一变跟着重绘。 */
+  private t(key: string, vars?: Record<string, string | number>): string {
+    return trIn(this.locale, key, vars)
+  }
+
   private title(): string {
-    if (this.step === Step.code) return tr('login.codePrompt')
-    return this.method === Method.phone ? tr('login.phone') : tr('login.email')
+    if (this.step === Step.code) return this.t('login.codePrompt')
+    return this.method === LoginMethod.phone ? this.t('login.phone') : this.t('login.email')
   }
 
   private identity(): string {
-    return this.method === Method.phone ? this.phone : this.email
+    return this.method === LoginMethod.phone ? this.phone : this.email
   }
 
   private canSubmit(): boolean {
     if (this.step === Step.code) return this.code.length === CODE_LENGTH
-    if (this.method === Method.phone) return this.phone.length === PHONE_LENGTH
+    if (this.method === LoginMethod.phone) return this.phone.length === PHONE_LENGTH
     return looksLikeEmail(this.email)
   }
 
   /** 切换要清掉验证码，否则会出现「填了邮箱、报的是手机号那条的错」这种对不上号的状态。 */
-  private pick(m: Method): void {
+  private pick(m: LoginMethod): void {
     if (this.method === m) return
     this.method = m
     this.code = ''
+  }
+
+  /**
+   * 换区：回到填标识那一步，清空输入与冷却——上一个站的号码、验证码拿到另一个站没有意义。
+   * 请求在途时不让切：发码/校验的结果回来时已经对不上当前区域了。
+   */
+  private switchRegion(r: AccountRegion): void {
+    if (this.region === r || this.busy) return
+    this.region = r
+    this.method = defaultLoginMethodOf(r)
+    this.step = Step.identity
+    this.phone = ''
+    this.email = ''
+    this.code = ''
+    this.stopCooldown()
+    ServiceLocator.setRegion(r).catch((e: Object): void => {
+      hilog.warn(DOMAIN, TAG, 'setRegion persist failed: %{public}s', `${e}`)
+    })
   }
 
   private onCode(v: string): void {
@@ -237,7 +297,7 @@ export struct Login {
   }
 
   private async sendAsync(): Promise<void> {
-    if (this.method === Method.phone) await ServiceLocator.backend.sendLoginCode(this.phone)
+    if (this.method === LoginMethod.phone) await ServiceLocator.backend.sendLoginCode(this.phone)
     else await ServiceLocator.backend.sendMailLoginCode(this.email)
     this.step = Step.code
     this.code = ''
@@ -257,7 +317,7 @@ export struct Login {
   }
 
   private async verifyAsync(): Promise<void> {
-    const result: LoginResult = this.method === Method.phone
+    const result: LoginResult = this.method === LoginMethod.phone
       ? await ServiceLocator.backend.verifyLoginCode(this.phone, this.code)
       : await ServiceLocator.backend.verifyMailLoginCode(this.email, this.code)
     this.stopCooldown()

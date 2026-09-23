@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit'
 import { JSON as ArkJson, util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { RelayProject } from '../model/Capture'
+import { AccountRegion, regionFromStored } from '../model/AccountRegion'
 import { asRecord, decodeRelayProject } from './ApiTypes'
 
 const DOMAIN: number = 0x0000
@@ -12,6 +13,7 @@ const KEY_SAVE_TO_ALBUM: string = 'saveToAlbum'
 const KEY_SELECTED_PROJECT: string = 'selectedProject'
 const KEY_DEVICE_ID: string = 'deviceId'
 const KEY_LIBRARY_VIEW: string = 'libraryView'
+const KEY_ACCOUNT_REGION: string = 'accountRegion'
 
 export const LIBRARY_VIEW_GRID: string = 'grid'
 export const LIBRARY_VIEW_LIST: string = 'list'
@@ -35,6 +37,19 @@ export class Prefs {
     if (cached !== null) return cached
     const options: preferences.Options = { name: FILE }
     const opened: preferences.Preferences = await preferences.getPreferences(this.ctx, options)
+    this.store = opened
+    return opened
+  }
+
+  /**
+   * 同步打开。只给「装配时就要知道的值」用（账号区域：Backend 与 Uploader 从第一次请求起就得打对主机）。
+   * 与异步 open() 共用同一个缓存实例，系统按文件名也只给一个 Preferences 对象，两条路写读的是同一份。
+   */
+  private openSync(): preferences.Preferences {
+    const cached: preferences.Preferences | null = this.store
+    if (cached !== null) return cached
+    const options: preferences.Options = { name: FILE }
+    const opened: preferences.Preferences = preferences.getPreferencesSync(this.ctx, options)
     this.store = opened
     return opened
   }
@@ -107,5 +122,20 @@ export class Prefs {
 
   async setLibraryView(v: string): Promise<void> {
     await this.putString(KEY_LIBRARY_VIEW, v === LIBRARY_VIEW_LIST ? LIBRARY_VIEW_LIST : LIBRARY_VIEW_GRID)
+  }
+
+  /** 账号区域（dev-board#837）。没存过 → 缺省 cn：存量已登录用户本机没有这个键，照旧打大陆站。 */
+  accountRegionSync(): AccountRegion {
+    try {
+      const v: preferences.ValueType = this.openSync().getSync(KEY_ACCOUNT_REGION, '')
+      return regionFromStored(typeof v === 'string' ? v as string : null)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'accountRegion unreadable: %{public}s', (e as Error).message)
+      return regionFromStored(null)
+    }
+  }
+
+  async setAccountRegion(r: AccountRegion): Promise<void> {
+    await this.putString(KEY_ACCOUNT_REGION, r)
   }
 }

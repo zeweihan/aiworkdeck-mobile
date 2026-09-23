@@ -6,7 +6,7 @@
   style="height: {{metrics.navTotalHeight}}px; padding-top: {{metrics.statusBarHeight}}px;"
 >
   <view class="nav__content" style="height: {{metrics.navContentHeight}}px; padding-right: {{metrics.capsuleRightInset}}px;">
-    <view wx:if="{{showBack}}" class="nav__back tappable" bindtap="onBack" aria-label="返回">
+    <view wx:if="{{showBack}}" class="nav__back tappable" bindtap="onBack" aria-label="{{backLabel}}">
       <view class="nav__back-glyph"></view>
     </view>
 

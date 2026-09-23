@@ -7,6 +7,7 @@ export const CAPS = {
   "glassBlur": "runtime",
   "deviceAttestation": false,
   "backgroundRecording": false,
-  "recharge": "virtual"
+  "recharge": "virtual",
+  "intlAccount": false
 } as const
-export const DEGRADED_NOTICE: Record<string, string> = {"backgroundUpload":"cap.noBackgroundUpload","continuousSegments":"cap.segmentedRecording","backgroundRecording":"cap.noBackgroundRecording"}
+export const DEGRADED_NOTICE: Record<string, string> = {"backgroundUpload":"cap.noBackgroundUpload","continuousSegments":"cap.segmentedRecording","backgroundRecording":"cap.noBackgroundRecording","intlAccount":"cap.noIntlAccount"}

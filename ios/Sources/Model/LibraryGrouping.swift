@@ -33,13 +33,12 @@ enum LibraryGrouping {
     /// 按自然日分段，新的在前；段内按拍摄时间倒序。
     static func days(_ items: [CaptureItem], calendar: Calendar = .current) -> [DaySection] {
         let grouped = Dictionary(grouping: items) { calendar.startOfDay(for: $0.capturedAt) }
-        let f = DateFormatter()
-        f.calendar = calendar
-        f.timeZone = calendar.timeZone
-        f.dateFormat = "M月d日"
         return grouped.keys.sorted(by: >).map { day in
             let list = grouped[day]!.sorted { $0.capturedAt > $1.capturedAt }
-            return DaySection(id: day, title: "\(f.string(from: day)) · \(list.count) 件", items: list)
+            let c = calendar.dateComponents([.month, .day], from: day)
+            let title = tr("library.dayTitle", ["m": String(c.month ?? 0), "d": String(c.day ?? 0),
+                                                "n": String(list.count)])
+            return DaySection(id: day, title: title, items: list)
         }
     }
 

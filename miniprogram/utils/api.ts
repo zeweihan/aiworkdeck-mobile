@@ -7,6 +7,8 @@
  * （见 docs/specs/2026-08-20-project-sync-relay.md）。
  */
 
+import { t } from './i18n'
+
 export const BASE_URL = 'https://addin.aiworkdeck.com'
 
 /** 官网（Next.js 站点）。引流页换号走这里，与插件云后端不是一个服务。 */
@@ -162,7 +164,7 @@ export function readEnvelope<T>(statusCode: number, body: unknown, opts: { bare?
   if (body && typeof body === 'object') {
     if (typeof (body as { code?: unknown }).code !== 'number') {
       if (opts.bare) return body as T
-      throw new ApiError(-1, '无法解析服务器响应')
+      throw new ApiError(-1, t('error.badResponse'))
     }
     const env = body as { code: number; message?: string; data?: T; kind?: ApiErrorKind; outTradeNo?: string }
     if (env.code === 0) {
@@ -174,9 +176,9 @@ export function readEnvelope<T>(statusCode: number, body: unknown, opts: { bare?
       wx.reLaunch({ url: '/pages/login/login' })
       throw new ApiError(4010, '请先登录')
     }
-    throw new ApiError(env.code, env.message || '操作失败', env.kind ?? null, env.outTradeNo ?? null)
+    throw new ApiError(env.code, env.message || t('error.generic'), env.kind ?? null, env.outTradeNo ?? null)
   }
-  throw new ApiError(-1, '无法解析服务器响应')
+  throw new ApiError(-1, t('error.badResponse'))
 }
 
 function authHeader(): Record<string, string> {
@@ -476,7 +478,7 @@ export function uploadMedia(opts: {
           try {
             body = JSON.parse(res.data)
           } catch {
-            throw new ApiError(-1, '无法解析服务器响应')
+            throw new ApiError(-1, t('error.badResponse'))
           }
           readEnvelope<void>(res.statusCode, body)
           resolve()

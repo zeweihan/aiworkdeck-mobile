@@ -11,5 +11,7 @@ object ContractCapabilities {
     const val deviceAttestation: Boolean = false
     /** 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放 */
     const val recharge: String = "external"
-    val degradedNotice: Map<String, String> = mapOf("backgroundUpload" to "cap.noBackgroundUpload", "continuousSegments" to "cap.segmentedRecording", "backgroundRecording" to "cap.noBackgroundRecording")
+    /** 能否登录国际站（workdeck.ai）账号 */
+    const val intlAccount: Boolean = true
+    val degradedNotice: Map<String, String> = mapOf("backgroundUpload" to "cap.noBackgroundUpload", "continuousSegments" to "cap.segmentedRecording", "backgroundRecording" to "cap.noBackgroundRecording", "intlAccount" to "cap.noIntlAccount")
 }

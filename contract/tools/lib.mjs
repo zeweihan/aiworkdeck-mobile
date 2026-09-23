@@ -221,6 +221,8 @@ function renderSwiftCaps(c) {
     static let deviceAttestation: Bool = ${caps.deviceAttestation.ios}
     /// 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放
     static let recharge: String = ${q(String(caps.recharge.ios))}
+    /// 能否登录国际站（workdeck.ai）账号
+    static let intlAccount: Bool = ${caps.intlAccount.ios}
     static let degradedNotice: [String: String] = ${swiftDict(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
 `
@@ -298,6 +300,8 @@ object ContractCapabilities {
     const val deviceAttestation: Boolean = ${caps.deviceAttestation.android}
     /** 充值通道："iap" / "virtual" / "wxpay-app" / "external"（只放引导入口），或 "false" 表示本端连入口都不放 */
     const val recharge: String = ${kq(String(caps.recharge.android))}
+    /** 能否登录国际站（workdeck.ai）账号 */
+    const val intlAccount: Boolean = ${caps.intlAccount.android}
     val degradedNotice: Map<String, String> = ${ktMap(Object.fromEntries(Object.entries(caps).filter(([, x]) => x.degradedNotice).map(([k, x]) => [k, x.degradedNotice])))}
 }
 `

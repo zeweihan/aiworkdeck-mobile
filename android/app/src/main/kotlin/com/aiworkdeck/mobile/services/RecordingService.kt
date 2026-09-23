@@ -168,11 +168,10 @@ class RecordingService : Service() {
                 .onFailure { ContextCompat.startForegroundService(context, intent) }
         }
 
-        /** 幂等：渠道已存在就什么也不做。默认重要度但无声音——录音中不该被自己的通知打断。 */
+        /** 幂等：渠道已存在时再建一次只会更新名字（界面语言跟着区域换了，系统设置里的渠道名也跟着换）。默认重要度但无声音——录音中不该被自己的通知打断。 */
         fun ensureChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService(NotificationManager::class.java) ?: return
-            if (manager.getNotificationChannel(CHANNEL_ID) != null) return
             val channel = NotificationChannel(
                 CHANNEL_ID, tr("notify.channel.recording"), NotificationManager.IMPORTANCE_DEFAULT,
             ).apply { setSound(null, null) }

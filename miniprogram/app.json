@@ -7,7 +7,8 @@
     "pages/queue/queue",
     "pages/recharge/recharge",
     "pages/settings/settings",
-    "pages/start/start"
+    "pages/start/start",
+    "pages/download/download"
   ],
   "window": {
     "backgroundTextStyle": "dark",
