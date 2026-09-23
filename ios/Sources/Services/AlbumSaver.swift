@@ -22,7 +22,7 @@ enum AlbumSaver {
 
         var errorDescription: String? {
             switch self {
-            case .denied: "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开。"
+            case .denied: tr("album.denied")
             case .failed(let m): m
             }
         }

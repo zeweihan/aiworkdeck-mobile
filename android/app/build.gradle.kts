@@ -38,14 +38,13 @@ android {
         create("intl") {
             dimension = "market"
             applicationId = "com.aiworkdeck.mobile"
-            buildConfigField("String", "BASE_URL", "\"https://addin.workdeck.ai\"")
-            buildConfigField("String", "DEFAULT_LOGIN", "\"mail\"")
+            // 缺省账号区域（dev-board#837）：没在登录页选过区域时用它。主机由 AccountRegion 映射。
+            buildConfigField("String", "DEFAULT_REGION", "\"intl\"")
         }
         create("cn") {
             dimension = "market"
             applicationId = "com.aiworkdeck.mobile.cn"
-            buildConfigField("String", "BASE_URL", "\"https://addin.aiworkdeck.com\"")
-            buildConfigField("String", "DEFAULT_LOGIN", "\"sms\"")
+            buildConfigField("String", "DEFAULT_REGION", "\"cn\"")
         }
     }
     signingConfigs {

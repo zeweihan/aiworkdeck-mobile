@@ -88,6 +88,8 @@ targetTemplates:
         # 录音中的灵动岛 + 锁屏卡片，视图在 WorkdeckLiveActivity 扩展里
         NSSupportsLiveActivities: true
 
+        # 英文设备的权限说明在 Resources/en.lproj/InfoPlist.strings（dev-board#837）；
+        # 中文另有 Resources/zh-Hans.lproj 一份同文，改这里的中文要同步改那两份。
         # Apple 的 purpose string 是 SDK 链接期强制，不是运行期强制：
         # 只要二进制链接到引用了受限 API 的 SDK 就必须声明，否则 ITMS-90683 直接拒。
         # Claws 在这上面被拒过一次 build，这里一次写全。

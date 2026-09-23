@@ -1,0 +1,6 @@
+/* 系统权限弹窗的中文说明，与 project.yml info.properties 里的原文逐字一致。
+   这份必须有：工程开发语言是 en，只放 en.lproj 的话中文设备会被系统匹配到英文。 */
+"NSCameraUsageDescription" = "拍摄现场资料与取证影像。影像只保存在本应用内，不写入系统相册。";
+"NSMicrophoneUsageDescription" = "现场录音取证与录像收声都需要使用麦克风，录到的声音只作为取证记录保存。";
+"NSLocationWhenInUseUsageDescription" = "记录每张影像的拍摄地点，写入归档信息。仅在拍摄时读取一次，不做后台定位。";
+"NSPhotoLibraryAddUsageDescription" = "在你主动导出某张影像时，将其存入系统相册。";

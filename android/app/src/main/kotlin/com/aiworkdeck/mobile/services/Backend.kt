@@ -1,5 +1,6 @@
 package com.aiworkdeck.mobile.services
 
+import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.model.RelayProject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,21 @@ import java.io.File
 class ApiError(val code: Int, message: String, val kind: EnvelopeKind? = null, val outTradeNo: String? = null) : Exception(message)
 class Unauthorized : Exception("unauthorized")
 
-class Backend(private val baseUrl: String, private val session: SessionStore, private val client: OkHttpClient = OkHttpClient()) {
+/**
+ * [baseUrlProvider] 每次发请求现取：主机跟着账号区域走（dev-board#837），区域在登录页换了，
+ * 进程里这唯一一份 Backend（App 里装配、Worker 也用它）下一个请求就打新主机。
+ */
+class Backend(
+    private val baseUrlProvider: () -> String,
+    private val session: SessionStore,
+    private val client: OkHttpClient = OkHttpClient(),
+    /** 请求头 X-App-Language 的值（zh-CN / en-US），同样每次现取，跟着区域走。 */
+    private val languageProvider: () -> String = { AccountRegion.cn.appLanguage },
+) {
+    /** 固定主机，测试用。 */
+    constructor(baseUrl: String, session: SessionStore, client: OkHttpClient = OkHttpClient()) : this({ baseUrl }, session, client)
+
+    private val baseUrl: String get() = baseUrlProvider()
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
@@ -63,7 +78,7 @@ class Backend(private val baseUrl: String, private val session: SessionStore, pr
     }
     private fun envelope(text: String): JsonObject { val el = json.parseToJsonElement(text).jsonObject; checkEnvelopeCode(el); return el }
     private fun login(text: String): LoginResult {
-        val r = json.decodeFromJsonElement<LoginResult>(envelope(text)["data"] ?: throw ApiError(1, "empty data"))
+        val r = json.decodeFromJsonElement<LoginResult>(envelope(text)["data"] ?: throw ApiError(1, tr("error.server", mapOf("code" to 1))))
         session.save(r.sessionId); return r
     }
     /** 全站信封：code 0 成功；4010 未登录（清会话）；其他为业务错误。裸数组不进这里。
@@ -73,16 +88,17 @@ class Backend(private val baseUrl: String, private val session: SessionStore, pr
         if (code == 4010) { session.clear(); throw Unauthorized() }
         if (code != 0) throw ApiError(
             code,
-            el["message"]?.jsonPrimitive?.contentOrNull ?: "code $code",
+            el["message"]?.jsonPrimitive?.contentOrNull ?: tr("error.server", mapOf("code" to code)),
             EnvelopeKind.fromRaw(el["kind"]?.jsonPrimitive?.contentOrNull),
             el["outTradeNo"]?.jsonPrimitive?.contentOrNull,
         )
     }
     private suspend fun execute(b: Request.Builder): String = withContext(Dispatchers.IO) {
         session.current()?.let { b.header("X-Session-Id", it) }
+        b.header("X-App-Language", languageProvider())
         client.newCall(b.build()).execute().use { resp ->
             val text = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw ApiError(resp.code, "HTTP ${resp.code}")
+            if (!resp.isSuccessful) throw ApiError(resp.code, tr("error.server", mapOf("code" to resp.code)))
             text
         }
     }

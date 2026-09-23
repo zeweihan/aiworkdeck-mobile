@@ -113,7 +113,7 @@ struct QueueView: View {
                 if item.state == .uploaded,
                    let exp = model.cloudExpiry[item.manifest.clientMediaId.uuidString.lowercased()],
                    exp.timeIntervalSinceNow < 3 * 86_400 {
-                    Text("云端保存至 \(Self.monthDay(exp))，请尽快在桌面端接收")
+                    Text(tr("queue.expiresOn", ["date": Self.monthDay(exp)]))
                         .font(T.F.nano())
                         .foregroundStyle(T.S.waiting)
                         .fixedSize(horizontal: false, vertical: true)
@@ -139,8 +139,10 @@ struct QueueView: View {
     }
 
     private static func monthDay(_ d: Date) -> String {
+        // 模板而不是写死「M月d日」：中文出「9月12日」，英文出「Sep 12」，跟着界面语言走。
         let f = DateFormatter()
-        f.dateFormat = "M月d日"
+        f.locale = L10n.formatLocale
+        f.setLocalizedDateFormatFromTemplate("MMMd")
         return f.string(from: d)
     }
 
@@ -149,7 +151,7 @@ struct QueueView: View {
             Text(tr("library.empty"))
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
-            Text("拍摄后会自动排队上传到当前项目。")
+            Text(tr("queue.emptyHint"))
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
         }

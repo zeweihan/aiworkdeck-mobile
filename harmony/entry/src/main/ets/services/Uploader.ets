@@ -8,6 +8,7 @@ import { ApiError, Unauthorized, checkEnvelope } from '../model/Envelope'
 import { SessionStore } from './SessionStore'
 import { Prefs } from './Prefs'
 import { UploadResult, asRecord, decodeUploadResult } from './ApiTypes'
+import { AccountRegion, appLanguageOf, baseUrlOf } from '../model/AccountRegion'
 
 const DOMAIN: number = 0x0000
 const TAG: string = 'Uploader'
@@ -59,13 +60,14 @@ function mimeOf(k: MediaKind): string {
  */
 export class Uploader {
   private readonly ctx: common.Context
-  private readonly baseUrl: string
+  /** 当前账号区域，建任务时现取（dev-board#837）；已建的系统任务 URL 与头固定，不随换区改。 */
+  private readonly region: () => AccountRegion
   private readonly session: SessionStore
   private readonly prefs: Prefs
 
-  constructor(ctx: common.Context, baseUrl: string, session: SessionStore, prefs: Prefs) {
+  constructor(ctx: common.Context, region: () => AccountRegion, session: SessionStore, prefs: Prefs) {
     this.ctx = ctx
-    this.baseUrl = baseUrl
+    this.region = region
     this.session = session
     this.prefs = prefs
   }
@@ -196,10 +198,11 @@ export class Uploader {
       { name: 'capturedAt', value: item.manifest.capturedAt },
       { name: 'file', value: file },
     ]
-    const headers: Record<string, string> = { 'X-Session-Id': sid }
+    const region: AccountRegion = this.region()
+    const headers: Record<string, string> = { 'X-Session-Id': sid, 'X-App-Language': appLanguageOf(region) }
     const conf: request.agent.Config = {
       action: request.agent.Action.UPLOAD,
-      url: `${this.baseUrl}/api/mobile/media`,
+      url: `${baseUrlOf(region)}/api/mobile/media`,
       method: 'POST',
       mode: request.agent.Mode.BACKGROUND,
       headers: headers,

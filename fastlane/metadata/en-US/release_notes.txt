@@ -1,1 +1,1 @@
-Added account balance and recharge: top up your account via in-app purchase from Settings, with the balance credited instantly.
+New China / Global account switch: tap the toggle at the top right of the sign-in screen. Global accounts are registered at workdeck.ai, sign in with an email code, and use an English interface.

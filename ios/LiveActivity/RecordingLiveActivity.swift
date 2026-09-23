@@ -8,7 +8,8 @@ import WidgetKit
 struct RecordingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingActivityAttributes.self) { context in
-            RecordingCard(projectName: context.attributes.projectName, state: context.state)
+            RecordingCard(projectName: context.attributes.projectName, locale: context.attributes.locale,
+                          state: context.state)
                 .padding(T.Sp.s4)
                 .activityBackgroundTint(T.D.bg)
                 .activitySystemActionForegroundColor(T.D.fg)
@@ -17,7 +18,7 @@ struct RecordingLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: T.Sp.s2) {
                         RecordingDot()
-                        Text(tr("home.recording.audio"))
+                        Text(tr("home.recording.audio", locale: context.attributes.locale))
                             .font(T.F.nano())
                             .tracking(0.4)
                             .foregroundStyle(T.D.fgMuted)
@@ -37,9 +38,9 @@ struct RecordingLiveActivity: Widget {
                             .foregroundStyle(T.D.fg)
                             .lineLimit(1)
                         if context.state.paused {
-                            PausedNotice()
+                            PausedNotice(locale: context.attributes.locale)
                         }
-                        StopButton()
+                        StopButton(locale: context.attributes.locale)
                     }
                     .padding(.horizontal, T.Sp.s2)
                 }
@@ -62,13 +63,14 @@ struct RecordingLiveActivity: Widget {
 
 private struct RecordingCard: View {
     let projectName: String
+    let locale: String?
     let state: RecordingActivityAttributes.ContentState
 
     var body: some View {
         VStack(alignment: .leading, spacing: T.Sp.s3) {
             HStack(spacing: T.Sp.s2) {
                 RecordingDot()
-                Text(tr("home.recording.audio"))
+                Text(tr("home.recording.audio", locale: locale))
                     .font(T.F.nano())
                     .tracking(0.4)
                     .foregroundStyle(T.D.fgMuted)
@@ -82,9 +84,9 @@ private struct RecordingCard: View {
                 .foregroundStyle(T.D.fg)
                 .lineLimit(1)
             if state.paused {
-                PausedNotice()
+                PausedNotice(locale: locale)
             }
-            StopButton()
+            StopButton(locale: locale)
         }
     }
 }
@@ -98,8 +100,10 @@ private struct RecordingDot: View {
 }
 
 private struct PausedNotice: View {
+    let locale: String?
+
     var body: some View {
-        Text(tr("rec.paused.interrupted"))
+        Text(tr("rec.paused.interrupted", locale: locale))
             .font(T.F.micro())
             .foregroundStyle(T.D.fgMuted)
     }
@@ -107,9 +111,11 @@ private struct PausedNotice: View {
 
 /// 停止意图在主进程执行（见 StopRecordingIntent）。
 private struct StopButton: View {
+    let locale: String?
+
     var body: some View {
         Button(intent: StopRecordingIntent()) {
-            Text(tr("home.shutter.stopAudio"))
+            Text(tr("home.shutter.stopAudio", locale: locale))
                 .font(T.F.small())
                 .frame(maxWidth: .infinity, minHeight: T.touchMin)
         }

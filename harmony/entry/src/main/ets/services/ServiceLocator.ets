@@ -6,9 +6,24 @@ import { SessionStore } from './SessionStore'
 import { UploadQueue } from './UploadQueue'
 import { Uploader } from './Uploader'
 import { DeviceFacts, deviceFacts } from './DeviceFacts'
+import { ContractCapabilities } from 'contract'
+import { AccountRegion, DEFAULT_REGION, RegionSwitchSink, baseUrlOf, localeOf, switchRegion } from '../model/AccountRegion'
+import { L10n, LOCALE_STORAGE_KEY } from '../design/L10n'
 
-/** 单站大陆服务端（spec §0）。四端同一个地址，端上不给切换入口。 */
-export const BASE_URL: string = 'https://addin.aiworkdeck.com'
+/** 换区时真实的三处存储：内存区域 + 界面语言、偏好里的当前项目、偏好里的区域。 */
+class LocatorRegionSink implements RegionSwitchSink {
+  applyRegion(r: AccountRegion): void {
+    ServiceLocator.applyRegion(r)
+  }
+
+  async clearSelectedProject(): Promise<void> {
+    await ServiceLocator.prefs.setSelectedProject(null)
+  }
+
+  async persistRegion(r: AccountRegion): Promise<void> {
+    await ServiceLocator.prefs.setAccountRegion(r)
+  }
+}
 
 function need<T>(v: T | null): T {
   if (v === null) throw new Error('ServiceLocator.init(ctx) has not run')
@@ -32,6 +47,12 @@ export class ServiceLocator {
   private static storeRef: EvidenceStore | null = null
   private static uploaderRef: Uploader | null = null
   private static queueRef: UploadQueue | null = null
+  /**
+   * 当前账号区域（dev-board#837）。装配时从偏好同步读出，之后只由登录页的切换改写。
+   * Backend 与 Uploader 拿的是取值函数而不是定值，每次请求现读——换区不必重装配。
+   * 界面语言跟着区域走（大陆 zh-Hans、海外 en），由 applyRegion 一并设定。
+   */
+  private static regionRef: AccountRegion = DEFAULT_REGION
 
   static get ctx(): common.Context {
     return need<common.Context>(ServiceLocator.ctxRef)
@@ -65,14 +86,46 @@ export class ServiceLocator {
     return need<UploadQueue>(ServiceLocator.queueRef)
   }
 
+  static get region(): AccountRegion {
+    return ServiceLocator.regionRef
+  }
+
+  /** 当前区域的服务端根地址。所有接口都从这里取主机。 */
+  static baseUrl(): string {
+    return baseUrlOf(ServiceLocator.regionRef)
+  }
+
+  /**
+   * 换区。只该在未登录的登录页调用——登录后区域固定，换区要先退出登录。
+   * 先改内存再落盘：紧接着的发码请求必须已经打新主机，落盘失败也不该让这一次打错站。
+   * 同时清掉本机记着的当前项目（见 switchRegion）。
+   */
+  static async setRegion(r: AccountRegion): Promise<void> {
+    await switchRegion(ServiceLocator.regionRef, r, new LocatorRegionSink())
+  }
+
+  /**
+   * 区域与界面语言一起换。L10n.locale 给 `tr` 同步取值；AppStorage 那一份是可观察的，
+   * 订阅了它的页面（登录页）当场重绘成新语言。
+   */
+  static applyRegion(r: AccountRegion): void {
+    ServiceLocator.regionRef = r
+    const locale: string = localeOf(r)
+    L10n.locale = locale
+    AppStorage.setOrCreate<string>(LOCALE_STORAGE_KEY, locale)
+  }
+
   static init(ctx: common.Context): void {
     if (ServiceLocator.ctxRef !== null) return
     const session: SessionStore = new SessionStore()
     const prefs: Prefs = new Prefs(ctx)
+    // 本端不支持国际账号时（契约 intlAccount=false）不认偏好里的值，一律大陆
+    ServiceLocator.applyRegion(ContractCapabilities.intlAccount ? prefs.accountRegionSync() : DEFAULT_REGION)
     const facts: DeviceFacts = deviceFacts(ctx)
-    const backend: Backend = new Backend(BASE_URL, session)
+    const region: () => AccountRegion = (): AccountRegion => ServiceLocator.regionRef
+    const backend: Backend = new Backend(region, session)
     const store: EvidenceStore = new EvidenceStore(`${ctx.filesDir}/FieldEvidence`, facts)
-    const uploader: Uploader = new Uploader(ctx, BASE_URL, session, prefs)
+    const uploader: Uploader = new Uploader(ctx, region, session, prefs)
     ServiceLocator.sessionRef = session
     ServiceLocator.prefsRef = prefs
     ServiceLocator.factsRef = facts

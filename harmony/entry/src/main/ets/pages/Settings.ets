@@ -7,7 +7,8 @@ import { formatBytes } from '../model/Format'
 import { RelayProject } from '../model/Capture'
 import { Unauthorized } from '../model/Envelope'
 import { AccountUser, MediaUsage } from '../services/ApiTypes'
-import { BASE_URL, ServiceLocator } from '../services/ServiceLocator'
+import { ServiceLocator } from '../services/ServiceLocator'
+import { billingAvailableIn, regionLabelKey } from '../model/AccountRegion'
 import { errorText, toast } from './Feedback'
 
 const DOMAIN: number = 0x0000
@@ -181,8 +182,13 @@ export struct Settings {
   accountGroup() {
     this.eyebrow(tr('settings.account'))
     this.infoRow(tr('settings.signedIn'), this.accountName())
-    this.infoRow(tr('settings.server'), hostOf(BASE_URL))
-    if (RECHARGE_CHANNEL !== 'false') {
+    // 区域登录后固定（换区 = 退出登录后在登录页重选），这里只读显示；服务器行跟着区域走
+    if (ContractCapabilities.intlAccount) {
+      this.infoRow(tr('settings.region'), tr(regionLabelKey(ServiceLocator.region)))
+    }
+    this.infoRow(tr('settings.server'), hostOf(ServiceLocator.baseUrl()))
+    // 国际站计费未开通（dev-board#664）：国际区不放充值入口
+    if (RECHARGE_CHANNEL !== 'false' && billingAvailableIn(ServiceLocator.region)) {
       Text(tr('recharge.entry'))
         .fontSize(Tk.Ty.small)
         .fontColor(Tk.L.accent)

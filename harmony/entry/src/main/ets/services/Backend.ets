@@ -3,6 +3,8 @@ import { JSON as ArkJson } from '@kit.ArkTS'
 import { ApiError, Unauthorized, checkEnvelope } from '../model/Envelope'
 import { RelayProject } from '../model/Capture'
 import { SessionStore } from './SessionStore'
+import { AccountRegion, appLanguageOf, baseUrlOf } from '../model/AccountRegion'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 import {
   LoginResult, MediaStatus, MediaUsage,
   asRecord, decodeLoginResult, decodeMediaStatuses, decodeMediaUsage, decodeRelayProjects,
@@ -10,6 +12,8 @@ import {
 
 const CONNECT_TIMEOUT_MS: number = 15000
 const READ_TIMEOUT_MS: number = 30000
+const DOMAIN: number = 0x0000
+const TAG: string = 'Backend'
 
 /**
  * 后端调用。语义逐条对照安卓 Backend.kt：
@@ -24,11 +28,12 @@ const READ_TIMEOUT_MS: number = 30000
  * 上传不走这里（见 Uploader，用 request.agent 的后台任务）。
  */
 export class Backend {
-  private readonly baseUrl: string
+  /** 当前账号区域，每次请求现取（dev-board#837）：定主机，也定 `X-App-Language`。 */
+  private readonly region: () => AccountRegion
   private readonly session: SessionStore
 
-  constructor(baseUrl: string, session: SessionStore) {
-    this.baseUrl = baseUrl
+  constructor(region: () => AccountRegion, session: SessionStore) {
+    this.region = region
     this.session = session
   }
 
@@ -120,7 +125,8 @@ export class Backend {
 
   private async execute(path: string, method: http.RequestMethod, body: string | null): Promise<string> {
     const sid: string | null = await this.session.current()
-    const header: Record<string, string> = {}
+    const region: AccountRegion = this.region()
+    const header: Record<string, string> = { 'X-App-Language': appLanguageOf(region) }
     if (sid !== null) header['X-Session-Id'] = sid
     const client: http.HttpRequest = http.createHttp()
     try {
@@ -137,7 +143,10 @@ export class Backend {
           connectTimeout: CONNECT_TIMEOUT_MS, readTimeout: READ_TIMEOUT_MS,
         }
       }
-      const resp: http.HttpResponse = await client.request(this.baseUrl + path, options)
+      const url: string = baseUrlOf(region) + path
+      // 只记方法与地址（不含查询串与头）：走查时据此确认打的是哪一站
+      hilog.info(DOMAIN, TAG, '%{public}s %{public}s', method, url.split('?')[0])
+      const resp: http.HttpResponse = await client.request(url, options)
       const status: number = resp.responseCode
       if (status < 200 || status >= 300) throw new ApiError(status, `HTTP ${status}`)
       return typeof resp.result === 'string' ? resp.result as string : ''

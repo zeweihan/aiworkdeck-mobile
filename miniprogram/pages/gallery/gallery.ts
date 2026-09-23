@@ -63,6 +63,15 @@ function viewLabelFor(view: 'grid' | 'list'): string {
   return view === 'grid' ? t('library.viewList') : t('library.viewGrid')
 }
 
+/** 视图切换按钮的无障碍标签：与按钮文字一样，说的是切过去的那一档 */
+function viewA11yFor(view: 'grid' | 'list'): string {
+  return view === 'grid' ? t('library.toList.a11y') : t('library.toGrid.a11y')
+}
+
+function colsA11yFor(cols: number): string {
+  return t('library.columns.a11y', { n: cols })
+}
+
 Page({
   data: {
     Icon,
@@ -76,7 +85,9 @@ Page({
     failedSuffix: '',
     days: [] as Array<{ key: string; title: string; items: Cell[] }>,
     cols: 3,
+    colsA11y: colsA11yFor(3),
     view: 'grid' as 'grid' | 'list',
+    viewA11y: viewA11yFor('grid'),
     /** 按钮写的是切过去的那一档 */
     viewLabel: t('library.viewList'),
     selecting: false,
@@ -85,6 +96,7 @@ Page({
     deleteLabel: '',
     selectLabel: t('library.select'),
     emptyText: t('library.empty'),
+    emptyHint: t('library.emptyHint'),
   },
 
   unsubscribe: null as (() => void) | null,
@@ -97,7 +109,15 @@ Page({
   onLoad() {
     const app = getApp<AppGlobal>()
     const view = readView()
-    this.setData({ metrics: app.globalData.metrics, cols: readCols(), view, viewLabel: viewLabelFor(view) })
+    const cols = readCols()
+    this.setData({
+      metrics: app.globalData.metrics,
+      cols,
+      colsA11y: colsA11yFor(cols),
+      view,
+      viewLabel: viewLabelFor(view),
+      viewA11y: viewA11yFor(view),
+    })
   },
 
   onShow() {
@@ -189,13 +209,13 @@ Page({
   onToggleCols() {
     const cols = this.data.cols >= 4 ? 2 : this.data.cols + 1
     wx.setStorageSync(KEY_COLS, cols)
-    this.setData({ cols })
+    this.setData({ cols, colsA11y: colsA11yFor(cols) })
   },
 
   onToggleView() {
     const view = this.data.view === 'grid' ? 'list' : 'grid'
     wx.setStorageSync(KEY_VIEW, view)
-    this.setData({ view, viewLabel: viewLabelFor(view) })
+    this.setData({ view, viewLabel: viewLabelFor(view), viewA11y: viewA11yFor(view) })
   },
 
   // ---------- 多选删除 ----------

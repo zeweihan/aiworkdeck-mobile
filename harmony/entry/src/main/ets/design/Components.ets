@@ -94,3 +94,65 @@ export struct PrimaryButton {
       })
   }
 }
+
+/** 滑块两侧离轨道边的留白。 */
+const TOGGLE_INSET: number = 2
+
+/**
+ * 两档胶囊开关（账号区域：大陆版 | 海外版，dev-board#837）。成熟做法对照阿里云 / 腾讯云 App 登录页的
+ * 「中国站 / 国际站」：一条圆角轨道里并排两个短标签，滑块垫在选中的那个下面，点任意位置翻到另一边。
+ *
+ * 整个控件是一个可点目标（高度不低于 touchMin），无障碍标签由调用方给、值是当前那一档。
+ * 两个标签宽度不一（「China」与「Global」），滑块的宽与位移按实测宽度走，用 Motion.baseMs 滑过去。
+ */
+@Component
+export struct SegmentToggle {
+  @Prop leftLabel: string = ''
+  @Prop rightLabel: string = ''
+  @Prop rightOn: boolean = false
+  @Prop a11yLabel: string = ''
+  @State leftW: number = 0
+  @State rightW: number = 0
+  onToggle: () => void = () => {}
+
+  build() {
+    Row() {
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width(this.rightOn ? this.rightW : this.leftW)
+          .height('100%')
+          .borderRadius(Tk.touchMin / 2)
+          .backgroundColor(Tk.L.accent)
+          .translate({ x: this.rightOn ? this.leftW : 0 })
+          .animation({ duration: Tk.Motion.baseMs, curve: Curve.EaseInOut })
+        Row() {
+          Text(this.leftLabel)
+            .fontSize(Tk.Ty.micro)
+            .fontColor(this.rightOn ? Tk.L.fgMuted : Tk.D.fg)
+            .padding({ left: Tk.Sp.s3, right: Tk.Sp.s3, top: Tk.Sp.s1, bottom: Tk.Sp.s1 })
+            .onAreaChange((o: Area, n: Area): void => {
+              this.leftW = Number(n.width)
+            })
+          Text(this.rightLabel)
+            .fontSize(Tk.Ty.micro)
+            .fontColor(this.rightOn ? Tk.D.fg : Tk.L.fgMuted)
+            .padding({ left: Tk.Sp.s3, right: Tk.Sp.s3, top: Tk.Sp.s1, bottom: Tk.Sp.s1 })
+            .onAreaChange((o: Area, n: Area): void => {
+              this.rightW = Number(n.width)
+            })
+        }
+      }
+      .padding(TOGGLE_INSET)
+      .backgroundColor(Tk.L.sunken)
+      .border({ width: 1, color: Tk.L.rule })
+      .borderRadius(Tk.touchMin / 2)
+    }
+    .height(Tk.touchMin)
+    .accessibilityGroup(true)
+    .accessibilityText(this.a11yLabel)
+    .accessibilityDescription(this.rightOn ? this.rightLabel : this.leftLabel)
+    .onClick(() => {
+      this.onToggle()
+    })
+  }
+}

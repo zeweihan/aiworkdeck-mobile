@@ -104,9 +104,9 @@ struct ProjectPickerView: View {
             Text(tr("project.emptyTitle"))
                 .font(T.F.body())
                 .foregroundStyle(T.L.fg)
-            // 说实话：列表来自桌面端的自动同步，前提是桌面端开着且登录同一手机号。
+            // 说实话：列表来自桌面端的自动同步，前提是桌面端开着且登录同一账号（海外版是邮箱，不是手机号）。
             // 不要写「新建项目后刷新」——不满足前提时那句话怎么做都不会应验。
-            Text("在电脑上用同一手机号登录 AI WorkDeck 并保持运行，项目会在一分钟内出现在这里。")
+            Text(tr("project.emptyHint"))
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
             Button(tr("project.reload")) { Task { await load() } }

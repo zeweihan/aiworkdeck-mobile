@@ -73,11 +73,10 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             WorkManager.getInstance(context).enqueueUniqueWork("upload", ExistingWorkPolicy.KEEP, request)
         }
 
-        /** 幂等：渠道已存在就什么也不做。 */
+        /** 幂等：渠道已存在时再建一次只会更新名字（界面语言跟着区域换了，系统设置里的渠道名也跟着换）。 */
         fun ensureChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService(NotificationManager::class.java) ?: return
-            if (manager.getNotificationChannel(CHANNEL_ID) != null) return
             val channel = NotificationChannel(
                 CHANNEL_ID, tr("notify.channel.upload"), NotificationManager.IMPORTANCE_LOW,
             )

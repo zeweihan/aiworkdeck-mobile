@@ -1,5 +1,6 @@
 package com.aiworkdeck.mobile.services
 
+import com.aiworkdeck.mobile.design.tr
 import com.aiworkdeck.mobile.model.CaptureItem
 import com.aiworkdeck.mobile.model.CaptureManifest
 import com.aiworkdeck.mobile.model.IsoTime
@@ -153,7 +154,7 @@ class EvidenceStore(private val root: File, private val facts: DeviceFacts) {
         return CaptureItem(
             id = id, kind = row.kind, state = state ?: TransferState.failed, manifest = row.manifest,
             localFile = File(media, "$id.${row.kind.ext}"), progress = row.progress,
-            lastError = if (state == null) "未知状态: ${row.state}" else row.lastError,
+            lastError = if (state == null) tr("queue.unknownState", mapOf("state" to row.state)) else row.lastError,
             savedToAlbum = row.savedToAlbum ?: false, project = row.project,
         )
     }

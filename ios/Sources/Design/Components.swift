@@ -110,10 +110,10 @@ enum RelativeTime {
     static func short(_ date: Date, now: Date = .now) -> String {
         let s = Int(now.timeIntervalSince(date))
         return switch s {
-        case ..<60: "\(max(s, 0)) 秒前"
-        case ..<3600: "\(s / 60) 分钟前"
-        case ..<86400: "\(s / 3600) 小时前"
-        default: "\(s / 86400) 天前"
+        case ..<60: tr("time.secondsAgo", ["n": String(max(s, 0))])
+        case ..<3600: tr("time.minutesAgo", ["n": String(s / 60)])
+        case ..<86400: tr("time.hoursAgo", ["n": String(s / 3600)])
+        default: tr("time.daysAgo", ["n": String(s / 86400)])
         }
     }
 

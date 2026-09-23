@@ -13,7 +13,7 @@
       wx:if="{{view === 'grid' && !selecting}}"
       class="tools__btn tappable"
       bindtap="onToggleCols"
-      aria-label="{{cols}} 列，切换列数"
+      aria-label="{{colsA11y}}"
     >
       <text class="tools__text mono">{{cols}} 列</text>
     </view>
@@ -21,7 +21,7 @@
       wx:if="{{!selecting}}"
       class="tools__btn tappable"
       bindtap="onToggleView"
-      aria-label="{{view === 'grid' ? '切换到列表' : '切换到网格'}}"
+      aria-label="{{viewA11y}}"
     >
       <text class="tools__text">{{viewLabel}}</text>
     </view>
@@ -45,7 +45,7 @@
 
   <view class="status" wx:if="{{!days.length}}">
     <text class="status__text">{{emptyText}}</text>
-    <text class="status__sub">拍摄后会归入当前项目。</text>
+    <text class="status__sub">{{emptyHint}}</text>
   </view>
 
   <block wx:for="{{days}}" wx:for-item="day" wx:key="key">

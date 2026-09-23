@@ -1,5 +1,6 @@
 import type { Metrics } from '../../utils/layout'
 import type { GlassMode } from '../../utils/capability'
+import { t } from '../../utils/i18n'
 
 interface AppGlobal {
   globalData: { metrics: Metrics; glassMode: GlassMode }
@@ -22,6 +23,7 @@ Component({
     metrics: {} as Metrics,
     glassMode: 'solid' as GlassMode,
     scrolled: false,
+    backLabel: '',
   },
 
   observers: {
@@ -37,6 +39,8 @@ Component({
       this.setData({
         metrics: app.globalData.metrics,
         glassMode: app.globalData.glassMode,
+        // 挂载时按当前语言取词（登录页切海外版后进下载页，这里要是英文）
+        backLabel: t('common.back'),
       })
     },
   },

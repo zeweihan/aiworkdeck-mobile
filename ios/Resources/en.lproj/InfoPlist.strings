@@ -1,0 +1,6 @@
+/* 系统权限弹窗的英文说明（设备语言为英文时由系统显示）。中文原文在 project.yml 的 info.properties，
+   与 zh-Hans.lproj/InfoPlist.strings 保持同义。 */
+"NSCameraUsageDescription" = "Used to capture on-site photos and evidence footage. Captures stay inside this app and are not written to your photo library.";
+"NSMicrophoneUsageDescription" = "Used for on-site audio evidence and for sound in video recordings. Recorded audio is kept only as an evidence record.";
+"NSLocationWhenInUseUsageDescription" = "Records where each capture was taken and adds it to the archive details. Read once at capture time; no background tracking.";
+"NSPhotoLibraryAddUsageDescription" = "Saves a capture to your photo library when you choose to export it.";

@@ -1,0 +1,35 @@
+<nav-bar title="{{navTitle}}" show-back="{{true}}" />
+
+<view
+  class="page"
+  style="min-height: calc(100vh - {{metrics.navTotalHeight}}px); padding-bottom: {{metrics.bottomInset}}px;"
+>
+
+  <!-- iOS：已上架。小程序打不开 App Store，只能复制链接去浏览器 / App Store 打开 -->
+  <view class="row">
+    <view class="row__head">
+      <text class="row__name">{{iosLabel}}</text>
+    </view>
+    <text class="row__hint">{{iosHint}}</text>
+    <view class="copy-btn tappable" bindtap="onCopyIos">
+      <text class="copy-btn__text">{{iosCopyText}}</text>
+    </view>
+  </view>
+  <view class="rule"></view>
+
+  <view class="row">
+    <view class="row__head">
+      <text class="row__name">{{androidLabel}}</text>
+      <text class="row__status">{{comingSoonText}}</text>
+    </view>
+  </view>
+  <view class="rule"></view>
+
+  <view class="row">
+    <view class="row__head">
+      <text class="row__name">{{harmonyLabel}}</text>
+      <text class="row__status">{{comingSoonText}}</text>
+    </view>
+  </view>
+  <view class="rule"></view>
+</view>
