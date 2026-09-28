@@ -1,1 +1,3 @@
-New China / Global account switch: tap the toggle at the top right of the sign-in screen. Global accounts are registered at workdeck.ai, sign in with an email code, and use an English interface.
+Fixes recording state and timer recovery after returning from the background, and improves the stop button.
+Recordings are saved independently of the recording screen, with recovery of retained files and clear save feedback.
+Adds an Audio filter in the library and explicit playback controls to make recordings easier to find and play.

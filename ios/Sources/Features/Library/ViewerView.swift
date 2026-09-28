@@ -31,7 +31,7 @@ struct ViewerView: View {
         case .photo:
             ZoomablePhoto(item: item)
         case .video, .audio:
-            MediaPlayerPage(item: item)
+            MediaPlayerPage(item: item, selected: items[index].id == item.id)
         }
     }
 
@@ -151,22 +151,69 @@ private struct ZoomablePhoto: View {
 /// 录像与录音都交给系统播放器：录音没有画面，播放器本身就是界面，再叠一个波形符号说明这是声音。
 private struct MediaPlayerPage: View {
     let item: CaptureItem
+    let selected: Bool
     @State private var player: AVPlayer?
+    @State private var playing = false
+    @State private var message: String?
 
     var body: some View {
         ZStack {
-            if let player {
-                VideoPlayer(player: player)
-                    .ignoresSafeArea()
-            }
-            if item.kind == .audio {
-                Image(systemName: "waveform")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .allowsHitTesting(false)
+            if let message {
+                Text(message).foregroundStyle(.white).padding(T.Sp.gutter)
+            } else if item.kind == .audio {
+                VStack(spacing: T.Sp.s4) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 44, weight: .light))
+                    Text(tr("home.mode.audio")).font(T.F.heading())
+                    Button {
+                        guard let player else { return }
+                        if playing { player.pause() }
+                        else {
+                            if player.currentTime() >= (player.currentItem?.duration ?? .positiveInfinity) {
+                                player.seek(to: .zero)
+                            }
+                            player.play()
+                        }
+                        playing.toggle()
+                    } label: {
+                        Label(tr(playing ? "player.pause" : "player.play"),
+                              systemImage: playing ? "pause.fill" : "play.fill")
+                            .frame(minHeight: T.touchMin)
+                    }
+                    .accessibilityIdentifier("media.playback")
+                    .disabled(player == nil)
+                }
+                .foregroundStyle(.white)
+            } else if let player {
+                VideoPlayer(player: player).ignoresSafeArea()
             }
         }
-        .onAppear { player = AVPlayer(url: item.localURL) }
-        .onDisappear { player?.pause(); player = nil }
+        .task(id: selected) {
+            guard selected else { player?.pause(); playing = false; return }
+            guard !AudioRecorderService.shared.isRecording, !AudioRecorderService.shared.isBusy else {
+                message = tr("player.stopRecordingFirst")
+                return
+            }
+            guard FileManager.default.fileExists(atPath: item.localURL.path),
+                  await configureAudioSession(active: true, playback: true) else {
+                message = tr("player.unavailable")
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let asset = AVURLAsset(url: item.localURL)
+            guard (try? await asset.load(.isPlayable)) == true else {
+                message = tr("player.unavailable")
+                return
+            }
+            guard !Task.isCancelled else { return }
+            message = nil
+            player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)) { note in
+            guard let ended = note.object as? AVPlayerItem, ended === player?.currentItem else { return }
+            playing = false
+            player?.seek(to: .zero)
+        }
+        .onDisappear { player?.pause(); player = nil; playing = false }
     }
 }

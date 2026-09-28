@@ -16,7 +16,7 @@ import { listItems, tallyFor, subscribe, pollStatus, processQueue, enqueueCaptur
 import { dotClass, projectId, tallyTotal, PHASE_LABEL, type Tally } from '../../utils/phase'
 import { t } from '../../utils/i18n'
 import { reportDiag } from '../../utils/diag'
-import { startRecording, stopRecording, isRecording, resumeIfInterrupted } from '../../utils/recorder'
+import { startRecording, stopRecording, isRecording, resumeIfInterrupted, recordingSnapshot, bindRecordingCallbacks } from '../../utils/recorder'
 import { CAPS, DEGRADED_NOTICE } from '../../utils/contract/capabilities'
 import { thumbFor, setVideoThumb, markThumbBroken } from '../../utils/thumbs'
 
@@ -155,7 +155,13 @@ Page({
     })
 
     // 录音态与真实 recorder 对齐：页面被 reLaunch 重建等场景下不残留假录制中
-    if (this.data.mode === 'audio' && this.data.recording && !isRecording()) {
+    const recording = recordingSnapshot()
+    if (recording) {
+      bindRecordingCallbacks(this.audioCallbacks())
+      this.setData({ mode: 'audio', recording: true, recordSegment: recording.segmentIndex,
+        recordInterrupted: recording.interrupted })
+      this.startRecordTimer()
+    } else if (this.data.mode === 'audio' && this.data.recording && !isRecording()) {
       this.stopRecordUi()
     }
     // 通话结束事件没送到时，回前台补一次续录
@@ -202,6 +208,7 @@ Page({
   },
 
   onUnload() {
+    bindRecordingCallbacks({ onSegment: () => {}, onFinish: () => {}, onError: () => {} })
     this.visible = false
     // 页面正在销毁，只丢引用不 setData
     this.cameraCtx = null
@@ -343,6 +350,7 @@ Page({
   // ---------- 快门 ----------
 
   onShutter() {
+    if (isRecording()) { stopRecording(); return }
     const project = getSelectedProject()
     if (!project) return
     wx.vibrateShort({ type: 'light' })
@@ -514,16 +522,20 @@ Page({
 
   // ---------- 录音（第三档，显式入口；分段续录见 recorder.ts） ----------
 
-  async onStartAudio(project: RelayProject) {
-    const started = await startRecording(project, {
-      onSegment: (segmentIndex) => this.setData({ recordSegment: segmentIndex }),
+  audioCallbacks() {
+    return {
+      onSegment: (segmentIndex: number) => this.setData({ recordSegment: segmentIndex }),
       onFinish: () => this.stopRecordUi(),
-      onError: (message) => {
+      onError: (message: string) => {
         this.stopRecordUi()
         wx.showToast({ title: message, icon: 'none' })
       },
-      onInterrupted: (recordInterrupted) => this.setData({ recordInterrupted }),
-    })
+      onInterrupted: (recordInterrupted: boolean) => this.setData({ recordInterrupted }),
+    }
+  },
+
+  async onStartAudio(project: RelayProject) {
+    const started = await startRecording(project, this.audioCallbacks())
     if (!started) return
 
     this.recordStartedAt = Date.now()
@@ -546,7 +558,9 @@ Page({
   startRecordTimer() {
     this.stopRecordTimer()
     this.recordTimer = setInterval(() => {
-      const total = Math.floor((Date.now() - this.recordStartedAt) / 1000)
+      const total = this.data.mode === 'audio'
+        ? (recordingSnapshot()?.elapsedSeconds ?? 0)
+        : Math.floor((Date.now() - this.recordStartedAt) / 1000)
       const mm = `${Math.floor(total / 60)}`.padStart(2, '0')
       const ss = `${total % 60}`.padStart(2, '0')
       this.setData({ recordElapsed: `${mm}:${ss}` })

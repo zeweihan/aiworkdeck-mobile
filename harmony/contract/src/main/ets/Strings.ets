@@ -129,8 +129,8 @@ export const ContractStrings: Record<string, Record<string, string>> = {
     "en": "Keeps recording in the background and when locked"
   },
   "rec.paused.interrupted": {
-    "zh-Hans": "通话中，录音已暂停，结束后自动继续",
-    "en": "Paused for a call. Recording resumes automatically when it ends."
+    "zh-Hans": "录音被系统中断，返回后尝试继续；也可停止并保存",
+    "en": "Recording interrupted. Return to resume, or stop to save."
   },
   "empty.projects": {
     "zh-Hans": "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里",
@@ -803,5 +803,49 @@ export const ContractStrings: Record<string, Record<string, string>> = {
   "queue.emptyHint": {
     "zh-Hans": "拍摄后会自动排队上传到当前项目。",
     "en": "New captures queue up automatically for the current project."
+  },
+  "rec.saveFailed": {
+    "zh-Hans": "录音保存未完成，原文件已保留",
+    "en": "Recording could not be saved. The original file is kept."
+  },
+  "rec.startFailed": {
+    "zh-Hans": "无法开始录音，请检查麦克风是否被其他应用占用后重试",
+    "en": "Unable to record. Check whether another app is using the microphone and retry."
+  },
+  "rec.saved.open": {
+    "zh-Hans": "录音已保存 · 打开资料库播放",
+    "en": "Recording saved · Open library to play"
+  },
+  "library.audio": {
+    "zh-Hans": "录音",
+    "en": "Audio"
+  },
+  "library.all": {
+    "zh-Hans": "全部",
+    "en": "All"
+  },
+  "library.open": {
+    "zh-Hans": "资料库",
+    "en": "Library"
+  },
+  "player.play": {
+    "zh-Hans": "播放",
+    "en": "Play"
+  },
+  "player.pause": {
+    "zh-Hans": "暂停",
+    "en": "Pause"
+  },
+  "player.stopRecordingFirst": {
+    "zh-Hans": "请先停止并保存当前录音，再播放资料",
+    "en": "Stop and save the current recording before playback."
+  },
+  "player.unavailable": {
+    "zh-Hans": "无法播放此文件，请检查本地文件是否完整",
+    "en": "Unable to play this file. Check that the local file is complete."
+  },
+  "rec.failed": {
+    "zh-Hans": "录音未完成，请在资料库核对已保存的片段",
+    "en": "Recording did not finish. Check saved segments in the library."
   }
 }

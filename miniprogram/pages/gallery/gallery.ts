@@ -1,3 +1,4 @@
+import { isRecording } from '../../utils/recorder'
 /**
  * 图集 —— 影像浏览走深色（D7）。只看一个项目：默认当前项目，点标题切换看别的项目
  * （只切看的对象，不切拍摄目标）。项目内按自然日分段。列数、网格/列表、多选删除都在这一页。
@@ -75,6 +76,9 @@ function colsA11yFor(cols: number): string {
 Page({
   data: {
     Icon,
+    audioOnly: false,
+    allLabel: t('library.all'),
+    audioLabel: t('library.audio'),
     phaseLabel: PHASE_LABEL,
     metrics: {} as Metrics,
     scrollTop: 0,
@@ -156,7 +160,7 @@ Page({
       ? this.data.viewingId
       : projects[0].id
     const viewingName = projects.find((p) => p.id === viewingId)!.name
-    const items = listItems(viewingId)
+    const items = listItems(viewingId).filter((it) => !this.data.audioOnly || it.mediaType === 'audio')
     const cells: Cell[] = items.map((it) => ({
       clientMediaId: it.clientMediaId,
       mediaType: it.mediaType,
@@ -270,7 +274,18 @@ Page({
     })
   },
 
+  onFilterAudio(e: WechatMiniprogram.TouchEvent) {
+    this.setData({ audioOnly: e.currentTarget.dataset.audio === 'true' })
+    this.selected.clear()
+    this.stopAudio()
+    this.refresh()
+  },
+
   toggleAudio(cell: Cell) {
+    if (isRecording()) {
+      wx.showToast({ title: t('player.stopRecordingFirst'), icon: 'none' })
+      return
+    }
     if (this.audio && this.audioId === cell.clientMediaId) {
       this.stopAudio()
       return
@@ -281,6 +296,7 @@ Page({
       return
     }
     const ctx = wx.createInnerAudioContext()
+    ctx.obeyMuteSwitch = false
     ctx.src = cell.filePath
     ctx.onEnded(() => this.stopAudio())
     ctx.onError(() => {

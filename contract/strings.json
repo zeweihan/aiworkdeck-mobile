@@ -31,7 +31,7 @@
   "cap.noBackgroundRecording": { "zh-Hans": "小程序切到后台或锁屏后录音可能中断，请保持微信在前台", "en": "Recording may stop if WeChat goes to the background or the screen locks. Keep WeChat in the foreground." },
   "cap.noIntlAccount":      { "zh-Hans": "小程序只支持大陆版账号。海外版账号请下载 AI WorkDeck App 登录。", "en": "The mini program supports China accounts only. Download the AI WorkDeck app to sign in with a Global account." },
   "home.audio.backgroundOk": { "zh-Hans": "切到后台、锁屏也会继续录音", "en": "Keeps recording in the background and when locked" },
-  "rec.paused.interrupted": { "zh-Hans": "通话中，录音已暂停，结束后自动继续", "en": "Paused for a call. Recording resumes automatically when it ends." },
+  "rec.paused.interrupted": {"zh-Hans": "录音被系统中断，返回后尝试继续；也可停止并保存", "en": "Recording interrupted. Return to resume, or stop to save."},
   "empty.projects":         { "zh-Hans": "桌面端用同一手机号登录并保持运行，项目约一分钟内出现在这里", "en": "Sign in to the desktop app with the same phone number and keep it running. Projects appear here within about a minute." },
   "login.title":            { "zh-Hans": "登录", "en": "Sign in" },
   "login.codeTitle":        { "zh-Hans": "验证码", "en": "Code" },
@@ -199,5 +199,16 @@
   "settings.album.denied": { "zh-Hans": "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开，否则这个开关不会生效。", "en": "No permission to save to Photos. Turn it on in Settings → AI WorkDeck → Photos, or this switch has no effect." },
   "album.denied": { "zh-Hans": "没有相册写入权限。去「设置 → AI WorkDeck → 照片」打开。", "en": "No permission to save to Photos. Turn it on in Settings → AI WorkDeck → Photos." },
   "queue.expiresOn": { "zh-Hans": "云端保存至 {date}，请尽快在桌面端接收", "en": "Kept in the cloud until {date}. Collect it on your desktop soon." },
-  "queue.emptyHint": { "zh-Hans": "拍摄后会自动排队上传到当前项目。", "en": "New captures queue up automatically for the current project." }
+  "queue.emptyHint": { "zh-Hans": "拍摄后会自动排队上传到当前项目。", "en": "New captures queue up automatically for the current project." },
+  "rec.saveFailed": {"zh-Hans": "录音保存未完成，原文件已保留", "en": "Recording could not be saved. The original file is kept."},
+  "rec.startFailed": {"zh-Hans": "无法开始录音，请检查麦克风是否被其他应用占用后重试", "en": "Unable to record. Check whether another app is using the microphone and retry."},
+  "rec.saved.open": {"zh-Hans": "录音已保存 · 打开资料库播放", "en": "Recording saved · Open library to play"},
+  "library.audio": {"zh-Hans": "录音", "en": "Audio"},
+  "library.all": {"zh-Hans": "全部", "en": "All"},
+  "library.open": {"zh-Hans": "资料库", "en": "Library"},
+  "player.play": {"zh-Hans": "播放", "en": "Play"},
+  "player.pause": {"zh-Hans": "暂停", "en": "Pause"},
+  "player.stopRecordingFirst": {"zh-Hans": "请先停止并保存当前录音，再播放资料", "en": "Stop and save the current recording before playback."},
+  "player.unavailable": {"zh-Hans": "无法播放此文件，请检查本地文件是否完整", "en": "Unable to play this file. Check that the local file is complete."},
+  "rec.failed": {"zh-Hans": "录音未完成，请在资料库核对已保存的片段", "en": "Recording did not finish. Check saved segments in the library."}
 }

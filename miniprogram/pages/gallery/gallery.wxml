@@ -32,6 +32,10 @@
 </nav-bar>
 
 <view class="page" style="padding-bottom: {{metrics.bottomInset + 96}}px;">
+  <view class="tools">
+    <view class="tools__btn tappable" data-audio="false" bindtap="onFilterAudio"><text>{{audioOnly ? allLabel : '✓ ' + allLabel}}</text></view>
+    <view class="tools__btn tappable" data-audio="true" bindtap="onFilterAudio"><text>{{audioOnly ? '✓ ' + audioLabel : audioLabel}}</text></view>
+  </view>
   <!-- 三段计数，只数正在看的项目 -->
   <view class="tally">
     <text class="tally__num mono tally__num--waiting">{{tally.uploading}}</text>

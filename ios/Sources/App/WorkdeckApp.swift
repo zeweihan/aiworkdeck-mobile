@@ -8,7 +8,7 @@ struct WorkdeckApp: App {
         // 锁屏卡片 / 灵动岛的「停止录音」在主进程执行，落到录音单例。
         // 顺带在启动时就把单例建起来：它的 init 会收掉上次进程遗留的 Live Activity。
         let recorder = AudioRecorderService.shared
-        StopRecordingIntent.handler = { recorder.stop() }
+        StopRecordingIntent.handler = { await recorder.stop() }
         // 界面语言跟账号区域走（dev-board#837）：大陆版中文、海外版英文，不跟设备语言。
         // 存量用户没有区域键 → 缺省大陆版 → 中文，与升级前一致。
         L10n.apply(region: .current)

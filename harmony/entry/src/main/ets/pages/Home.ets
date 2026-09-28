@@ -73,6 +73,7 @@ export struct Home {
   @State gpsText: string = ''
   @State stampLines: string[] = []
   @State recordingVideo: boolean = false
+  @State recordingMessage: string = ''
   @State recordingAudio: boolean = false
   @State interrupted: boolean = false
   @State elapsedText: string = '00:00'
@@ -262,6 +263,12 @@ export struct Home {
         Text(this.recordingAudio ? tr('home.recording.audio') : tr('home.audio.hint'))
           .fontSize(Tk.Ty.nano)
           .fontColor(Tk.D.fgMuted)
+        if (this.recordingMessage.length > 0) {
+          Text(this.recordingMessage)
+            .fontSize(Tk.Ty.small)
+            .fontColor(Tk.D.fg)
+            .onClick((): void => { this.stack.pushPath(new NavPathInfo('Library', '')) })
+        }
         // 录音中说一句「退后台也在录」：用户开会时最怕的就是切出去一下就断了
         if (this.recordingAudio) {
           Text(this.interrupted ? tr('rec.paused.interrupted') : tr('home.audio.backgroundOk'))
@@ -523,13 +530,17 @@ export struct Home {
   }
 
   private openCamera(): void {
-    if (!this.hasCamera || this.mode === CapMode.audio || this.surfaceId.length === 0) return
+    if (RecorderService.shared.state.isRecording || !this.hasCamera || this.mode === CapMode.audio || this.surfaceId.length === 0) return
     this.camera.open(this.surfaceId).catch((e: Object): void => {
       hilog.error(DOMAIN, TAG, 'open camera failed: %{public}s', `${e}`)
     })
   }
 
   private shoot(): void {
+    if (RecorderService.shared.state.isRecording) {
+      this.toggleAudio()
+      return
+    }
     // 顺手把定位续一次，供下一件用；这一件用的是已经在手上的那份快照，不等 GPS
     this.refreshLocation()
     if (this.mode === CapMode.photo) {
@@ -735,7 +746,9 @@ export struct Home {
 
   private syncRecording(): void {
     const st: RecordingState = RecorderService.shared.state
+    this.recordingMessage = st.message
     this.recordingAudio = st.isRecording
+    if (st.isRecording) this.mode = CapMode.audio
     this.interrupted = st.interrupted
     if (st.isRecording || !this.recordingVideo) this.elapsedText = formatClock(st.elapsedSec)
   }

@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 object RecordingState {
     data class StartRequest(val project: RelayProject?, val loc: Loc?)
 
+    var isSaving by mutableStateOf(false)
+    var message by mutableStateOf<String?>(null)
+
     var isRecording by mutableStateOf(false)
         private set
 
@@ -35,6 +38,7 @@ object RecordingState {
     val stored = MutableSharedFlow<CaptureItem>()
 
     fun begin(startedAt: Long) {
+        message = null
         this.startedAt = startedAt
         isRecording = true
     }

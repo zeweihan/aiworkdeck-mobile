@@ -58,6 +58,7 @@ final class CameraService: NSObject {
     // MARK: - 生命周期
 
     func start() async {
+        guard !AudioRecorderService.shared.isRecording, !AudioRecorderService.shared.isBusy else { return }
 #if DEBUG
         // 截图模式一律不点相机。守在这里而不是调用点：进前台、切模式、浮层收起
         // 都会各自 start() 一次，漏一处就是一张带权限弹窗的截图。
@@ -72,6 +73,7 @@ final class CameraService: NSObject {
         // 意图先落：中断结束与媒体服务重置都只按它决定要不要把相机点亮
         recovery.desiredRunning = true
         await configureIfNeeded()
+        guard !AudioRecorderService.shared.isRecording, !AudioRecorderService.shared.isBusy else { return }
         startRunning()
     }
 
@@ -84,6 +86,18 @@ final class CameraService: NSObject {
     /// 挂在捕获会话上，与 AVAudioRecorder 的 `.record` 会话抢同一个设备，
     /// 捕获会话被中断后（旧实现无人恢复）就是黑屏 + 快门失灵（dev-board#461）。
     func releaseMicrophone() { recovery.releaseMicrophone() }
+
+    /// Wait for the capture queue to relinquish audio before activating the recorder.
+    func prepareForAudioRecording() async {
+        stop()
+        releaseMicrophone()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async { [session] in
+                session.automaticallyConfiguresApplicationAudioSession = false
+                continuation.resume()
+            }
+        }
+    }
 
     /// 会话健康：中断、中断结束、运行时错误。这三个观察者是本次修复的核心——
     /// 旧实现一个都没有，会话一旦死掉就永远是黑的，只有重开 App 才好。
@@ -250,6 +264,7 @@ extension CameraService: CameraSessionControl {
 
     func addMicrophone() {
         sessionQueue.async { [session] in
+            session.automaticallyConfiguresApplicationAudioSession = true
             guard let mic = AVCaptureDevice.default(for: .audio),
                   let input = try? AVCaptureDeviceInput(device: mic),
                   session.canAddInput(input) else { return }

@@ -6,6 +6,7 @@ import { Tk } from '../design/Tokens'
 import { CaptureItem, MediaKind } from '../model/Capture'
 import { formatHms } from '../model/Format'
 import { TransferStateOps } from '../model/TransferState'
+import { RecorderService } from '../services/RecorderService'
 import { ViewerRequest } from './ViewerRequest'
 
 /** 哈希只露前 12 位：够两边核对是不是同一件，又不至于把整条状态行挤没。 */
@@ -127,7 +128,9 @@ export struct Viewer {
                 this.pinchBase = this.zoom
               })))
       } else if (this.index === i) {
-        if (item.kind === MediaKind.audio) {
+        if (RecorderService.shared.state.isRecording) {
+          Text(tr('player.stopRecordingFirst')).fontColor(Tk.D.fg)
+        } else if (item.kind === MediaKind.audio) {
           // 音符与播放条竖着排、整体居中：录音没有画面，把播放器铺满屏只会让
           // 控制条钻到底座下面去，而音符也被播放器那层不透明底色盖掉。
           Column({ space: Tk.Sp.s2 }) {

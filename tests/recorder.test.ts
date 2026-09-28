@@ -81,3 +81,33 @@ test('没有会话时 resumeIfInterrupted 是空操作', () => {
   resumeIfInterrupted()
   assert.equal(mgr.calls.resume, before)
 })
+
+test('重复开始只创建一次会话；中断时间不计入录音，页面重建可读取状态并停止', async () => {
+  const { recordingSnapshot, bindRecordingCallbacks } = await import('../miniprogram/utils/recorder.ts')
+  const originalNow = Date.now
+  let now = 1000
+  Date.now = () => now
+  try {
+    const cb = { onSegment: () => {}, onFinish: () => {}, onError: () => {} }
+    const results = await Promise.all([startRecording(project, cb), startRecording(project, cb)])
+    assert.deepEqual(results, [true, false])
+    mgr.handlers.start()
+    now = 11000
+    mgr.handlers.interruptionBegin()
+    now = 61000
+    assert.equal(recordingSnapshot()?.elapsedSeconds, 10)
+    assert.equal(recordingSnapshot()?.interrupted, true)
+    mgr.handlers.resume()
+    now = 66000
+    assert.equal(recordingSnapshot()?.elapsedSeconds, 15)
+    let finished = 0
+    bindRecordingCallbacks({ ...cb, onFinish: () => { finished++ } })
+    const before = mgr.calls.stop
+    stopRecording()
+    stopRecording()
+    assert.equal(mgr.calls.stop, before + 1)
+    mgr.handlers.stop({ tempFilePath: '' })
+    assert.equal(finished, 1)
+    assert.equal(recordingSnapshot(), null)
+  } finally { Date.now = originalNow }
+})

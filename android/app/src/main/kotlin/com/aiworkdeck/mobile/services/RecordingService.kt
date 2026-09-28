@@ -49,7 +49,7 @@ class RecordingService : Service() {
             stopAndStore()
             return START_NOT_STICKY
         }
-        if (engine != null) return START_NOT_STICKY
+        if (engine != null || RecordingState.isSaving) return START_NOT_STICKY
         val req = RecordingState.takeRequest()
         val now = System.currentTimeMillis()
         // 先举通知再开录：startForegroundService 起来的服务 5 秒内不 startForeground 会被系统掐掉。
@@ -62,12 +62,14 @@ class RecordingService : Service() {
         } catch (e: Exception) {
             logger.warning("录音前台服务举通知失败: ${e.message}")
             RecordingState.finish()
+            RecordingState.message = tr("rec.startFailed")
             stopSelf()
             return START_NOT_STICKY
         }
         val eng = AudioRecorderService(this)
         if (!eng.start()) {
             RecordingState.finish()
+            RecordingState.message = tr("rec.startFailed")
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -84,6 +86,7 @@ class RecordingService : Service() {
      * 顺序与 `AppModel.store` 一致：先进库、再排上传、最后踢一脚队列；录音不存相册，服务里不用管。
      */
     private fun stopAndStore() {
+        if (RecordingState.isSaving) return
         val eng = engine
         engine = null
         val req = request
@@ -91,19 +94,23 @@ class RecordingService : Service() {
         RecordingState.finish()
         val file = eng?.stop()
         if (file == null) {
+            if (eng != null) RecordingState.message = tr("rec.failed")
             finishService()
             return
         }
+        RecordingState.isSaving = true
         val app = applicationContext
         storeScope.launch {
             try {
                 val item = ServiceLocator.store.save(MediaKind.audio, file, Instant.ofEpochMilli(at), req?.loc, req?.project)
+                withContext(Dispatchers.Main) { RecordingState.message = tr("rec.saved.open") }
                 UploadWorker.enqueue(app)
                 RecordingState.stored.emit(item)
             } catch (e: Exception) {
                 logger.warning("录音落库失败: ${e.message}")
+                withContext(Dispatchers.Main) { RecordingState.message = tr("rec.saveFailed") }
             } finally {
-                withContext(Dispatchers.Main) { finishService() }
+                withContext(Dispatchers.Main) { finishService(); RecordingState.isSaving = false }
             }
             // 截图模式下不踢队列：kick() 会把灌进去的「上传中」当尸体复位成「待传」
             if (!ScreenshotMode.enabled) ServiceLocator.queueOrNull()?.kick()
@@ -157,6 +164,7 @@ class RecordingService : Service() {
 
         /** 开录。必须在应用前台调用（API 34+ 麦克风类前台服务不许后台启动）。 */
         fun start(context: Context, project: RelayProject?, loc: Loc?) {
+            if (RecordingState.isRecording || RecordingState.isSaving) return
             RecordingState.request = RecordingState.StartRequest(project, loc)
             ContextCompat.startForegroundService(context, Intent(context, RecordingService::class.java))
         }
