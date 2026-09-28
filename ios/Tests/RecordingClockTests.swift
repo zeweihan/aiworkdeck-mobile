@@ -88,4 +88,24 @@ final class RecordingClockTests: XCTestCase {
         XCTAssertFalse(c.paused)
         XCTAssertEqual(c.elapsed(at: at(105)), 5)
     }
+    func testForegroundReconciliationExcludesUnrecordedBackgroundTime() {
+        var clock = RecordingClock()
+        clock.start(at: t0)
+        clock.synchronize(seconds: 12, running: false, at: at(60))
+        XCTAssertEqual(clock.elapsed(at: at(120)), 12)
+        XCTAssertTrue(clock.paused)
+        clock.synchronize(seconds: 12, running: true, at: at(120))
+        XCTAssertEqual(clock.elapsed(at: at(123)), 15)
+        XCTAssertFalse(clock.paused)
+    }
+
+    func testStaleInterruptionDoesNotPauseAnActuallyRunningRecorder() {
+        var clock = RecordingClock()
+        clock.start(at: t0)
+        clock.interrupt(at: at(10))
+        clock.synchronize(seconds: 30, running: true, at: at(30))
+        XCTAssertEqual(clock.elapsed(at: at(31)), 31)
+        XCTAssertFalse(clock.paused)
+    }
+
 }

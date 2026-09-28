@@ -41,6 +41,7 @@ export struct Library {
   stack: NavPathStack = new NavPathStack()
 
   /** 正在看的项目标识。空串 = 还没定，syncModel 里落到当前项目或第一个有记录的项目。 */
+  @State audioOnly: boolean = false
   @State viewingId: string = ''
   @State viewingName: string = ''
   @State choices: ProjectChoice[] = []
@@ -121,6 +122,17 @@ export struct Library {
   @Builder
   topBar() {
     Column() {
+      Row({ space: Tk.Sp.s3 }) {
+        Text(tr('library.all'))
+          .fontColor(this.audioOnly ? Tk.D.fgMuted : Tk.D.fg)
+          .height(Tk.touchMin)
+          .onClick((): void => { this.audioOnly = false; this.selected = []; this.syncModel() })
+        Text(tr('library.audio'))
+          .fontColor(this.audioOnly ? Tk.D.fg : Tk.D.fgMuted)
+          .height(Tk.touchMin)
+          .onClick((): void => { this.audioOnly = true; this.selected = []; this.syncModel() })
+      }
+
       Row({ space: Tk.Sp.s1 }) {
         Text('✕')
           .fontSize(Tk.Ty.body)
@@ -522,6 +534,7 @@ export struct Library {
     this.viewingName = viewing === null ? '' : viewing.name
 
     const items: CaptureItem[] = itemsIn(model.items, viewing === null ? null : viewing.id)
+      .filter((it: CaptureItem): boolean => !this.audioOnly || it.kind === MediaKind.audio)
     this.sections = groupByDay(items)
     this.count = items.length
     this.otherPending = model.otherPending()

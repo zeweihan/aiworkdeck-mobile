@@ -11,6 +11,7 @@ struct LibraryView: View {
     @Environment(AppModel.self) private var model
     var onClose: () -> Void
 
+    @State private var audioOnly = false
     @State private var viewingID: String?
     @AppStorage("libraryColumns") private var columns = 3
     @AppStorage("libraryViewMode") private var viewMode = "grid"
@@ -37,7 +38,9 @@ struct LibraryView: View {
         let id = viewingID ?? model.currentProjectID
         return projects.first { $0.id == id } ?? projects.first ?? .unknown
     }
-    private var items: [CaptureItem] { LibraryGrouping.items(model.items, in: viewing.id) }
+    private var items: [CaptureItem] {
+        LibraryGrouping.items(model.items, in: viewing.id).filter { !audioOnly || $0.kind == .audio }
+    }
     private var days: [LibraryGrouping.DaySection] { LibraryGrouping.days(items) }
     private var tally: TransferTally { TransferTally.of(items) }
     private var selectedItems: [CaptureItem] { items.filter { selected.contains($0.id) } }
@@ -62,12 +65,21 @@ struct LibraryView: View {
             }
             .scrollIndicators(.hidden)
 
-            topBar
+            VStack(spacing: T.Sp.s2) {
+                topBar
+                Picker(tr("library.open"), selection: $audioOnly) {
+                    Text(tr("library.all")).tag(false)
+                    Text(tr("library.audio")).tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, T.Sp.gutter)
+            }
         }
         .overlay(alignment: .bottom) {
             if selecting { deleteDock } else { dock }
         }
         .onAppear { appeared = true }
+        .onChange(of: audioOnly) { _, _ in selected = []; selecting = false }
         .fullScreenCover(item: $viewer) { target in
             ViewerView(items: target.items, index: target.index) { viewer = nil }
         }
@@ -107,7 +119,7 @@ struct LibraryView: View {
             }
         }
         // 顶栏与底座都是浮层，内容要自己让开，否则首末两行永远被压住
-        .padding(.top, 96)
+        .padding(.top, 140)
         .padding(.bottom, 130)
     }
 
@@ -147,6 +159,7 @@ struct LibraryView: View {
             .contentShape(Rectangle())
             .onTapGesture { if selecting { toggle(item.id) } else { open(item, in: day) } }
             .accessibilityElement()
+            .accessibilityIdentifier("library.item.\(item.id)")
             .accessibilityLabel(
                 "\(kindLabel(item.kind))，\(RelativeTime.clock(item.capturedAt))，\(item.state.caption)"
             )
@@ -188,7 +201,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .padding(.top, 96)
+        .padding(.top, 140)
         .padding(.bottom, 130)
     }
 

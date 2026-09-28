@@ -12,6 +12,7 @@ import { RecordingClock } from '../model/RecordingClock'
  * 中断期间时钟不走，自增会把通话的那两分钟也算成录音时长。
  */
 export class RecordingState {
+  message: string = ''
   isRecording: boolean = false
   /** 开录的墙钟时刻（毫秒）。落库的采集时刻也取它——「什么时候开始录」比「什么时候按停」重要。 */
   startedAt: number = 0
@@ -39,6 +40,7 @@ export class RecordingState {
   // MARK: - 迁移（纯状态，由 RecorderService 在录音机真的动了之后调用）
 
   begin(at: number): void {
+    this.message = ''
     this.clock.start(at)
     this.startedAt = at
     this.isRecording = true
@@ -71,6 +73,11 @@ export class RecordingState {
     this.interrupted = false
     this.startedAt = 0
     this.elapsedSec = 0
+    this.emit()
+  }
+
+  setMessage(message: string): void {
+    this.message = message
     this.emit()
   }
 

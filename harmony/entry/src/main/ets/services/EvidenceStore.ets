@@ -99,16 +99,21 @@ export class EvidenceStore {
       this.ensureDirs()
       const id: string = util.generateRandomUUID(false).toLowerCase()
       const dst: string = `${this.mediaDir}/${id}.${MediaKindOps.ext(kind)}`
-      // 1. 原件先落盘（同卷 move 优先；跨卷才退化到拷贝 + 删源）
-      try {
-        await fs.moveFile(tempPath, dst, 0)
-      } catch (e) {
-        hilog.warn(DOMAIN, TAG, 'moveFile fell back to copy: %{public}s', (e as Error).message)
+      // Keep audio's source until its manifest commits, so a failed save is retryable.
+      if (kind === MediaKind.audio) {
         await fs.copyFile(tempPath, dst)
+      } else {
+        // 1. 原件先落盘（同卷 move 优先；跨卷才退化到拷贝 + 删源）
         try {
-          await fs.unlink(tempPath)
-        } catch (e2) {
-          hilog.warn(DOMAIN, TAG, 'temp unlink failed: %{public}s', (e2 as Error).message)
+          await fs.moveFile(tempPath, dst, 0)
+        } catch (e) {
+          hilog.warn(DOMAIN, TAG, 'moveFile fell back to copy: %{public}s', (e as Error).message)
+          await fs.copyFile(tempPath, dst)
+          try {
+            await fs.unlink(tempPath)
+          } catch (e2) {
+            hilog.warn(DOMAIN, TAG, 'temp unlink failed: %{public}s', (e2 as Error).message)
+          }
         }
       }
       // 2. 对落盘后的文件算哈希——要证明的是「磁盘上这个文件」没被改过，不是内存里的临时数据。
@@ -132,6 +137,9 @@ export class EvidenceStore {
       }
       // 3. manifest 最后写：存在即完整
       this.writeRow(id, row)
+      if (kind === MediaKind.audio) {
+        try { await fs.unlink(tempPath) } catch (_) { /* committed copy is authoritative */ }
+      }
       return this.toItem(id, row)
     })
   }

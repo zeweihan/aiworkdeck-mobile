@@ -147,7 +147,9 @@ private fun ZoomablePhoto(file: File) {
 @Composable
 private fun PlayerPage(file: File, active: Boolean) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (active) {
+        if (active && com.aiworkdeck.mobile.services.RecordingState.isRecording) {
+            Text(tr("player.stopRecordingFirst"), color = Color.White)
+        } else if (active) {
             val context = LocalContext.current
             val player = remember(file) {
                 ExoPlayer.Builder(context).build().apply {

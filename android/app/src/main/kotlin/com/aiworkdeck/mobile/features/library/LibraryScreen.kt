@@ -90,6 +90,7 @@ fun LibraryScreen(
     var viewingId by rememberSaveable { mutableStateOf(prefs.libraryViewingProject) }
     var columns by rememberSaveable { mutableIntStateOf(prefs.libraryColumns) }
     var viewMode by rememberSaveable { mutableStateOf(prefs.libraryViewMode) }
+    var audioOnly by rememberSaveable { mutableStateOf(false) }
     var selecting by rememberSaveable { mutableStateOf(false) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
     var confirming by remember { mutableStateOf(false) }
@@ -98,7 +99,7 @@ fun LibraryScreen(
     val projects = LibraryGrouping.projectsIn(all, current)
     // 正在看的项目：优先用手动切过的那个；它若已经没有记录了（比如刚被删空）就退回第一项
     val viewing = projects.firstOrNull { it.id == viewingId } ?: projects.firstOrNull()
-    val items = LibraryGrouping.itemsIn(all, viewing?.id)
+    val items = LibraryGrouping.itemsIn(all, viewing?.id).filter { !audioOnly || it.kind == MediaKind.audio }
     val days = LibraryGrouping.groupByDay(items)
     val selectedItems = items.filter { selected.contains(it.id) }
     val isGrid = viewMode == VIEW_GRID
@@ -191,26 +192,36 @@ fun LibraryScreen(
             GlassBar(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged {
                 barHeight = with(density) { it.height.toDp() }
             }) {
-                TopBar(
-                    viewingName = viewing?.name.orEmpty(),
-                    projects = projects.map { it.id to it.name },
-                    tally = TransferTally.of(items),
-                    columns = columns,
-                    isGrid = isGrid,
-                    selecting = selecting,
-                    canSelect = items.isNotEmpty(),
-                    onPick = { id -> viewingId = id; prefs.libraryViewingProject = id; selected = emptySet() },
-                    onColumns = {
-                        columns = if (columns >= 4) 2 else columns + 1
-                        prefs.libraryColumns = columns
-                    },
-                    onToggleView = {
-                        viewMode = if (isGrid) VIEW_LIST else VIEW_GRID
-                        prefs.libraryViewMode = viewMode
-                    },
-                    onToggleSelect = { selecting = !selecting; selected = emptySet() },
-                    onClose = onClose,
-                )
+                Column {
+                    Row {
+                        TextButton(onClick = { audioOnly = false; selected = emptySet() }) {
+                            Text(tr("library.all"), color = if (!audioOnly) Color.White else Tk.D.fgMuted)
+                        }
+                        TextButton(onClick = { audioOnly = true; selected = emptySet() }) {
+                            Text(tr("library.audio"), color = if (audioOnly) Color.White else Tk.D.fgMuted)
+                        }
+                    }
+                    TopBar(
+                        viewingName = viewing?.name.orEmpty(),
+                        projects = projects.map { it.id to it.name },
+                        tally = TransferTally.of(items),
+                        columns = columns,
+                        isGrid = isGrid,
+                        selecting = selecting,
+                        canSelect = items.isNotEmpty(),
+                        onPick = { id -> viewingId = id; prefs.libraryViewingProject = id; selected = emptySet() },
+                        onColumns = {
+                            columns = if (columns >= 4) 2 else columns + 1
+                            prefs.libraryColumns = columns
+                        },
+                        onToggleView = {
+                            viewMode = if (isGrid) VIEW_LIST else VIEW_GRID
+                            prefs.libraryViewMode = viewMode
+                        },
+                        onToggleSelect = { selecting = !selecting; selected = emptySet() },
+                        onClose = onClose,
+                    )
+                }
             }
 
             if (selecting) {

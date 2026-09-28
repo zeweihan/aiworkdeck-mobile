@@ -8,7 +8,7 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "1.2.0"
+    MARKETING_VERSION: "1.2.1"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: 8WKHZVR2W8        # 北京京微资易科技有限公司；iOS 只有这一个发布主体
@@ -155,7 +155,7 @@ targets:
     templates: [WorkdeckApp]
     scheme:
       configVariants: []
-      testTargets: [WorkdeckTests]
+      testTargets: [WorkdeckTests, WorkdeckUITests]
       # 模拟器里测内购：这份本地商品表顶替 App Store（dev-board#426）。三档与 ASC 上的
       # credits.cny.50/100/300 逐个对应，价格也一致，走查时购买弹层走沙盒确认、不真扣款。
       # 只影响 Debug 运行，归档发版走真实 App Store。
@@ -195,3 +195,16 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_ALLOWED: NO
+
+  WorkdeckUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Workdeck
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_TARGET_NAME: Workdeck

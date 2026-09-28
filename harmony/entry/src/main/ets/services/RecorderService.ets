@@ -6,6 +6,7 @@ import { media } from '@kit.MediaKit'
 import { util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { CaptureItem, MediaKind, RelayProject } from '../model/Capture'
+import { tr } from '../design/L10n'
 import { Loc } from '../model/Loc'
 import { RecordingState } from './RecordingState'
 import { ScreenshotMode } from '../ScreenshotMode'
@@ -62,7 +63,9 @@ export class RecorderService {
     if (this.busy || this.state.isRecording) return false
     this.busy = true
     try {
-      return await this.startInner(project, loc)
+      const started: boolean = await this.startInner(project, loc)
+      if (!started) this.state.setMessage(tr('rec.startFailed'))
+      return started
     } finally {
       this.busy = false
     }
@@ -155,17 +158,20 @@ export class RecorderService {
       await this.teardown()
     } finally {
       this.state.finish()
-      this.busy = false
     }
-    if (path.length === 0) return null
+    if (path.length === 0) { this.busy = false; return null }
 
     let item: CaptureItem
     try {
       item = await ServiceLocator.store.save(MediaKind.audio, path, startedAt, loc, project)
     } catch (e) {
-      hilog.error(DOMAIN, TAG, 'save failed, file kept at cacheDir: %{public}s', messageOf(e))
+      hilog.error(DOMAIN, TAG, 'save failed, source file retained: %{public}s', messageOf(e))
+      this.state.setMessage(tr('rec.saveFailed'))
       return null
+    } finally {
+      this.busy = false
     }
+    this.state.setMessage(tr('rec.saved.open'))
     hilog.info(DOMAIN, TAG, '%{public}s', 'recording stored')
     // 上传不挡着返回：界面等的是「这一件已经进库」，传没传出去是队列自己的事
     // 截图模式下队列里摆的是灌进去的假件，一上传就会被打成 failed

@@ -99,7 +99,7 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     val stamper = remember { LocationStamper(context) }
     val previewView = remember { PreviewView(context) }
 
-    var mode by remember { mutableStateOf(CapMode.photo) }
+    var mode by remember { mutableStateOf(if (RecordingState.isRecording) CapMode.audio else CapMode.photo) }
     var loc by remember { mutableStateOf(if (ScreenshotMode.enabled) ScreenshotMode.loc else null) }
     var now by remember { mutableStateOf(Instant.now()) }
     var flash by remember { mutableStateOf(false) }
@@ -142,6 +142,10 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
             stamper.current()?.let { loc = it }
             delay(10_000)
         }
+    }
+
+    LaunchedEffect(RecordingState.isRecording) {
+        if (RecordingState.isRecording) mode = CapMode.audio
     }
 
     LaunchedEffect(mode, hasCamera) {
@@ -195,6 +199,7 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
     }
 
     fun shoot() {
+        if (RecordingState.isRecording) { RecordingService.stop(context); return }
         when (mode) {
             CapMode.photo -> {
                 val at = Instant.now()
@@ -231,7 +236,13 @@ fun HomeScreen(model: AppModel, onOpen: (Overlay) -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             when {
-                mode == CapMode.audio -> AudioStage(hasMic, RecordingState.isRecording, elapsed, context)
+                mode == CapMode.audio -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    AudioStage(hasMic, RecordingState.isRecording, elapsed, context)
+                    RecordingState.message?.let { message ->
+                        Text(message, color = Color.White, modifier = Modifier.padding(Tk.Sp.s3)
+                            .clickable { onOpen(Overlay.Library) })
+                    }
+                }
                 !hasCamera -> PermissionStage(tr("home.permission.camera"), context)
                 // 截图模式：模拟器没有相机，取景区贴一张静态现场照，水印照常叠上去
                 ScreenshotMode.stage != null -> {

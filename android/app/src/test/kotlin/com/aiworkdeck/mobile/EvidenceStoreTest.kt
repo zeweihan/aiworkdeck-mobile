@@ -149,4 +149,20 @@ class EvidenceStoreTest {
         assertFalse(File(root, "manifest/${saved.id}.json").exists())
         assertTrue(store.loadAll().isEmpty())
     }
+    @Test fun failedAudioManifestKeepsOriginalForRecovery() = runTest {
+        val root = tmp.newFolder()
+        val store = EvidenceStore(root, facts())
+        val manifestDir = File(root, "manifest")
+        manifestDir.delete()
+        manifestDir.writeText("block directory creation")
+        val audio = newTemp("failed-recording.m4a", "recorded-audio")
+        try {
+            store.save(MediaKind.audio, audio, Instant.now(), null, null)
+            fail("Saving a manifest into a regular file must fail")
+        } catch (_: Exception) {
+            assertTrue(audio.exists())
+            assertEquals("recorded-audio", audio.readText())
+        }
+    }
+
 }

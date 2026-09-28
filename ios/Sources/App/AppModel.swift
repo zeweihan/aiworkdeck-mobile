@@ -76,7 +76,7 @@ final class AppModel {
     /// 拍完立刻踢一脚队列。不等用户手动点上传——现场没人会记得点。
     func kickUpload() {
 #if DEBUG
-        if Shot.isOn { return }
+        if Shot.isOn || ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") { return }
 #endif
         Task { await UploadQueue.shared.kick() }
     }
@@ -184,6 +184,17 @@ final class AppModel {
 
     func bootstrap() async {
 #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") {
+            L10n.locale = "en"
+            account = Shot.account
+            selectedProject = Shot.project
+            project = Shot.field
+            AudioRecorderService.shared.onStored = { [weak self] in await self?.refresh() }
+            didRestore = true
+            await refresh()
+            return
+        }
+
         // 上架截图用的假状态。**只编进 Debug**——截图本来就不需要 Release 包，
         // 而把演示数据留在发行二进制里，早晚会有人在真机上撞进这条分支。
         if Shot.isOn {
@@ -208,7 +219,12 @@ final class AppModel {
                 await self?.refresh()
             }
         }
+        AudioRecorderService.shared.onStored = { [weak self] in
+            await self?.refresh()
+            self?.kickUpload()
+        }
         didRestore = true
+        await AudioRecorderService.shared.recoverPending()
         try? await EvidenceStore.shared.sweepOrphans()
         await refresh()
         // 上次没传完的，启动就接着传；停在中转区的顺手查一次回执

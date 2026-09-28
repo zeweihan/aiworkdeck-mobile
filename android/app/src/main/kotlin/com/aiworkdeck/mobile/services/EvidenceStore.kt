@@ -44,7 +44,8 @@ class EvidenceStore(private val root: File, private val facts: DeviceFacts) {
             val id = UUID.randomUUID().toString().lowercase()
             val dst = File(media, "$id.${kind.ext}")
             // 1. 原件先落盘（同目录 rename 优先；跨卷才退化到拷贝+删）
-            if (!temp.renameTo(dst)) { temp.copyTo(dst, overwrite = true); temp.delete() }
+            if (kind == MediaKind.audio) temp.copyTo(dst, overwrite = true)
+            else if (!temp.renameTo(dst)) { temp.copyTo(dst, overwrite = true); temp.delete() }
             // 2. 对落盘后的文件算哈希——要证明的是「磁盘上这个文件」没被改过，不是内存里的临时数据
             val sha = sha256(dst)
             val manifest = CaptureManifest(
@@ -59,6 +60,7 @@ class EvidenceStore(private val root: File, private val facts: DeviceFacts) {
             )
             // 3. manifest 最后写：存在即完整
             writeRowLocked(id, row)
+            if (kind == MediaKind.audio) temp.delete()
             toItem(id, row)
         }
     }

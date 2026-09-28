@@ -17,6 +17,7 @@
 
 import type { RelayProject } from './api'
 import { enqueueCapture } from './queue'
+import { t } from './i18n'
 
 /** 单段最长 10 分钟——RecorderManager 的上限 */
 export const SEGMENT_DURATION_MS = 600000
@@ -38,8 +39,11 @@ interface Session extends RecorderCallbacks {
   manualStop: boolean
   /** 被系统中断（通话等）且尚未续上 */
   interrupted: boolean
+  elapsedMs: number
+  resumedAt: number | null
 }
 
+let starting = false
 let manager: WechatMiniprogram.RecorderManager | null = null
 let session: Session | null = null
 
@@ -50,6 +54,7 @@ function getManager(): WechatMiniprogram.RecorderManager {
   manager.onStop((res) => {
     const s = session
     if (!s) return
+    pauseClock(s)
     if (res.tempFilePath) {
       enqueueCapture(res.tempFilePath, 'audio', s.project, s.segmentIndex)
     }
@@ -68,7 +73,7 @@ function getManager(): WechatMiniprogram.RecorderManager {
     const s = session
     if (!s) return
     session = null
-    s.onError('录音出错，已停止；已录内容会照常上传')
+    s.onError(t('rec.failed'))
   })
 
   // 系统中断（微信通话等）：开始时记 interrupted 让 UI 显示暂停态；
@@ -76,18 +81,24 @@ function getManager(): WechatMiniprogram.RecorderManager {
   manager.onInterruptionBegin(() => {
     const s = session
     if (!s) return
+    pauseClock(s)
     s.interrupted = true
     s.onInterrupted?.(true)
   })
 
   manager.onInterruptionEnd(() => {
-    if (!session) return
+    if (!session || session.manualStop) return
     manager?.resume()
+  })
+
+  manager.onStart(() => {
+    if (session) session.resumedAt = Date.now()
   })
 
   manager.onResume(() => {
     const s = session
     if (!s || !s.interrupted) return
+    s.resumedAt = Date.now()
     s.interrupted = false
     s.onInterrupted?.(false)
   })
@@ -144,23 +155,44 @@ export function isRecording(): boolean {
 
 /** 开始一次录音会话；返回是否真的开录了（权限被拒 / 已在录则 false）。 */
 export async function startRecording(project: RelayProject, callbacks: RecorderCallbacks): Promise<boolean> {
-  if (session) return false
-  const ok = await ensureRecordAuth()
-  if (!ok) return false
-  session = { project, segmentIndex: 1, manualStop: false, interrupted: false, ...callbacks }
-  startSegment()
-  return true
+  if (session || starting) return false
+  starting = true
+  try {
+    const ok = await ensureRecordAuth()
+    if (!ok) return false
+    session = { project, segmentIndex: 1, manualStop: false, interrupted: false,
+      elapsedMs: 0, resumedAt: null, ...callbacks }
+    startSegment()
+    return session !== null
+  } finally { starting = false }
 }
 
 /** 手动停止：末段在 onStop 里入队后回调 onFinish。 */
 export function stopRecording(): void {
-  if (!session) return
+  if (!session || session.manualStop) return
   session.manualStop = true
   getManager().stop()
 }
 
 /** 页面 onShow 兜底：中断结束事件没送到时，回到前台再补一次 resume。 */
 export function resumeIfInterrupted(): void {
-  if (!session || !session.interrupted) return
+  if (!session || !session.interrupted || session.manualStop) return
   getManager().resume()
+}
+
+function pauseClock(s: Session): void {
+  if (s.resumedAt !== null) s.elapsedMs += Math.max(0, Date.now() - s.resumedAt)
+  s.resumedAt = null
+}
+
+/** A recreated page restores its controls and clock from the recording session. */
+export function recordingSnapshot() {
+  const s = session
+  if (!s) return null
+  return { segmentIndex: s.segmentIndex, interrupted: s.interrupted,
+    elapsedSeconds: Math.floor((s.elapsedMs + (s.resumedAt === null ? 0 : Math.max(0, Date.now() - s.resumedAt))) / 1000) }
+}
+
+export function bindRecordingCallbacks(callbacks: RecorderCallbacks): void {
+  if (session) Object.assign(session, callbacks)
 }

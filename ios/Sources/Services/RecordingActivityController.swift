@@ -8,6 +8,7 @@ import Foundation
 /// 这里任何失败都吞掉——常驻展示是锦上添花，不能反过来影响录音本身。
 @MainActor
 final class RecordingActivityController {
+    private var operation: Task<Void, Never>?
     private var activity: Activity<RecordingActivityAttributes>?
 
     init() {
@@ -27,12 +28,20 @@ final class RecordingActivityController {
 
     func update(state: RecordingActivityAttributes.ContentState) {
         guard let a = activity else { return }
-        Task { await a.update(.init(state: state, staleDate: nil)) }
+        let previous = operation
+        operation = Task {
+            await previous?.value
+            await a.update(.init(state: state, staleDate: nil))
+        }
     }
 
     func end() {
         guard let a = activity else { return }
         activity = nil
-        Task { await a.end(nil, dismissalPolicy: .immediate) }
+        let previous = operation
+        operation = Task {
+            await previous?.value
+            await a.end(nil, dismissalPolicy: .immediate)
+        }
     }
 }

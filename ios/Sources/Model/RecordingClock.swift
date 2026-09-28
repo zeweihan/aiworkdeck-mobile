@@ -32,6 +32,13 @@ struct RecordingClock: Equatable {
         paused = false
     }
 
+    /// Reconcile after suspension or a missed interruption notification.
+    mutating func synchronize(seconds: TimeInterval, running: Bool, at now: Date) {
+        elapsedBase = max(0, seconds)
+        resumedAt = running ? now : nil
+        paused = !running
+    }
+
     func elapsed(at now: Date) -> TimeInterval {
         elapsedBase + (resumedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0)
     }

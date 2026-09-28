@@ -49,16 +49,16 @@ actor EvidenceStore {
         capturedAt: Date,
         location: (lat: Double, lon: Double, accuracy: Double)?,
         device: DeviceFacts,
-        project: RelayProject?
+        project: RelayProject?,
+        id: UUID = UUID()
     ) throws -> CaptureItem {
         try ensureDirs()
 
-        let id = UUID()
         let ext = Self.ext(for: kind)
         let url = mediaDir.appendingPathComponent("\(id.uuidString).\(ext)")
 
         // 1. 原图先落盘
-        try data.write(to: url, options: .atomic)
+        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
 
         // 2. 对落盘后的文件算哈希（不是对内存里的 data）——
         //    要证明的是「磁盘上这个文件」没被改过。
@@ -87,6 +87,16 @@ actor EvidenceStore {
         )
         try writeManifest(item)
         return item
+    }
+
+    /// A retry after a crash must not create a second library entry or upload.
+    func saveRecording(_ draft: RecordingDraft) throws -> CaptureItem {
+        if let existing = try loadOne(draft.id) { return existing }
+        let data = try Data(contentsOf: draft.audioURL, options: .mappedIfSafe)
+        guard !data.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+        return try save(data: data, kind: .audio, capturedAt: draft.startedAt,
+                        location: draft.location, device: draft.device,
+                        project: draft.project, id: draft.id)
     }
 
     /// 旧记录上传时补记实际去向。只在 project 为 nil 时写，不覆盖已有归属。
@@ -181,7 +191,7 @@ actor EvidenceStore {
                             manifest: item.manifest, lastError: item.lastError,
                             savedToAlbum: item.savedToAlbum, project: item.project)
         let u = manifestDir.appendingPathComponent("\(item.id.uuidString).json")
-        try JSONEncoder.iso.encode(row).write(to: u, options: .atomic)
+        try JSONEncoder.iso.encode(row).write(to: u, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     /// 落盘扩展名是存储层契约：写入与读取必须同源，否则 decode 会拼出不存在的路径。
@@ -217,7 +227,7 @@ private struct StoredRow: Codable {
     var project: RelayProject?
 }
 
-struct DeviceFacts: Sendable {
+struct DeviceFacts: Sendable, Codable {
     let model: String
     let osVersion: String
     let appVersion: String

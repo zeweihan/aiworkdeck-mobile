@@ -46,10 +46,6 @@ struct HomeView: View {
             }
             // 采集失败与落库失败走同一个字段：失败必须有个落点，不能只留在日志里
             camera.onError = { msg in model.lastError = msg }
-            recorder.onCaptured = { data, at in
-                let loc = stamper.last
-                Task { await model.store(data: data, kind: .audio, at: at, location: loc) }
-            }
             stamper.begin()
 #if DEBUG
             // 截图模式不点相机、不录音：模拟器没有摄像头，权限弹窗还会挡住画面。
@@ -62,7 +58,8 @@ struct HomeView: View {
                 return
             }
 #endif
-            if mode != .audio { await camera.start() }
+            if recorder.isRecording { mode = .audio }
+            else if mode != .audio { await camera.start() }
         }
         .onChange(of: mode) { _, m in
             // 离开录像档就把麦克风还回去：只有录像收声需要它，留着就会在下一次
@@ -83,14 +80,19 @@ struct HomeView: View {
         .onChange(of: paused) { _, p in
             if p {
                 if !camera.isRecording { camera.stop() }
-            } else if mode != .audio {
+            } else if mode != .audio, !recorder.isRecording {
                 Task { await camera.start() }
             }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                if !paused, mode != .audio { Task { await camera.start() } }
+                if recorder.isRecording { mode = .audio }
+                else if !paused, mode != .audio { Task { await camera.start() } }
+                Task {
+                    await recorder.resumeIfInterrupted()
+                    await recorder.recoverPending()
+                }
                 // 回前台立刻续传：后台被杀的上传此刻已是滞留态，kick 入口会回收
                 model.kickUpload()
             case .background:
@@ -208,7 +210,7 @@ struct HomeView: View {
 
     private var stage: some View {
         ZStack {
-            if mode == .audio {
+            if mode == .audio || recorder.isRecording {
                 audioStage
             } else if let seed = screenshotSeed {
                 // 模拟器没有摄像头，取景区是全黑的。截图模式下用一张现场照片顶上，
@@ -376,6 +378,7 @@ struct HomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("capture.mode.\(m)")
         .accessibilityLabel(label)
         .accessibilityAddTraits(mode == m ? [.isButton, .isSelected] : .isButton)
     }
@@ -383,27 +386,31 @@ struct HomeView: View {
     /// 最近一件的真缩略图，也是影像浏览的入口。
     private var libraryEntry: some View {
         Button(action: onOpenLibrary) {
-            Group {
-                if let last = model.currentItems.first {
-                    EvidenceThumb(item: last, onDark: true)
-                        .overlay(alignment: .topLeading) {
-                            StatusDot(state: last.state, size: 4, onDark: true)
-                                .padding(3)
-                        }
-                } else {
-                    RoundedRectangle(cornerRadius: 1, style: .continuous)
-                        .stroke(T.D.rule, lineWidth: 1)
-                        .overlay {
-                            Image(systemName: "photo")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.3))
-                        }
+            VStack(spacing: 3) {
+                Group {
+                    if let last = model.currentItems.first {
+                        EvidenceThumb(item: last, onDark: true)
+                            .overlay(alignment: .topLeading) {
+                                StatusDot(state: last.state, size: 4, onDark: true)
+                                    .padding(3)
+                            }
+                    } else {
+                        RoundedRectangle(cornerRadius: 1, style: .continuous)
+                            .stroke(T.D.rule, lineWidth: 1)
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.white.opacity(0.3))
+                            }
+                    }
                 }
+                .frame(width: 44, height: 44)
+                Text(tr("library.open")).font(T.F.nano()).foregroundStyle(.white.opacity(0.7))
             }
-            .frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(tr("home.thumb.a11y", ["n": String(model.currentItems.count)]))
+        .accessibilityIdentifier("capture.library")
+        .accessibilityLabel(tr("library.open"))
     }
 
     private var counter: some View {
@@ -425,6 +432,10 @@ struct HomeView: View {
 
     private var shutter: some View {
         Button {
+            if recorder.isRecording {
+                Task { await recorder.stop() }
+                return
+            }
             switch mode {
             case .photo:
                 camera.shoot()
@@ -432,7 +443,7 @@ struct HomeView: View {
             case .video:
                 Task { await camera.toggleRecording() }
             case .audio:
-                Task { await recorder.toggle(projectName: model.selectedProject?.name ?? model.project.name) }
+                Task { await recorder.toggle(project: model.selectedProject, location: stamper.last) }
             }
         } label: {
             ZStack {
@@ -445,8 +456,12 @@ struct HomeView: View {
                         .frame(width: 60, height: 60)
                 }
             }
+            .frame(width: 76, height: 76)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(recorder.isBusy)
+        .accessibilityIdentifier("capture.shutter")
         .accessibilityLabel(shutterLabel)
     }
 
@@ -497,6 +512,7 @@ struct HomeView: View {
             } else {
                 VStack(spacing: T.Sp.s3) {
                     Text(timeString(recorder.recordingSeconds))
+                        .accessibilityIdentifier("recording.elapsed")
                         .font(T.F.hero())
                         .monospacedDigit()
                         .foregroundStyle(.white)
@@ -506,6 +522,12 @@ struct HomeView: View {
                         }
                         Eyebrow(text: recorder.isRecording ? tr("home.recording.audio") : tr("home.audio.hint"),
                                 color: .white.opacity(0.55))
+                    }
+                    if let error = recorder.lastError {
+                        Text(error).font(T.F.micro()).foregroundStyle(T.S.failed)
+                    } else if recorder.lastSavedID != nil, !recorder.isRecording {
+                        Button(tr("rec.saved.open"), action: onOpenLibrary)
+                            .font(T.F.small()).foregroundStyle(.white)
                     }
                     if recorder.isRecording {
                         // 说清楚退后台也在录；来电中断时换成暂停提示，结束后自动续录
