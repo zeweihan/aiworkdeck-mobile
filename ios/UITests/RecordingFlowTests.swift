@@ -2,8 +2,11 @@ import XCTest
 
 final class RecordingFlowTests: XCTestCase {
     func testBackgroundReturnStopAndPlayFromAudioLibrary() {
+        defer { XCUIDevice.shared.orientation = .portrait }
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
         app.launchArguments = ["-AWDRecordingUITest"]
         app.launch()
         let mode = app.buttons["capture.mode.audio"]
@@ -15,17 +18,32 @@ final class RecordingFlowTests: XCTestCase {
         let stopped = NSPredicate(format: "label == %@", "Stop recording")
         expectation(for: stopped, evaluatedWith: shutter)
         waitForExpectations(timeout: 30)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: shutter)
+        waitForExpectations(timeout: 5)
+        XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        XCTAssertEqual(shutter.label, "Stop recording")
+        XCTAssertTrue(shutter.isHittable)
         XCUIDevice.shared.press(.home)
         Thread.sleep(forTimeInterval: 3)
         app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: shutter)
+        waitForExpectations(timeout: 5)
         XCTAssertEqual(shutter.label, "Stop recording")
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
         XCTAssertTrue(shutter.isEnabled)
         XCTAssertTrue(shutter.isHittable)
         let elapsed = app.staticTexts["recording.elapsed"]
         XCTAssertNotEqual(elapsed.label, "00:00")
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        XCUIDevice.shared.orientation = .portrait
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: shutter)
+        waitForExpectations(timeout: 5)
+        XCTAssertLessThan(app.frame.width, app.frame.height)
+        XCTAssertEqual(shutter.label, "Stop recording")
+        XCTAssertTrue(shutter.isHittable)
         shutter.tap()
         let saved = app.buttons["Recording saved · Open library to play"]
         XCTAssertTrue(saved.waitForExistence(timeout: 10))

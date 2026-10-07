@@ -212,6 +212,10 @@ final class AppModel {
 
     func bootstrap() async {
 #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-AWDLoginUITest") {
+            didRestore = true
+            return
+        }
         if WorkspaceUITestSeed.isOn {
             L10n.locale = "en"
             account = Shot.account
