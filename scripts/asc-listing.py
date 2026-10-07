@@ -286,22 +286,31 @@ def cmd_setversion(tok, app_id, auto_release=False):
     """
     want = marketing_version()
     v = version(tok, app_id)
+    target = "AFTER_APPROVAL" if auto_release else "MANUAL"
+    cp = os.path.join("fastlane", "metadata", "copyright.txt")
+    want_cp = open(cp).read().strip() if os.path.exists(cp) else None
+
+    editable = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED",
+                "METADATA_REJECTED", "INVALID_BINARY"}
+    if v is None or v["attributes"]["appStoreState"] not in editable:
+        attrs = {"platform": "IOS", "versionString": want, "releaseType": target}
+        if want_cp:
+            attrs["copyright"] = want_cp
+        body = {"data": {"type": "appStoreVersions", "attributes": attrs,
+                         "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}}
+        die_on_error(call(tok, "POST", "/appStoreVersions", body), "创建新版本记录")
+        print(f"已创建新版本 {want}（发布方式: {target}）")
+        return
+
     attrs = {}
     if v["attributes"]["versionString"] != want:
         attrs["versionString"] = want
-    target = "AFTER_APPROVAL" if auto_release else "MANUAL"
     if v["attributes"].get("releaseType") != target:
         attrs["releaseType"] = target
-    # copyright 是版本级属性，不在 appStoreVersionLocalizations 里，所以 text 那条
-    # 路带不到它。缺了它提审会被 409 挡下（错误藏在 meta.associatedErrors 里，
-    # 顶层只说「this resource cannot be reviewed」，不点开看不出来是缺哪一项）。
-    cp = os.path.join("fastlane", "metadata", "copyright.txt")
-    if os.path.exists(cp):
-        want_cp = open(cp).read().strip()
-        if v["attributes"].get("copyright") != want_cp:
-            attrs["copyright"] = want_cp
+    if want_cp and v["attributes"].get("copyright") != want_cp:
+        attrs["copyright"] = want_cp
     if not attrs:
-        print(f"版本 {want}、手动发布，已经是这样")
+        print(f"版本 {want}、{target}，已经是这样")
         return
     body = {"data": {"type": "appStoreVersions", "id": v["id"], "attributes": attrs}}
     die_on_error(call(tok, "PATCH", f"/appStoreVersions/{v['id']}", body), "更新版本记录")

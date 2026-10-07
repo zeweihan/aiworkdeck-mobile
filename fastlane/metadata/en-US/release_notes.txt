@@ -1,3 +1,3 @@
-Fixes recording state and timer recovery after returning from the background, and improves the stop button.
-Recordings are saved independently of the recording screen, with recovery of retained files and clear save feedback.
-Adds an Audio filter in the library and explicit playback controls to make recordings easier to find and play.
+1. Adaptive project workspace after login: split-view layout for wide screens to browse projects and files together.
+2. Separate views for desktop project files and mobile field records, with download and Quick Look preview.
+3. UI adaptation improvements and stability enhancements.
