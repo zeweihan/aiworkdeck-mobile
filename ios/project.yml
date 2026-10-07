@@ -77,9 +77,11 @@ targetTemplates:
           UIColorName: LaunchBackground
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
-        # 仅竖屏。现场单手举着拍，横屏没有使用场景，开了只会误转。
+        # 工作区与采集界面按实际空间布局，允许横屏与展开后的窗口变化。
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
 
         # 录音退后台 / 锁屏继续录（dev-board#404）。只有录音需要：录像是前台动作，
         # iOS 也不允许后台用摄像头。

@@ -10,6 +10,8 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     var onClose: () -> Void
+    var fixedProject: RelayProject? = nil
+    var embedded = false
 
     @State private var audioOnly = false
     @State private var viewingID: String?
@@ -35,6 +37,7 @@ struct LibraryView: View {
         LibraryGrouping.projects(in: model.items, current: model.selectedProject)
     }
     private var viewing: LibraryProject {
+        if let fixedProject { return LibraryProject(fixedProject) }
         let id = viewingID ?? model.currentProjectID
         return projects.first { $0.id == id } ?? projects.first ?? .unknown
     }
@@ -79,6 +82,7 @@ struct LibraryView: View {
             if selecting { deleteDock } else { dock }
         }
         .onAppear { appeared = true }
+        .onChange(of: fixedProject?.id) { _, _ in selected = []; selecting = false; viewer = nil }
         .onChange(of: audioOnly) { _, _ in selected = []; selecting = false }
         .fullScreenCover(item: $viewer) { target in
             ViewerView(items: target.items, index: target.index) { viewer = nil }
@@ -274,16 +278,19 @@ struct LibraryView: View {
 
     private var topBar: some View {
         HStack(spacing: T.Sp.s3) {
-            Button(action: onClose) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(T.D.fg)
-                    .frame(width: T.touchMin, height: T.touchMin)
+            if !embedded {
+                Button(action: onClose) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(T.D.fg)
+                        .frame(width: T.touchMin, height: T.touchMin)
+                }
+                .accessibilityLabel(tr("common.back"))
             }
-            .accessibilityLabel(tr("common.back"))
 
             VStack(alignment: .leading, spacing: 2) {
-                projectMenu
+                if let fixedProject { Text(fixedProject.name).lineLimit(1) }
+                else { projectMenu }
                 tallyRow
             }
             Spacer(minLength: 0)

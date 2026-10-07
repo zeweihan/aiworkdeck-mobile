@@ -688,6 +688,14 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
     "zh-Hans": "拍照失败：没有拿到图像数据",
     "en": "Couldn't take the photo: no image data."
   },
+  "error.videoFailed": {
+    "zh-Hans": "录像未完成：{reason}",
+    "en": "Video recording did not finish: {reason}"
+  },
+  "error.videoNoData": {
+    "zh-Hans": "录像未完成：没有拿到视频数据",
+    "en": "Video recording did not finish: no video data."
+  },
   "home.queue.a11yHint": {
     "zh-Hans": "查看上传队列",
     "en": "Opens the upload queue"
@@ -847,5 +855,197 @@ export const STRINGS: Record<string, { 'zh-Hans': string; en: string }> = {
   "rec.failed": {
     "zh-Hans": "录音未完成，请在资料库核对已保存的片段",
     "en": "Recording did not finish. Check saved segments in the library."
+  },
+  "workspace.title": {
+    "zh-Hans": "项目工作区",
+    "en": "Projects"
+  },
+  "workspace.choose": {
+    "zh-Hans": "选择一个项目",
+    "en": "Choose a project"
+  },
+  "workspace.files": {
+    "zh-Hans": "项目文件",
+    "en": "Project files"
+  },
+  "workspace.records": {
+    "zh-Hans": "现场记录",
+    "en": "Field records"
+  },
+  "workspace.searchProjects": {
+    "zh-Hans": "搜索项目",
+    "en": "Search projects"
+  },
+  "workspace.searchFiles": {
+    "zh-Hans": "搜索文件名称或路径",
+    "en": "Search file names or paths"
+  },
+  "workspace.capture": {
+    "zh-Hans": "现场采集",
+    "en": "Capture"
+  },
+  "workspace.resumeRecording": {
+    "zh-Hans": "返回录音",
+    "en": "Return to recording"
+  },
+  "workspace.closeCapture": {
+    "zh-Hans": "返回项目",
+    "en": "Back to project"
+  },
+  "workspace.noFiles": {
+    "zh-Hans": "暂无项目文件",
+    "en": "No project files"
+  },
+  "workspace.noMatches": {
+    "zh-Hans": "没有匹配的文件",
+    "en": "No matching files"
+  },
+  "workspace.desktopHint": {
+    "zh-Hans": "项目文件从桌面端读取，请保持电脑在线并登录同一账号。",
+    "en": "Project files come from your desktop. Keep it online and signed in to the same account."
+  },
+  "workspace.limit": {
+    "zh-Hans": "当前仅显示部分文件，请在桌面端查看完整项目。",
+    "en": "Only part of this project is shown. View the complete project on your desktop."
+  },
+  "workspace.legacyLimit": {
+    "zh-Hans": "列表已达到旧版桌面端上限，可能还有未显示的文件。",
+    "en": "The older desktop list limit was reached. More files may be missing."
+  },
+  "workspace.download": {
+    "zh-Hans": "下载并预览",
+    "en": "Download and preview"
+  },
+  "workspace.quote": {
+    "zh-Hans": "下载「{name}」需 {credits} 积分。确认后开始传输；重试同一笔传输不会重复扣费。",
+    "en": "Downloading “{name}” costs {credits} credits. Confirm to start. Retrying this transfer will not charge twice."
+  },
+  "workspace.downloading": {
+    "zh-Hans": "正在从桌面端获取文件…",
+    "en": "Getting the file from your desktop…"
+  },
+  "workspace.retryDownload": {
+    "zh-Hans": "重试本次传输",
+    "en": "Retry this transfer"
+  },
+  "workspace.cancelDownload": {
+    "zh-Hans": "取消传输",
+    "en": "Cancel transfer"
+  },
+  "workspace.loading": {
+    "zh-Hans": "正在读取项目文件…",
+    "en": "Loading project files…"
+  },
+  "files.error.response": {
+    "zh-Hans": "文件服务返回了无效响应",
+    "en": "The file service returned an invalid response"
+  },
+  "files.error.tooLarge": {
+    "zh-Hans": "文件超过 200 MB 预览上限",
+    "en": "This file exceeds the 200 MB preview limit"
+  },
+  "files.error.timeout": {
+    "zh-Hans": "桌面端响应超时，请稍后重试",
+    "en": "The desktop did not respond in time. Try again later"
+  },
+  "files.error.transferFailed": {
+    "zh-Hans": "文件传输未完成，请重试",
+    "en": "The file transfer did not complete. Try again"
+  },
+  "files.error.closed": {
+    "zh-Hans": "项目工作区已关闭，请重新打开",
+    "en": "This workspace is closed. Open it again"
+  },
+  "dual.prototype.title": {
+    "zh-Hans": "双摄诊断原型",
+    "en": "Dual-camera diagnostic prototype"
+  },
+  "dual.prototype.notice": {
+    "zh-Hans": "调试用同步帧快照，不是原始相机照片",
+    "en": "Debug synchronized frame snapshots, not original camera photos"
+  },
+  "dual.prototype.start": {
+    "zh-Hans": "启动双摄",
+    "en": "Start dual camera"
+  },
+  "dual.prototype.capture": {
+    "zh-Hans": "采集帧快照",
+    "en": "Capture frame snapshots"
+  },
+  "dual.prototype.stop": {
+    "zh-Hans": "停止双摄",
+    "en": "Stop dual camera"
+  },
+  "dual.prototype.close": {
+    "zh-Hans": "关闭",
+    "en": "Close"
+  },
+  "dual.prototype.status": {
+    "zh-Hans": "状态",
+    "en": "Status"
+  },
+  "dual.prototype.details": {
+    "zh-Hans": "诊断信息",
+    "en": "Diagnostics"
+  },
+  "dual.prototype.output": {
+    "zh-Hans": "临时输出",
+    "en": "Temporary output"
+  },
+  "dual.prototype.unsupported": {
+    "zh-Hans": "此设备不支持当前双摄组合",
+    "en": "This device does not support this camera pair"
+  },
+  "dual.prototype.audioBusy": {
+    "zh-Hans": "请先结束录音或录像",
+    "en": "Finish audio or video recording first"
+  },
+  "dual.prototype.permission": {
+    "zh-Hans": "需要摄像头权限",
+    "en": "Camera permission is required"
+  },
+  "dual.prototype.ready": {
+    "zh-Hans": "准备就绪",
+    "en": "Ready"
+  },
+  "dual.prototype.idle": {
+    "zh-Hans": "未启动",
+    "en": "Not started"
+  },
+  "dual.prototype.running": {
+    "zh-Hans": "双摄运行中",
+    "en": "Dual camera running"
+  },
+  "dual.prototype.capturing": {
+    "zh-Hans": "等待有效帧对",
+    "en": "Waiting for a valid frame pair"
+  },
+  "dual.prototype.saved": {
+    "zh-Hans": "已保存调试快照",
+    "en": "Saved diagnostic snapshots"
+  },
+  "dual.prototype.stopped": {
+    "zh-Hans": "已停止",
+    "en": "Stopped"
+  },
+  "dual.prototype.failed": {
+    "zh-Hans": "采集失败：{reason}",
+    "en": "Capture failed: {reason}"
+  },
+  "workspace.downloadRetryHint": {
+    "zh-Hans": "这笔传输尚未完成，重试将使用原请求。",
+    "en": "This transfer is unfinished. Retry uses the original request."
+  },
+  "workspace.balanceUnknown": {
+    "zh-Hans": "余额暂不可用",
+    "en": "Balance unavailable"
+  },
+  "workspace.fileDetails": {
+    "zh-Hans": "文件详情",
+    "en": "File details"
+  },
+  "dual.prototype.limitations": {
+    "zh-Hans": "仅验证通用前后摄；固定竖向输出，Duo 方向切换尚未验证",
+    "en": "Generic front/back only; fixed portrait output; Duo direction switching is unverified"
   }
 }

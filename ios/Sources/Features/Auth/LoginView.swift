@@ -51,6 +51,17 @@ struct LoginView: View {
     @FocusState private var focused: Bool
 
     var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                form.frame(minHeight: geometry.size.height)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .background(T.L.bg)
+        .onAppear { focused = true }
+    }
+
+    private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
             if ContractCapabilities.intlAccount {
                 HStack { Spacer(); regionToggle }.padding(.top, T.Sp.s2)
@@ -103,9 +114,7 @@ struct LoginView: View {
             footer
         }
         .padding(.horizontal, T.Sp.gutter)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(T.L.bg)
-        .onAppear { focused = true }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var title: String {
