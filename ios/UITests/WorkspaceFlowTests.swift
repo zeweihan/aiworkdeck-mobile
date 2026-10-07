@@ -15,7 +15,12 @@ final class WorkspaceFlowTests: XCTestCase {
         XCTAssertTrue(file.waitForExistence(timeout: 5))
         XCTAssertTrue(file.isHittable)
         XCTAssertTrue(app.buttons["workspace.capture"].isHittable)
-        let shot = XCTAttachment(screenshot: app.screenshot())
+        XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        XCTAssertGreaterThanOrEqual(file.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(file.frame.maxX, app.frame.maxX)
+        let geometry = XCTAttachment(string: "App: \(app.frame); first file: \(file.frame)")
+        geometry.lifetime = .keepAlways; add(geometry)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "Landscape accessibility text"; shot.lifetime = .keepAlways; add(shot)
     }
 
@@ -37,7 +42,7 @@ final class WorkspaceFlowTests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(file.waitForExistence(timeout: 5))
         XCTAssertEqual(search.value as? String, "document-12")
-        let wideShot = XCTAttachment(screenshot: app.screenshot()); wideShot.name = "Workspace landscape"; wideShot.lifetime = .keepAlways; add(wideShot)
+        let wideShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); wideShot.name = "Workspace landscape"; wideShot.lifetime = .keepAlways; add(wideShot)
         file.tap()
         let confirm = app.buttons["workspace.confirmDownload"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
@@ -48,7 +53,7 @@ final class WorkspaceFlowTests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(file.waitForExistence(timeout: 5))
         XCTAssertEqual(search.value as? String, "document-12")
-        let shot = XCTAttachment(screenshot: app.screenshot()); shot.lifetime = .keepAlways; add(shot)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); shot.lifetime = .keepAlways; add(shot)
     }
 
     @MainActor
