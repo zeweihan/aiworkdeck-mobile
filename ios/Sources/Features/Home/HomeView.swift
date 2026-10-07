@@ -33,16 +33,25 @@ struct HomeView: View {
     @State private var showFlash = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            stage
-            controls
+        GeometryReader { geometry in
+            if geometry.size.width > geometry.size.height {
+                HStack(spacing: 0) {
+                    stage
+                    ScrollView {
+                        VStack(spacing: 0) { header; controls }
+                    }
+                    .frame(width: min(360, geometry.size.width * 0.45))
+                }
+            } else {
+                VStack(spacing: 0) { header; stage; controls }
+            }
         }
         .background(T.D.bg.ignoresSafeArea())
         .task {
+            let captureProject = model.selectedProject
             camera.onCaptured = { data, kind, at in
                 let loc = stamper.last
-                Task { await model.store(data: data, kind: kind, at: at, location: loc) }
+                Task { await model.store(data: data, kind: kind, at: at, location: loc, project: captureProject) }
             }
             // 采集失败与落库失败走同一个字段：失败必须有个落点，不能只留在日志里
             camera.onError = { msg in model.lastError = msg }
@@ -226,7 +235,7 @@ struct HomeView: View {
             } else if camera.permissionDenied {
                 denied
             } else {
-                CameraPreview(session: camera.session)
+                CameraPreview(session: camera.session, device: camera.device, revision: camera.configurationRevision)
                     .overlay(alignment: .bottomLeading) { watermark }
             }
 
@@ -313,7 +322,7 @@ struct HomeView: View {
                 }
                 .frame(minHeight: 28)
             } else {
-                modeRow
+                modeRow.disabled(camera.isCapturingPhoto || camera.isStartingRecording)
             }
 
             HStack {
@@ -460,7 +469,7 @@ struct HomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(recorder.isBusy)
+        .disabled(recorder.isBusy || camera.isCapturingPhoto || camera.isStartingRecording)
         .accessibilityIdentifier("capture.shutter")
         .accessibilityLabel(shutterLabel)
     }

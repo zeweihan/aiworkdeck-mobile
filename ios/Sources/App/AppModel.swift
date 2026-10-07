@@ -42,6 +42,23 @@ final class AppModel {
         return f.string(from: Date())
     }
 
+    private var filesClient: (any ProjectFilesServing)?
+
+    func workspaceFiles() -> any ProjectFilesServing {
+        if let filesClient { return filesClient }
+        let client = ProjectFilesService(context: ProjectFilesContext(
+            baseURL: Backend.baseURL, sessionID: SessionStore.current ?? "",
+            language: AccountRegion.current.appLanguage))
+        filesClient = client
+        return client
+    }
+
+    private func closeWorkspaceFiles() {
+        let client = filesClient
+        filesClient = nil
+        Task { await client?.close() }
+    }
+
     // MARK: - 账号
 
     /// 选中的归档目标。nil = 还没选，界面走项目选择页。
@@ -59,6 +76,8 @@ final class AppModel {
     }
 
     func didLogin(_ result: LoginResult) async {
+        closeWorkspaceFiles()
+        selectedProject = nil
         account = result.user
         await refresh()
     }
@@ -67,16 +86,19 @@ final class AppModel {
         selectedProject = p
         project = FieldProject(id: p.id, name: p.name,
                                archivePath: tr("archive.path", ["date": AppModel.today]))
+#if DEBUG
+        if WorkspaceUITestSeed.isOn { return }
+#endif
         await UploadQueue.shared.configure(project: p) { [weak self] in
             await self?.refresh()
         }
-        await UploadQueue.shared.kick()
+        kickUpload()
     }
 
     /// 拍完立刻踢一脚队列。不等用户手动点上传——现场没人会记得点。
     func kickUpload() {
 #if DEBUG
-        if Shot.isOn || ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") { return }
+        if Shot.isOn || WorkspaceUITestSeed.isOn || ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") { return }
 #endif
         Task { await UploadQueue.shared.kick() }
     }
@@ -105,6 +127,7 @@ final class AppModel {
     /// 中转区到期表、上传队列给旧记录兜底用的目标项目——登录新区域后一定先落到项目选择页。
     /// 已拍影像各自记着拍摄时的项目，不动（队列行为见报告，沿用现状）。
     func switchRegion(to region: AccountRegion) {
+        closeWorkspaceFiles()
         AccountRegion.current = region
         L10n.apply(region: region)
         selectedProject = nil
@@ -139,7 +162,11 @@ final class AppModel {
     }
 
     func signOut() {
+        closeWorkspaceFiles()
         API.shared.logout()
+        selectedProject = nil
+        project = FieldProject(id: "local", name: tr("project.none"),
+                               archivePath: tr("archive.path", ["date": AppModel.today]))
         account = nil
         // **不清本地影像。** 退出登录不等于放弃已经拍到的东西——
         // 现场是不可复现的，登出就删是灾难性的默认。
@@ -151,6 +178,7 @@ final class AppModel {
     /// App Store 审核指南 5.1.1(v) 要求支持注册的 App 必须在 App 内提供这个入口。
     func deleteAccount() async throws {
         try await API.shared.deleteAccount()
+        closeWorkspaceFiles()
         account = nil
         selectedProject = nil
     }
@@ -184,6 +212,16 @@ final class AppModel {
 
     func bootstrap() async {
 #if DEBUG
+        if WorkspaceUITestSeed.isOn {
+            L10n.locale = "en"
+            account = Shot.account
+            selectedProject = nil
+            filesClient = WorkspaceUITestSeed()
+            items = []
+            didRestore = true
+            return
+        }
+
         if ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") {
             L10n.locale = "en"
             account = Shot.account
@@ -243,11 +281,11 @@ final class AppModel {
         }
     }
 
-    func store(data: Data, kind: MediaKind, at: Date, location: (lat: Double, lon: Double, accuracy: Double)?) async {
+    func store(data: Data, kind: MediaKind, at: Date, location: (lat: Double, lon: Double, accuracy: Double)?, project: RelayProject?) async {
         do {
             _ = try await EvidenceStore.shared.save(
                 data: data, kind: kind, capturedAt: at,
-                location: location, device: Device.facts, project: selectedProject
+                location: location, device: Device.facts, project: project
             )
             await refresh()
             kickUpload()

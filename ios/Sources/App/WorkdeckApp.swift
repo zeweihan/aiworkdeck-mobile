@@ -33,12 +33,6 @@ struct WorkdeckApp: App {
 
 private struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var route: Route?
-
-    private enum Route: Hashable, Identifiable {
-        case library, queue, settings
-        var id: Self { self }
-    }
 
     var body: some View {
         Group {
@@ -48,21 +42,27 @@ private struct RootView: View {
             } else if isScreenshotting {
                 // 上架截图：用启动参数直接落到第 n 屏，不靠坐标点击一层层点进去
                 screenshotStage
+            } else if recordingTest {
+                CaptureFlowView(onClose: {}).environment(model)
             } else if !model.isSignedIn {
                 // 外壳浅色。取景首页与影像浏览自己强制深色，不跟随系统——
                 // 那两处的深色是功能性的，不是主题偏好。
                 LoginView().environment(model)
                     .preferredColorScheme(.light)
-            } else if model.selectedProject == nil {
-                // 不选项目就不知道照片往哪去。与其让人先拍完再问，不如进门就定。
-                ProjectPickerView().environment(model)
-                    .preferredColorScheme(.light)
             } else {
-                signedIn
+                WorkspaceView().environment(model)
             }
         }
         .animation(T.A.base, value: model.isSignedIn)
         .animation(T.A.base, value: model.selectedProject)
+    }
+
+    private var recordingTest: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest")
+#else
+        false
+#endif
     }
 
     /// Release 里恒为 false，整段截图分支被优化掉。
@@ -116,7 +116,39 @@ private struct RootView: View {
     }
 #endif
 
-    private var signedIn: some View {
+}
+
+struct CaptureFlowView: View {
+    @Environment(AppModel.self) private var model
+    var onClose: () -> Void
+    @State private var route: Route?
+    private enum Route: Hashable, Identifiable {
+        case library, queue, settings
+        var id: Self { self }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(tr("workspace.closeCapture"), action: onClose)
+                    .accessibilityIdentifier("capture.close")
+                    .disabled(CameraService.shared.isRecording || CameraService.shared.isStartingRecording || CameraService.shared.isCapturingPhoto || AudioRecorderService.shared.isBusy)
+                Spacer()
+            }.padding(.horizontal).padding(.top, 8)
+            capture
+        }
+        .background(T.D.bg)
+        .alert(tr("error.generic"), isPresented: Binding(get: { model.lastError != nil }, set: { if !$0 { model.lastError = nil } })) {
+            Button(tr("common.close")) { model.lastError = nil }
+        } message: { Text(model.lastError ?? "") }
+        .preferredColorScheme(.dark)
+        .onDisappear {
+            if !CameraService.shared.isRecording { CameraService.shared.stop() }
+            LocationStamper.shared.end()
+        }
+    }
+
+    private var capture: some View {
         HomeView(
             paused: route != nil,
             onOpenLibrary: { route = .library },

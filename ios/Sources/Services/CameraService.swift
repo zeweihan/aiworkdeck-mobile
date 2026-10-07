@@ -27,16 +27,26 @@ final class CameraService: NSObject {
     /// 中断结束会自己恢复——旧实现连「被中断了」都不知道，只能重开 App（dev-board#461）。
     private(set) var isInterrupted = false
     private(set) var isRecording = false
+    private(set) var isStartingRecording = false
     private(set) var permissionDenied = false
     private(set) var recordingSeconds = 0
     var mode: Mode = .photo
 
     let session = AVCaptureSession()
+    private(set) var device: AVCaptureDevice?
+    private(set) var configurationRevision = 0
+    private var rotation: AVCaptureDevice.RotationCoordinator?
+
+
+    private var startIntent = CameraStartIntent()
+    private var photoRequests = CameraCaptureRequests()
+    var isCapturingPhoto: Bool { !photoRequests.isEmpty }
 
     private let sessionQueue = DispatchQueue(label: "com.aiworkdeck.mobile.session")
     private let photoOutput = AVCapturePhotoOutput()
     private let movieOutput = AVCaptureMovieFileOutput()
     private var timer: Timer?
+    private var recordingRequest: CameraCaptureRequests.Request?
 
     /// 用户意图与麦克风归属都记在这里，具体动作由本类执行（见文件末尾的
     /// CameraSessionControl 一节）。拆开是为了让判定能被单测钉住。
@@ -64,8 +74,14 @@ final class CameraService: NSObject {
         // 都会各自 start() 一次，漏一处就是一张带权限弹窗的截图。
         if Shot.isOn { return }
 #endif
-        guard await ensureAuthorized(.video) else {
+        let intent = startIntent.begin()
+        recovery.desiredRunning = true
+        let authorized = await ensureAuthorized(.video)
+        guard startIntent.accepts(intent) else { return }
+        guard !Task.isCancelled else { stop(); return }
+        guard authorized else {
             permissionDenied = true
+            recovery.desiredRunning = false
             return
         }
         // 去系统设置里把权限打开再回来：拒绝态要能自愈，不能一直停在提示页
@@ -73,11 +89,14 @@ final class CameraService: NSObject {
         // 意图先落：中断结束与媒体服务重置都只按它决定要不要把相机点亮
         recovery.desiredRunning = true
         await configureIfNeeded()
-        guard !AudioRecorderService.shared.isRecording, !AudioRecorderService.shared.isBusy else { return }
+        guard startIntent.accepts(intent) else { return }
+        guard !Task.isCancelled, !AudioRecorderService.shared.isRecording,
+              !AudioRecorderService.shared.isBusy else { stop(); return }
         startRunning()
     }
 
     func stop() {
+        startIntent.stop()
         recovery.desiredRunning = false
         stopRunning()
     }
@@ -152,12 +171,13 @@ final class CameraService: NSObject {
         guard !configured else { return }
         configured = true
 
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+        device = await withCheckedContinuation { cont in
             sessionQueue.async { [session, photoOutput, movieOutput] in
-                Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput)
-                cont.resume()
+                cont.resume(returning: Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput))
             }
         }
+        if let device { rotation = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil) }
+        configurationRevision += 1
     }
 
     /// 在 sessionQueue 上跑。首次配置与重置后的重建共用这一份——
@@ -166,7 +186,7 @@ final class CameraService: NSObject {
         session: AVCaptureSession,
         photoOutput: AVCapturePhotoOutput,
         movieOutput: AVCaptureMovieFileOutput
-    ) {
+    ) -> AVCaptureDevice? {
         session.beginConfiguration()
         session.sessionPreset = .high
 
@@ -182,6 +202,7 @@ final class CameraService: NSObject {
         if session.canAddOutput(movieOutput) { session.addOutput(movieOutput) }
 
         session.commitConfiguration()
+        return session.inputs.compactMap { $0 as? AVCaptureDeviceInput }.first { $0.device.hasMediaType(.video) }?.device
     }
 
     /// 麦克风按需申请：只拍照的用户不该被要求授权录音。
@@ -202,25 +223,45 @@ final class CameraService: NSObject {
     // MARK: - 采集
 
     func shoot() {
-        guard !isRecording else { return }
+        guard !isRecording, !isCapturingPhoto else { return }
         let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
         settings.photoQualityPrioritization = .quality
+        photoRequests.begin(id: settings.uniqueID, at: Date(), completed: onCaptured, failed: onError)
+        let angle = rotation?.videoRotationAngleForHorizonLevelCapture ?? 90
         sessionQueue.async { [photoOutput, weak self] in
             guard let self else { return }
+            guard let connection = photoOutput.connection(with: .video), connection.isActive else {
+                Task { @MainActor in
+                    self.photoRequests.take(id: settings.uniqueID)?.failed?(tr("error.captureNoData"))
+                }
+                return
+            }
+            if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
             photoOutput.capturePhoto(with: settings, delegate: self)
         }
     }
 
     func toggleRecording() async {
+        guard !isStartingRecording else { return }
         if isRecording {
-            movieOutput.stopRecording()
+            sessionQueue.async { [movieOutput] in movieOutput.stopRecording() }
             return
         }
+        isStartingRecording = true
+        defer { isStartingRecording = false }
+        let intent = startIntent.generation
+        let request = CameraCaptureRequests.Request(capturedAt: Date(), completed: onCaptured, failed: onError)
         await addMicIfNeeded()
+        guard startIntent.accepts(intent), !Task.isCancelled else { releaseMicrophone(); return }
+        recordingRequest = request
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("rec-\(UUID().uuidString).mov")
+        let angle = rotation?.videoRotationAngleForHorizonLevelCapture ?? 90
         sessionQueue.async { [movieOutput, weak self] in
             guard let self else { return }
+            if let connection = movieOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
+            }
             movieOutput.startRecording(to: url, recordingDelegate: self)
         }
         isRecording = true
@@ -253,12 +294,17 @@ extension CameraService: CameraSessionControl {
     /// configured 保持 true：这一次调用本身就是一次完整的重新配置。
     func reconfigure() {
         configured = true
-        sessionQueue.async { [session, photoOutput, movieOutput] in
+        sessionQueue.async { [session, photoOutput, movieOutput, weak self] in
             session.beginConfiguration()
             session.inputs.forEach(session.removeInput)
             session.outputs.forEach(session.removeOutput)
             session.commitConfiguration()
-            Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput)
+            let device = Self.applyConfiguration(session: session, photoOutput: photoOutput, movieOutput: movieOutput)
+            Task { @MainActor [weak self] in
+                self?.device = device
+                self?.rotation = device.map { AVCaptureDevice.RotationCoordinator(device: $0, previewLayer: nil) }
+                self?.configurationRevision += 1
+            }
         }
     }
 
@@ -297,22 +343,29 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
     ) {
-        // 旧实现在这里 `guard error == nil ... else { return }`，一声不吭地把失败丢掉：
-        // 界面上就是「按了快门，计数不动，也没有任何报错」（dev-board#461 的症状之一）。
-        if let error {
-            cameraLog.error("photo capture failed: \(error.localizedDescription, privacy: .public)")
-            let message = tr("error.captureFailed", ["reason": error.localizedDescription])
-            Task { @MainActor [weak self] in self?.onError?(message) }
-            return
-        }
-        guard let data = photo.fileDataRepresentation() else {
-            cameraLog.error("photo capture produced no data")
-            Task { @MainActor [weak self] in self?.onError?(tr("error.captureNoData")) }
-            return
-        }
-        let at = Date()
+        let id = photo.resolvedSettings.uniqueID
+        let data = photo.fileDataRepresentation()
+        let message = error?.localizedDescription
         Task { @MainActor [weak self] in
-            self?.onCaptured?(data, .photo, at)
+            guard let request = self?.photoRequests.take(id: id) else { return }
+            if let message {
+                request.failed?(tr("error.captureFailed", ["reason": message]))
+            } else if let data {
+                request.completed?(data, .photo, request.capturedAt)
+            } else {
+                request.failed?(tr("error.captureNoData"))
+            }
+        }
+    }
+
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput,
+                                didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings,
+                                error: Error?) {
+        guard let error else { return }
+        let id = resolvedSettings.uniqueID
+        let message = error.localizedDescription
+        Task { @MainActor [weak self] in
+            self?.photoRequests.take(id: id)?.failed?(tr("error.captureFailed", ["reason": message]))
         }
     }
 }
@@ -324,8 +377,8 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
         from connections: [AVCaptureConnection],
         error: Error?
     ) {
-        let at = Date()
         let data = try? Data(contentsOf: outputFileURL, options: .mappedIfSafe)
+        let message = error?.localizedDescription
         try? FileManager.default.removeItem(at: outputFileURL)
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -333,7 +386,11 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
             self.timer?.invalidate()
             self.timer = nil
             self.recordingSeconds = 0
-            if error == nil, let data { self.onCaptured?(data, .video, at) }
+            let request = self.recordingRequest
+            self.recordingRequest = nil
+            if let message { request?.failed?(tr("error.videoFailed", ["reason": message])) }
+            else if let data, let request { request.completed?(data, .video, request.capturedAt) }
+            else { request?.failed?(tr("error.videoNoData")) }
         }
     }
 }
@@ -344,17 +401,38 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
 /// 这样 layer 会自动跟随 view 的 bounds，旋转和分屏都不用自己处理。
 struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    var device: AVCaptureDevice? = nil
+    var revision = 0
 
     func makeUIView(context: Context) -> PreviewView {
         let v = PreviewView()
         v.previewLayer.session = session
-        v.previewLayer.videoGravity = .resizeAspectFill
+        v.previewLayer.videoGravity = .resizeAspect
+        v.track(device, revision: revision)
         return v
     }
 
-    func updateUIView(_ uiView: PreviewView, context: Context) {}
+    func updateUIView(_ uiView: PreviewView, context: Context) { uiView.track(device, revision: revision) }
 
     final class PreviewView: UIView {
+        private var rotation: AVCaptureDevice.RotationCoordinator?
+        private var observation: NSKeyValueObservation?
+        private var revision = -1
+        func track(_ device: AVCaptureDevice?, revision: Int) {
+            guard let device else { observation = nil; rotation = nil; return }
+            guard rotation?.device !== device || self.revision != revision else { return }
+            self.revision = revision
+            rotation = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: previewLayer)
+            observation = rotation?.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.initial, .new]) { [weak self] coordinator, _ in
+                let angle = coordinator.videoRotationAngleForHorizonLevelPreview
+                Task { @MainActor [weak self] in
+                    guard let connection = self?.previewLayer.connection,
+                          connection.isVideoRotationAngleSupported(angle) else { return }
+                    connection.videoRotationAngle = angle
+                }
+            }
+        }
+
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
         var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
     }
