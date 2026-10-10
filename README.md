@@ -106,9 +106,9 @@ docs/specs/              设计文档
 
 ## 许可与商标
 
-本仓库是 AI WorkDeck 一揽子开源项目的一部分，与内核仓库 [zeweihan/aiworkdeck](https://github.com/zeweihan/aiworkdeck) 遵循同一套安排：
+本仓库是 AI WorkDeck 一揽子开源项目的一部分，与内核仓库 [AI-WorkDeck/aiworkdeck](https://github.com/AI-WorkDeck/aiworkdeck) 遵循同一套安排：
 
-- 代码以 **GNU AGPLv3** 发布（见 [LICENSE](LICENSE)）；商业许可由北京京微资易科技有限公司（海外发行：真善美承泽有限公司 Zhen Shan Mei Grace Legacy Limited）另行提供，见内核仓库的 [COMMERCIAL-LICENSE.md](https://github.com/zeweihan/aiworkdeck/blob/master/legal/COMMERCIAL-LICENSE.md)。
-- 贡献适用内核仓库的 [CLA](https://github.com/zeweihan/aiworkdeck/blob/master/legal/CLA.md)（对贡献内容的双许可再授权集中于公司主体）。
-- 商标：AI WorkDeck 标识（K 形图形）已在中国注册（第 9 类）；「AI WorkDeck」文字为商号与未注册商标（™），受反不正当竞争法保护——见 [TRADEMARKS.md](https://github.com/zeweihan/aiworkdeck/blob/master/legal/TRADEMARKS.md)。
-- 治理与社区：见内核仓库 [GOVERNANCE.md](https://github.com/zeweihan/aiworkdeck/blob/master/GOVERNANCE.md)。
+- 代码以 **GNU AGPLv3** 发布（见 [LICENSE](LICENSE)）；商业许可由北京京微资易科技有限公司（海外发行：真善美承泽有限公司 Zhen Shan Mei Grace Legacy Limited）另行提供，见内核仓库的 [COMMERCIAL-LICENSE.md](https://github.com/AI-WorkDeck/aiworkdeck/blob/master/legal/COMMERCIAL-LICENSE.md)。
+- 贡献适用内核仓库的 [CLA](https://github.com/AI-WorkDeck/aiworkdeck/blob/master/legal/CLA.md)（对贡献内容的双许可再授权集中于公司主体）。
+- 商标：AI WorkDeck 标识（K 形图形）已在中国注册（第 9 类）；「AI WorkDeck」文字为商号与未注册商标（™），受反不正当竞争法保护——见 [TRADEMARKS.md](https://github.com/AI-WorkDeck/aiworkdeck/blob/master/legal/TRADEMARKS.md)。
+- 治理与社区：见内核仓库 [GOVERNANCE.md](https://github.com/AI-WorkDeck/aiworkdeck/blob/master/GOVERNANCE.md)。
