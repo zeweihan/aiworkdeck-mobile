@@ -48,14 +48,17 @@ struct HomeView: View {
         }
         .background(T.D.bg.ignoresSafeArea())
         .task {
-            let captureProject = model.selectedProject
-            camera.onCaptured = { data, kind, at in
-                let loc = stamper.last
-                Task { await model.store(data: data, kind: kind, at: at, location: loc, project: captureProject) }
-            }
             // 采集失败与落库失败走同一个字段：失败必须有个落点，不能只留在日志里
             camera.onError = { msg in model.lastError = msg }
+#if DEBUG
+            // Recording/navigation fixtures do not need real location services.
+            // Keep the host simulator's location daemon out of these isolated tests.
+            if !WorkspaceUITestSeed.isOn && !ProcessInfo.processInfo.arguments.contains("-AWDRecordingUITest") {
+                stamper.begin()
+            }
+#else
             stamper.begin()
+#endif
 #if DEBUG
             // 截图模式不点相机、不录音：模拟器没有摄像头，权限弹窗还会挡住画面。
             // 第 6 屏要的是「录音进行中」的首页，直接把录音的展示状态摆出来。
@@ -131,6 +134,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(tr("home.settings"))
+                .accessibilityIdentifier("capture.settings")
             }
 
             Text(model.project.name)
@@ -439,6 +443,16 @@ struct HomeView: View {
         .accessibilityHint(tr("home.queue.a11yHint"))
     }
 
+    /// CameraCaptureRequests snapshots this callback at shutter time. Returning
+    /// from Settings can change the next destination without rewriting a capture.
+    private func bindCaptureDestination() {
+        let captureProject = model.selectedProject
+        camera.onCaptured = { data, kind, at in
+            let loc = stamper.last
+            Task { await model.store(data: data, kind: kind, at: at, location: loc, project: captureProject) }
+        }
+    }
+
     private var shutter: some View {
         Button {
             if recorder.isRecording {
@@ -447,9 +461,11 @@ struct HomeView: View {
             }
             switch mode {
             case .photo:
+                bindCaptureDestination()
                 camera.shoot()
                 flash()
             case .video:
+                if !camera.isRecording { bindCaptureDestination() }
                 Task { await camera.toggleRecording() }
             case .audio:
                 Task { await recorder.toggle(project: model.selectedProject, location: stamper.last) }

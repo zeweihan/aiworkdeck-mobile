@@ -61,7 +61,7 @@ final class AppModel {
 
     // MARK: - 账号
 
-    /// 选中的归档目标。nil = 还没选，界面走项目选择页。
+    /// 选中的归档目标。nil = 即时采集，资料保留在未归类。
     /// 存 UserDefaults 就够——项目条目不是凭据，泄露它没有意义。
     /// （旧版存的是 Int 型云端项目 id，键 selectedProjectId；目录镜像的 key 是
     /// 桌面机本地 id，两个命名空间不通，升级后旧选择一律作废、回到选择页。）
@@ -89,7 +89,7 @@ final class AppModel {
 #if DEBUG
         if WorkspaceUITestSeed.isOn { return }
 #endif
-        await UploadQueue.shared.configure(project: p) { [weak self] in
+        await UploadQueue.shared.configure() { [weak self] in
             await self?.refresh()
         }
         kickUpload()
@@ -116,15 +116,22 @@ final class AppModel {
         }
     }
 
-    /// 切项目：清掉选择回到选择页。已拍的影像各自记着自己的项目，切项目不改变它们的去向。
-    func clearProjectSelection() {
+    func captureWithoutProject() {
         selectedProject = nil
+        project = FieldProject(id: "local", name: tr("project.none"),
+                               archivePath: tr("archive.path", ["date": AppModel.today]))
+    }
+
+    func move(_ item: CaptureItem, to project: RelayProject) async throws {
+        try await EvidenceStore.shared.moveToProject(item.id, project)
+        await refresh()
+        kickUpload()
     }
 
     /// 登录页切账号区域（dev-board#837）。两个区域是两套账号体系：上一区域的项目目录是另一个
     /// 账号的桌面端推上来的，拿到新区域用等于把新拍的影像寻址到一台新账号不认识的电脑上。
     /// 所以切区域时把跟上一账号项目目录挂钩的状态全部清掉——已选项目（含持久化）、首页项目名、
-    /// 中转区到期表、上传队列给旧记录兜底用的目标项目——登录新区域后一定先落到项目选择页。
+    /// 中转区到期表；未归类资料不会自动匹配到新区域的项目。
     /// 已拍影像各自记着拍摄时的项目，不动（队列行为见报告，沿用现状）。
     func switchRegion(to region: AccountRegion) {
         closeWorkspaceFiles()
@@ -134,11 +141,6 @@ final class AppModel {
         project = FieldProject(id: "local", name: tr("project.none"),
                                archivePath: tr("archive.path", ["date": AppModel.today]))
         cloudExpiry = [:]
-        Task {
-            await UploadQueue.shared.configure(project: nil) { [weak self] in
-                await self?.refresh()
-            }
-        }
     }
 
     /// 用户在图集里多选删除：原图与记录一起删。
@@ -221,6 +223,7 @@ final class AppModel {
             account = Shot.account
             selectedProject = nil
             filesClient = WorkspaceUITestSeed()
+            AudioRecorderService.shared.onStored = { [weak self] in await self?.refresh() }
             items = []
             didRestore = true
             return
@@ -257,10 +260,8 @@ final class AppModel {
             selectedProject = saved
             project = FieldProject(id: saved.id, name: saved.name,
                                    archivePath: tr("archive.path", ["date": AppModel.today]))
-            await UploadQueue.shared.configure(project: saved) { [weak self] in
-                await self?.refresh()
-            }
         }
+        await UploadQueue.shared.configure() { [weak self] in await self?.refresh() }
         AudioRecorderService.shared.onStored = { [weak self] in
             await self?.refresh()
             self?.kickUpload()
@@ -270,7 +271,7 @@ final class AppModel {
         try? await EvidenceStore.shared.sweepOrphans()
         await refresh()
         // 上次没传完的，启动就接着传；停在中转区的顺手查一次回执
-        if selectedProject != nil {
+        if isSignedIn {
             await UploadQueue.shared.kick()
             cloudExpiry = await UploadQueue.shared.checkDelivered()
             await refresh()
@@ -280,7 +281,7 @@ final class AppModel {
         Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
-                await UploadQueue.shared.autoKick()
+                if self.isSignedIn { await UploadQueue.shared.autoKick() }
             }
         }
     }

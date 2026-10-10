@@ -15,7 +15,7 @@ struct WorkspaceView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private enum Route: String, Identifiable {
-        case capture, queue, settings, probe
+        case capture, library, queue, settings, probe
         var id: String { rawValue }
     }
 
@@ -34,6 +34,7 @@ struct WorkspaceView: View {
                             if let device = project.deviceName {
                                 Text(device).font(.caption).foregroundStyle(.secondary)
                             }
+                            Text(project.identityCaption).font(.caption2).foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityIdentifier("workspace.project.\(project.key)")
@@ -46,6 +47,16 @@ struct WorkspaceView: View {
             .navigationTitle(tr("workspace.title"))
             .refreshable { await load() }
             .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button {
+                        if !AudioRecorderService.shared.isRecording && !AudioRecorderService.shared.isBusy { model.captureWithoutProject() }
+                        route = .capture
+                    } label: { Label(tr("workspace.quickCapture"), systemImage: "mic") }
+                    .accessibilityIdentifier("workspace.quickCapture")
+                    Spacer()
+                    Button { route = .library } label: { Label(tr("library.open"), systemImage: "photo.on.rectangle") }
+                        .accessibilityIdentifier("workspace.library")
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button { route = .settings } label: { Image(systemName: "slider.horizontal.3") }
                         .accessibilityLabel(tr("home.settings"))
@@ -71,7 +82,7 @@ struct WorkspaceView: View {
                         }
                     }
             } else {
-                ContentUnavailableView(tr("workspace.choose"), systemImage: "folder", description: Text(tr("workspace.desktopHint")))
+                ContentUnavailableView(tr("workspace.choose"), systemImage: "folder", description: Text(tr("workspace.unassignedHint")))
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -84,6 +95,8 @@ struct WorkspaceView: View {
             switch route {
             case .capture:
                 CaptureFlowView(onClose: { self.route = nil }).environment(model)
+            case .library:
+                LibraryView(onClose: { self.route = nil }).environment(model)
             case .queue:
                 QueueView(onClose: { self.route = nil }).environment(model)
             case .settings:

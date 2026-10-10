@@ -86,7 +86,7 @@ test('没记项目的件归未知项目，当前项目为空时也列出来', ()
 
   // 「未知项目」不特殊照顾，和别的项目一起按名称排（码点上「未」在「案」前）
   assert.deepEqual(projectsIn(items, null), [
-    { id: UNKNOWN_PROJECT, name: '未知项目' },
+    { id: UNKNOWN_PROJECT, name: '未归类' },
     { id: 'd1:k1', name: '案 A' },
   ])
 })

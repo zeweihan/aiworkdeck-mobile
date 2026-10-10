@@ -11,7 +11,7 @@ class L10nTest {
     @After fun resetLocale() { L10n.locale = "zh-Hans" }
 
     @Test fun substitutesPlaceholders() {
-        assertEquals("未知项目", tr("library.unknownProject"))
+        assertEquals("未归类", tr("library.unknownProject"))
         assertEquals("9月2日 · 3 件", tr("library.dayTitle", mapOf("m" to 9, "d" to 2, "n" to 3)))
     }
 
@@ -36,8 +36,8 @@ class L10nTest {
 
     @Test fun localeSwitchesToEnglishAndBack() {
         L10n.locale = "en"
-        assertEquals("Unknown project", tr("library.unknownProject"))
+        assertEquals("Unassigned", tr("library.unknownProject"))
         L10n.locale = "zh-Hans"
-        assertEquals("未知项目", tr("library.unknownProject"))
+        assertEquals("未归类", tr("library.unknownProject"))
     }
 }

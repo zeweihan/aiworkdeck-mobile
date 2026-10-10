@@ -36,7 +36,7 @@ class LibraryGroupingTest {
         val choices = LibraryGrouping.projectsIn(items, current)
 
         assertEquals(current.id, choices[0].id)
-        assertTrue(choices.any { it.id == "unknown" && it.name == "未知项目" })
+        assertTrue(choices.any { it.id == "unknown" && it.name == "未归类" })
         assertTrue(choices.any { it.id == other.id })
     }
 
