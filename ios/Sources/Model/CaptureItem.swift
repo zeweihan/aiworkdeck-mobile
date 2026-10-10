@@ -104,8 +104,12 @@ struct CaptureItem: Identifiable, Sendable {
     /// 是否已存进系统相册（开关打开时）。避免重复写入相册。
     var savedToAlbum: Bool
     /// 归档去向。拍摄那一刻的选中项目，之后切项目不影响它。
-    /// 旧记录没有这个字段（nil），上传时用当时的选中项目并写回。
+    /// nil 表示未归类，等待用户显式指定。
     let project: RelayProject?
+    /// Even a failed request may have reached the server. Never silently reroute
+    /// its idempotency key after the first upload attempt.
+    var uploadAttempted = false
+    var canMoveToProject: Bool { !uploadAttempted && (state == .waiting || state == .failed) }
 
     var capturedAt: Date { manifest.capturedAt }
 

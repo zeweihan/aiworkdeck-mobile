@@ -98,7 +98,7 @@ object ContractStrings {
         "error.unauthorized" to mapOf("zh-Hans" to "登录已失效，请重新登录", "en" to "Session expired. Please sign in again."),
         "error.network" to mapOf("zh-Hans" to "网络不通，稍后再试", "en" to "Network unreachable. Try again shortly."),
         "error.uploadFailed" to mapOf("zh-Hans" to "上传失败（{code}）", "en" to "Upload failed ({code})"),
-        "library.unknownProject" to mapOf("zh-Hans" to "未知项目", "en" to "Unknown project"),
+        "library.unknownProject" to mapOf("zh-Hans" to "未归类", "en" to "Unassigned"),
         "library.dayTitle" to mapOf("zh-Hans" to "{m}月{d}日 · {n} 件", "en" to "{m}/{d} · {n} items"),
         "library.empty" to mapOf("zh-Hans" to "这个项目还没有拍摄的影像", "en" to "No captures in this project yet"),
         "library.otherPending" to mapOf("zh-Hans" to "其他项目还有 {n} 件未落盘，切换项目后可见。", "en" to "{n} items in other projects have not landed yet. Switch projects to see them."),
@@ -265,5 +265,13 @@ object ContractStrings {
         "workspace.balanceUnknown" to mapOf("zh-Hans" to "余额暂不可用", "en" to "Balance unavailable"),
         "workspace.fileDetails" to mapOf("zh-Hans" to "文件详情", "en" to "File details"),
         "dual.prototype.limitations" to mapOf("zh-Hans" to "仅验证通用前后摄；固定竖向输出，Duo 方向切换尚未验证", "en" to "Generic front/back only; fixed portrait output; Duo direction switching is unverified"),
+        "library.move" to mapOf("zh-Hans" to "移动到项目", "en" to "Move to project"),
+        "library.moveHint" to mapOf("zh-Hans" to "选择接收这份资料的桌面项目。项目名称相同时，请核对设备和项目标识。", "en" to "Choose the desktop project for this item. For matching names, check the device and project ID."),
+        "library.moveSynced" to mapOf("zh-Hans" to "这份资料已关联同步目标，请在桌面端整理；正在上传的资料请稍后查看。", "en" to "This item is linked to a sync destination. Organize it on the desktop; if it is uploading, check again later."),
+        "library.moveMissing" to mapOf("zh-Hans" to "资料不存在，请刷新后重试。", "en" to "Item no longer exists. Refresh and try again."),
+        "project.identity" to mapOf("zh-Hans" to "项目标识：{key} · 设备：{device}", "en" to "Project ID: {key} · Device: {device}"),
+        "workspace.quickCapture" to mapOf("zh-Hans" to "立即采集", "en" to "Capture now"),
+        "workspace.unassignedHint" to mapOf("zh-Hans" to "未选项目也可以直接拍照或录音，之后在资料库长按归类。", "en" to "Capture photos or audio without a project, then long-press an item in the library to assign it."),
+        "project.captureInProgress" to mapOf("zh-Hans" to "采集进行中，可以查看项目；请结束当前录音或录像后再切换归档目标。", "en" to "Capture is in progress. You can browse projects; finish the current recording before changing its destination."),
     )
 }

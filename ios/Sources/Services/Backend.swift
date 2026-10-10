@@ -167,6 +167,7 @@ struct RelayProject: Decodable, Identifiable, Hashable, Sendable, Encodable {
     let name: String
 
     var id: String { deviceId + ":" + key }
+    var identityCaption: String { tr("project.identity", ["key": key, "device": deviceId]) }
 }
 
 struct CodeOnly: Decodable {

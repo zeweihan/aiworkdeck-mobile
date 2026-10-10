@@ -13,7 +13,7 @@ final class LibraryGroupingTests: XCTestCase {
         ]
         let ps = LibraryGrouping.projects(in: items, current: a)
         XCTAssertEqual(ps.map(\.id), [a.id, b.id, LibraryProject.unknownID])
-        XCTAssertEqual(ps.last?.name, "未知项目")
+        XCTAssertEqual(ps.last?.name, tr("library.unknownProject"))
     }
 
     func testProjectsIncludesCurrentEvenWithoutItems() {

@@ -1,6 +1,70 @@
 import XCTest
 
 final class RecordingFlowTests: XCTestCase {
+    private func allowMicrophoneIfNeeded() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let alert = springboard.alerts.firstMatch
+        if alert.waitForExistence(timeout: 3) {
+            for label in ["Allow", "允许", "OK"] where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return
+            }
+        }
+    }
+
+    @MainActor
+    func testUnassignedRecordingSettingsBackAndMove() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-AWDWorkspaceUITest", "-libraryViewMode", "grid"]
+        app.launch()
+        let capture = app.buttons["workspace.quickCapture"]
+        XCTAssertTrue(capture.waitForExistence(timeout: 10)); capture.tap()
+        app.buttons["capture.mode.audio"].tap()
+        let shutter = app.buttons["capture.shutter"]
+        shutter.tap()
+        allowMicrophoneIfNeeded()
+        expectation(for: NSPredicate(format: "label == %@", "Stop recording"), evaluatedWith: shutter)
+        waitForExpectations(timeout: 30)
+        let before = app.staticTexts["recording.elapsed"].label
+        app.buttons["capture.settings"].tap()
+        app.buttons["settings.switchProject"].tap()
+        let back = app.buttons["projectPicker.back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
+        XCTAssertTrue(app.buttons["projectPicker.project.alpha"].waitForExistence(timeout: 5))
+        back.tap()
+        app.buttons["settings.close"].tap()
+        XCTAssertTrue(shutter.waitForExistence(timeout: 5))
+        XCTAssertEqual(shutter.label, "Stop recording")
+        XCTAssertNotEqual(app.staticTexts["recording.elapsed"].label, before)
+        shutter.tap()
+        let saved = app.buttons["Recording saved · Open library to play"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 10)); saved.tap()
+        app.segmentedControls.buttons["Audio"].tap()
+        let item = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "library.item.")).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        app.buttons["Select"].tap()
+        item.tap()
+        item.press(forDuration: 1.2)
+        app.buttons["Move to project"].tap()
+        let alpha = app.buttons["projectPicker.project.alpha"]
+        XCTAssertTrue(alpha.waitForExistence(timeout: 5)); alpha.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Alpha project")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Select"].exists)
+        item.tap()
+        let play = app.buttons["media.playback"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: play)
+        waitForExpectations(timeout: 30)
+        play.tap(); XCTAssertTrue(play.label.contains("Pause"))
+        play.tap()
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.lifetime = .keepAlways; add(shot)
+    }
+
     func testBackgroundReturnStopAndPlayFromAudioLibrary() {
         defer { XCUIDevice.shared.orientation = .portrait }
         continueAfterFailure = false
@@ -14,6 +78,7 @@ final class RecordingFlowTests: XCTestCase {
         mode.tap()
         let shutter = app.buttons["capture.shutter"]
         shutter.tap()
+        allowMicrophoneIfNeeded()
         XCTAssertTrue(app.staticTexts["recording.elapsed"].waitForExistence(timeout: 5))
         let stopped = NSPredicate(format: "label == %@", "Stop recording")
         expectation(for: stopped, evaluatedWith: shutter)

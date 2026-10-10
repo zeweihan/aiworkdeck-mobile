@@ -17,7 +17,9 @@ actor EvidenceStore {
 
     /// 沙盒里的根目录。Application Support 不进 iCloud 备份也不被系统清理，
     /// 比 Caches 稳妥——现场照片丢了不可复现。
+    private let rootOverride: URL?
     private lazy var root: URL = {
+        if let rootOverride { return rootOverride }
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("FieldEvidence", isDirectory: true)
         try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -31,7 +33,7 @@ actor EvidenceStore {
     private var mediaDir: URL { root.appendingPathComponent("media", isDirectory: true) }
     private var manifestDir: URL { root.appendingPathComponent("manifest", isDirectory: true) }
 
-    private init() {}
+    init(root: URL? = nil) { self.rootOverride = root }
 
     private func ensureDirs() throws {
         for d in [mediaDir, manifestDir] {
@@ -99,12 +101,26 @@ actor EvidenceStore {
                         project: draft.project, id: draft.id)
     }
 
-    /// 旧记录上传时补记实际去向。只在 project 为 nil 时写，不覆盖已有归属。
-    func setProject(_ id: UUID, _ project: RelayProject) throws {
-        guard let item = try? loadOne(id), item.project == nil else { return }
+    /// Claim and project edits run in one actor without suspension, so an upload
+    /// cannot send a stale destination while the user moves the item.
+    func claimNextUpload() throws -> CaptureItem? {
+        guard var item = try loadAll().last(where: { $0.state == .waiting && $0.project != nil }) else { return nil }
+        item.state = .uploading
+        item.uploadAttempted = true
+        item.progress = 0
+        item.lastError = nil
+        try writeManifest(item)
+        return item
+    }
+
+    func moveToProject(_ id: UUID, _ project: RelayProject) throws {
+        guard let item = try loadOne(id) else { throw APIError(message: tr("library.moveMissing")) }
+        guard item.canMoveToProject else {
+            throw APIError(message: tr("library.moveSynced"))
+        }
         let updated = CaptureItem(
-            id: item.id, kind: item.kind, state: item.state, manifest: item.manifest,
-            localURL: item.localURL, progress: item.progress, lastError: item.lastError,
+            id: item.id, kind: item.kind, state: .waiting, manifest: item.manifest,
+            localURL: item.localURL, progress: 0, lastError: nil,
             savedToAlbum: item.savedToAlbum, project: project)
         try writeManifest(updated)
     }
@@ -182,14 +198,16 @@ actor EvidenceStore {
             progress: row.progress,
             lastError: row.lastError,
             savedToAlbum: row.savedToAlbum ?? false,
-            project: row.project
+            project: row.project,
+            uploadAttempted: row.uploadAttempted ?? (row.project != nil)
         )
     }
 
     private func writeManifest(_ item: CaptureItem) throws {
         let row = StoredRow(kind: item.kind, state: item.state, progress: item.progress,
                             manifest: item.manifest, lastError: item.lastError,
-                            savedToAlbum: item.savedToAlbum, project: item.project)
+                            savedToAlbum: item.savedToAlbum, project: item.project,
+                            uploadAttempted: item.uploadAttempted)
         let u = manifestDir.appendingPathComponent("\(item.id.uuidString).json")
         try JSONEncoder.iso.encode(row).write(to: u, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
@@ -223,8 +241,9 @@ private struct StoredRow: Codable {
     // 后加的两个字段用可选 + 默认值：老记录没有它们，解码不能因此整条失败
     var lastError: String?
     var savedToAlbum: Bool?
-    /// 归档去向。老记录没有——上传时补记（见 setProject）。
+    /// 归档去向。未归类记录等待用户手动指定。
     var project: RelayProject?
+    var uploadAttempted: Bool?
 }
 
 struct DeviceFacts: Sendable, Codable {

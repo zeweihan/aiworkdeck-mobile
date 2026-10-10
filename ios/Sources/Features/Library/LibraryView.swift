@@ -22,6 +22,8 @@ struct LibraryView: View {
     @State private var confirmDelete = false
     @State private var viewer: ViewerTarget?
     @State private var appeared = false
+    @State private var movingItem: CaptureItem?
+    @State private var moveError: String?
 
     /// 全屏看大图的目标：同一天的件 + 起始下标。
     private struct ViewerTarget: Identifiable {
@@ -87,6 +89,17 @@ struct LibraryView: View {
         .fullScreenCover(item: $viewer) { target in
             ViewerView(items: target.items, index: target.index) { viewer = nil }
         }
+        .sheet(item: $movingItem) { item in
+            ProjectPickerView(onClose: { movingItem = nil }, onSelect: { target in
+                try await model.move(item, to: target)
+                selected = []
+                selecting = false
+                if fixedProject == nil { viewingID = target.id }
+            }).environment(model).preferredColorScheme(.light)
+        }
+        .alert(tr("library.move"), isPresented: Binding(get: { moveError != nil }, set: { if !$0 { moveError = nil } })) {
+            Button(tr("common.ok"), role: .cancel) { moveError = nil }
+        } message: { Text(moveError ?? "") }
         // 用 alert 不用 confirmationDialog：后者在 iOS 26 模拟器上把「取消」画丢了，
         // 删除这种事两个按钮必须都看得见
         .alert(tr("delete.title", ["n": String(selected.count)]), isPresented: $confirmDelete) {
@@ -162,6 +175,7 @@ struct LibraryView: View {
             .overlay { if selecting { selectionMark(checked) } }
             .contentShape(Rectangle())
             .onTapGesture { if selecting { toggle(item.id) } else { open(item, in: day) } }
+            .contextMenu { moveButton(item) }
             .accessibilityElement()
             .accessibilityIdentifier("library.item.\(item.id)")
             .accessibilityLabel(
@@ -246,6 +260,15 @@ struct LibraryView: View {
         .padding(.vertical, T.Sp.s3)
         .contentShape(Rectangle())
         .onTapGesture { if selecting { toggle(item.id) } else { open(item, in: day) } }
+        .contextMenu { moveButton(item) }
+        .accessibilityIdentifier("library.item.\(item.id)")
+    }
+
+    private func moveButton(_ item: CaptureItem) -> some View {
+        Button {
+            if item.canMoveToProject { movingItem = item }
+            else { moveError = tr("library.moveSynced") }
+        } label: { Label(tr("library.move"), systemImage: "folder") }
     }
 
     private var emptyState: some View {

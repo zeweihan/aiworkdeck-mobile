@@ -96,7 +96,7 @@ enum ContractStrings {
         "error.unauthorized": ["zh-Hans": "登录已失效，请重新登录", "en": "Session expired. Please sign in again."],
         "error.network": ["zh-Hans": "网络不通，稍后再试", "en": "Network unreachable. Try again shortly."],
         "error.uploadFailed": ["zh-Hans": "上传失败（{code}）", "en": "Upload failed ({code})"],
-        "library.unknownProject": ["zh-Hans": "未知项目", "en": "Unknown project"],
+        "library.unknownProject": ["zh-Hans": "未归类", "en": "Unassigned"],
         "library.dayTitle": ["zh-Hans": "{m}月{d}日 · {n} 件", "en": "{m}/{d} · {n} items"],
         "library.empty": ["zh-Hans": "这个项目还没有拍摄的影像", "en": "No captures in this project yet"],
         "library.otherPending": ["zh-Hans": "其他项目还有 {n} 件未落盘，切换项目后可见。", "en": "{n} items in other projects have not landed yet. Switch projects to see them."],
@@ -263,5 +263,13 @@ enum ContractStrings {
         "workspace.balanceUnknown": ["zh-Hans": "余额暂不可用", "en": "Balance unavailable"],
         "workspace.fileDetails": ["zh-Hans": "文件详情", "en": "File details"],
         "dual.prototype.limitations": ["zh-Hans": "仅验证通用前后摄；固定竖向输出，Duo 方向切换尚未验证", "en": "Generic front/back only; fixed portrait output; Duo direction switching is unverified"],
+        "library.move": ["zh-Hans": "移动到项目", "en": "Move to project"],
+        "library.moveHint": ["zh-Hans": "选择接收这份资料的桌面项目。项目名称相同时，请核对设备和项目标识。", "en": "Choose the desktop project for this item. For matching names, check the device and project ID."],
+        "library.moveSynced": ["zh-Hans": "这份资料已关联同步目标，请在桌面端整理；正在上传的资料请稍后查看。", "en": "This item is linked to a sync destination. Organize it on the desktop; if it is uploading, check again later."],
+        "library.moveMissing": ["zh-Hans": "资料不存在，请刷新后重试。", "en": "Item no longer exists. Refresh and try again."],
+        "project.identity": ["zh-Hans": "项目标识：{key} · 设备：{device}", "en": "Project ID: {key} · Device: {device}"],
+        "workspace.quickCapture": ["zh-Hans": "立即采集", "en": "Capture now"],
+        "workspace.unassignedHint": ["zh-Hans": "未选项目也可以直接拍照或录音，之后在资料库长按归类。", "en": "Capture photos or audio without a project, then long-press an item in the library to assign it."],
+        "project.captureInProgress": ["zh-Hans": "采集进行中，可以查看项目；请结束当前录音或录像后再切换归档目标。", "en": "Capture is in progress. You can browse projects; finish the current recording before changing its destination."],
     ]
 }

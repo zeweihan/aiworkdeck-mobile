@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var usage: API.MediaUsage?
     @State private var balanceState: BalanceState = .unknown
     @State private var showRecharge = false
+    @State private var showProjects = false
 
     /// 本端走内购（契约 capabilities.recharge = "iap"）。取这个值而不是写死 true：
     /// 契约改成别的通道时这一行会跟着变，界面不会偷偷留着一个错的入口。
@@ -82,11 +83,8 @@ struct SettingsView: View {
                     group(tr("settings.archiveTarget")) {
                         infoRow(tr("home.eyebrow"), model.project.name)
                         infoRow(tr("settings.relay"), usageCaption)
-                        // 必须跟着关设置页：clearProjectSelection() 会把 RootView 从
-                        // signedIn 切到项目选择页，也就是把这层 fullScreenCover 的呈现方
-                        // 整个撤掉。route 留在 .settings 不清，等重新选完项目、HomeView
-                        // 回来的那一刻设置页会自己再弹一次（dev-board#418）。
-                        Button(tr("settings.switchProject")) { model.clearProjectSelection(); onClose() }
+                        Button(tr("settings.switchProject")) { showProjects = true }
+                            .accessibilityIdentifier("settings.switchProject")
                             .font(T.F.small())
                             .foregroundStyle(T.L.accent)
                             .frame(minHeight: T.touchMin, alignment: .leading)
@@ -156,7 +154,12 @@ struct SettingsView: View {
             .navigationTitle(tr("home.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button(tr("common.close"), action: onClose) }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(tr("common.close"), action: onClose).accessibilityIdentifier("settings.close")
+                }
+            }
+            .sheet(isPresented: $showProjects) {
+                ProjectPickerView(onClose: { showProjects = false }).environment(model)
             }
             // 充值回来重拉一次余额：刚充的钱要在这一行上看得见，否则用户不知道到没到账
             .sheet(isPresented: $showRecharge, onDismiss: { Task { await loadBalance() } }) {

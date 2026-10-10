@@ -1,44 +1,65 @@
 import SwiftUI
 
-/// 选归档目标。登录后必走一次——不选项目就不知道照片该往哪去，
-/// 与其让人先拍完再问，不如进门就定。
+/// Select a capture destination or explicitly assign an existing local item.
 struct ProjectPickerView: View {
     @Environment(AppModel.self) private var model
+
+    var onClose: () -> Void = {}
+    var onSelect: ((RelayProject) async throws -> Void)? = nil
+    @State private var choosing = false
 
     @State private var projects: [RelayProject] = []
     @State private var loading = true
     @State private var error: String?
 
+    private var captureInProgress: Bool {
+        onSelect == nil && (AudioRecorderService.shared.isRecording || AudioRecorderService.shared.isBusy ||
+            CameraService.shared.isRecording || CameraService.shared.isStartingRecording || CameraService.shared.isCapturingPhoto)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                if captureInProgress {
+                    Text(tr("project.captureInProgress"))
+                        .font(T.F.micro()).foregroundStyle(T.L.fgMuted)
+                        .padding(.bottom, T.Sp.s3)
+                }
 
-            if loading {
-                loadingRow
-            } else if let error {
-                errorBlock(error)
-            } else if projects.isEmpty {
-                emptyBlock
-            } else {
-                list
+                if loading {
+                    loadingRow
+                } else if let error {
+                    errorBlock(error)
+                } else if projects.isEmpty {
+                    emptyBlock
+                } else {
+                    list
+                }
+
+                Spacer(minLength: 0)
             }
-
-            Spacer(minLength: 0)
-            footer
+            .padding(.horizontal, T.Sp.gutter)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(T.L.bg)
+            .task { await load() }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(tr("common.back"), action: onClose)
+                        .accessibilityIdentifier("projectPicker.back")
+                }
+            }
+            .disabled(choosing)
         }
-        .padding(.horizontal, T.Sp.gutter)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(T.L.bg)
-        .task { await load() }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: T.Sp.s2) {
             Eyebrow(text: tr("project.eyebrow"))
-            Text(tr("project.title"))
+            Text(tr(onSelect == nil ? "project.title" : "library.move"))
                 .font(T.F.display())
                 .foregroundStyle(T.L.fg)
-            Text(tr("project.hint", ["date": AppModel.today]))
+            Text(onSelect == nil ? tr("project.hint", ["date": AppModel.today]) : tr("library.moveHint"))
                 .font(T.F.micro())
                 .foregroundStyle(T.L.fgFaint)
                 .padding(.top, T.Sp.s1)
@@ -52,7 +73,15 @@ struct ProjectPickerView: View {
             LazyVStack(spacing: 0) {
                 ForEach(projects) { p in
                     Button {
-                        Task { await model.selectProject(p) }
+                        Task {
+                            choosing = true
+                            do {
+                                if let onSelect { try await onSelect(p) }
+                                else { await model.selectProject(p) }
+                                onClose()
+                            } catch { self.error = error.localizedDescription }
+                            choosing = false
+                        }
                     } label: {
                         HStack(spacing: T.Sp.s3) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -65,6 +94,10 @@ struct ProjectPickerView: View {
                                         .font(T.F.nano())
                                         .foregroundStyle(T.L.fgFaint)
                                 }
+                                Text(p.identityCaption)
+                                    .font(T.F.nano())
+                                    .foregroundStyle(T.L.fgFaint)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right")
@@ -75,6 +108,8 @@ struct ProjectPickerView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .disabled(captureInProgress)
+                    .accessibilityIdentifier("projectPicker.project.\(p.key)")
                     Hairline()
                 }
             }
@@ -117,17 +152,6 @@ struct ProjectPickerView: View {
         .frame(minHeight: T.touchMin, alignment: .leading)
     }
 
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Hairline()
-            Button(tr("common.signOut")) { model.signOut() }
-                .font(T.F.small())
-                .foregroundStyle(T.L.fgMuted)
-                .frame(minHeight: T.touchMin)
-        }
-        .padding(.bottom, T.Sp.s4)
-    }
-
     private func load() async {
         loading = true; error = nil
 #if DEBUG
@@ -139,7 +163,7 @@ struct ProjectPickerView: View {
         }
 #endif
         do {
-            projects = try await API.shared.myProjects()
+            projects = try await model.workspaceFiles().projects()
         } catch {
             self.error = error.localizedDescription
         }
